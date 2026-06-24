@@ -1,0 +1,7 @@
+<resources xmlns:tools="http://schemas.android.com/tools">
+    <!-- Thème hôte pour l'activité Compose. Material3 + sans ActionBar.
+         Le rendu réel (couleurs, typo) est géré par VeloxTheme côté Compose. -->
+    <style name="Theme.Velox_client" parent="Theme.Material3.DayNight.NoActionBar">
+        <item name="android:windowBackground">@color/velox_background_light</item>
+    </style>
+</resources>

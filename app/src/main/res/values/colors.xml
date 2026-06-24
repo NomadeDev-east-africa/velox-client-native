@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="black">#FF000000</color>
+    <color name="white">#FFFFFFFF</color>
+
+    <!-- Couleurs Velox (drapeau djiboutien) — miroir XML de ui/theme/Color.kt -->
+    <color name="velox_primary_green">#FF12AD2B</color>
+    <color name="velox_secondary_blue">#FF6AB2E7</color>
+    <color name="velox_accent_red">#FFD7141A</color>
+    <color name="velox_background_light">#FFF8F9FA</color>
+    <color name="velox_background_dark">#FF121212</color>
+
+    <!-- Vert néon « Kinetic Monolith » — teinte de la silhouette des notifications. -->
+    <color name="velox_green">#FF9FFF88</color>
+</resources>
