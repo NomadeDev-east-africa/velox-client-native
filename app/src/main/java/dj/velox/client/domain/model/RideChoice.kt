@@ -28,13 +28,13 @@ data class RideChoice(
  */
 object TaxiCatalog {
     val choices: List<RideChoice> = listOf(
-        // Tarifs alignés sur mock_taxi_data.dart (Flutter).
+        // 2 véhicules seulement (demande client) : prix de base 500 / 650 FDJ.
         RideChoice(
             id = "standard",
             name = "Taxi Standard",
             type = RideType.STANDARD,
             seats = 4,
-            basePrice = 200.0,
+            basePrice = 500.0,
             pricePerKm = 50.0,
             estimatedArrivalTime = "5 min",
             description = "Économique et rapide",
@@ -44,22 +44,11 @@ object TaxiCatalog {
             name = "Taxi Confort",
             type = RideType.COMFORT,
             seats = 4,
-            basePrice = 300.0,
+            basePrice = 650.0,
             pricePerKm = 70.0,
             estimatedArrivalTime = "7 min",
             description = "Plus de confort",
             features = listOf("Climatisation"),
-        ),
-        RideChoice(
-            id = "van",
-            name = "Taxi Van",
-            type = RideType.VAN,
-            seats = 7,
-            basePrice = 400.0,
-            pricePerKm = 80.0,
-            estimatedArrivalTime = "10 min",
-            description = "Idéal pour les groupes",
-            features = listOf("7 places"),
         ),
     )
 

@@ -23,9 +23,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.CheckCircle
-import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.DeliveryDining
-import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material.icons.filled.Place
 import androidx.compose.material.icons.filled.Restaurant
 import androidx.compose.material.icons.filled.Timer
@@ -96,7 +94,6 @@ fun OrderTrackingScreen(
             order == null -> LoadingView(c)
             else -> OrderContent(
                 order = order, c = c,
-                onClose = onExit,
                 onCancel = { scope.launch { runCatching { vm.cancelOrder() } } },
                 onConfirmDelivery = onConfirmDelivery,
                 onTrackDriver = onTrackDriver,
@@ -109,7 +106,6 @@ fun OrderTrackingScreen(
 private fun OrderContent(
     order: Order,
     c: VeloxColors,
-    onClose: () -> Unit,
     onCancel: () -> Unit,
     onConfirmDelivery: () -> Unit,
     onTrackDriver: () -> Unit,
@@ -117,18 +113,13 @@ private fun OrderContent(
     var showCancelDialog by remember { mutableStateOf(false) }
 
     Column(Modifier.fillMaxSize()) {
-        // ── Barre supérieure ──
+        // ── Barre supérieure : logo seul (boutons menu/croix retirés) ──
         Row(
             Modifier.fillMaxWidth().background(c.surfaceLow).statusBarsPadding().padding(horizontal = 16.dp, vertical = 10.dp),
+            horizontalArrangement = Arrangement.Center,
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Icon(Icons.Filled.Menu, null, tint = c.primary, modifier = Modifier.size(26.dp))
-            Spacer(Modifier.weight(1f))
             Image(painterResource(R.drawable.logo_velox_bg), "Velox", contentScale = ContentScale.Fit, modifier = Modifier.height(34.dp))
-            Spacer(Modifier.weight(1f))
-            Box(Modifier.size(34.dp).clip(RoundedCornerShape(8.dp)).background(c.surfaceHigh).clickable(onClick = onClose), contentAlignment = Alignment.Center) {
-                Icon(Icons.Filled.Close, stringResource(R.string.close), tint = c.onSurface, modifier = Modifier.size(20.dp))
-            }
         }
 
         Column(Modifier.weight(1f).verticalScroll(rememberScrollState()).padding(16.dp)) {

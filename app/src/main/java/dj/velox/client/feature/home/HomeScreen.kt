@@ -5,7 +5,6 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -105,7 +104,7 @@ fun HomeScreen(
             Header(firstName, profile?.photoUrl ?: session.firebaseUser?.photoUrl?.toString(), c)
             Tagline(c)
             LoyaltyCard(available, badge, c)
-            SectionRow(stringResource(R.string.our_services), stringResource(R.string.see_all), c)
+            SectionRow(stringResource(R.string.our_services), c)
             Column(Modifier.padding(horizontal = 20.dp)) {
                 ServiceCard("VTC DJIB", stringResource(R.string.vtc_subtitle), R.drawable.taxi_b, onOpenTaxi, c)
                 Spacer(Modifier.height(12.dp))
@@ -270,12 +269,11 @@ private fun LoyaltyCard(points: Int, badge: String, c: VeloxColors) {
 
 // ── EN-TÊTE DE SECTION ───────────────────────────────────────────────────────
 @Composable
-private fun SectionRow(title: String, action: String, c: VeloxColors) {
+private fun SectionRow(title: String, c: VeloxColors) {
     Row(
         Modifier
             .fillMaxWidth()
             .padding(start = 20.dp, top = 28.dp, end = 20.dp, bottom = 14.dp),
-        horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Text(
@@ -285,13 +283,6 @@ private fun SectionRow(title: String, action: String, c: VeloxColors) {
             fontSize = 20.sp,
             fontWeight = FontWeight.Bold,
             letterSpacing = (-0.5).sp,
-        )
-        Text(
-            action,
-            color = c.primary,
-            fontFamily = Inter,
-            fontSize = 13.sp,
-            fontWeight = FontWeight.W600,
         )
     }
 }

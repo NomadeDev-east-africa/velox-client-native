@@ -167,11 +167,9 @@ private fun HeaderIcon(icon: ImageVector, cd: String, c: VeloxColors, onClick: (
 private fun SectionHeader(title: String, c: VeloxColors) {
     Row(
         Modifier.fillMaxWidth().padding(horizontal = 20.dp),
-        horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Text(title, color = c.onSurface, fontFamily = Poppins, fontSize = 18.sp, fontWeight = FontWeight.Bold, letterSpacing = (-0.5).sp)
-        Text(stringResource(R.string.see_all).uppercase(), color = c.primary, fontFamily = Inter, fontSize = 10.sp, fontWeight = FontWeight.W700, letterSpacing = 2.sp)
     }
 }
 

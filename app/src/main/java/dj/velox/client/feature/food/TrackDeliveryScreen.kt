@@ -37,6 +37,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import dj.velox.client.R
 import dj.velox.client.domain.model.LatLng
 import dj.velox.client.feature.location.RouteViewModel
+import dj.velox.client.feature.taxi.map.MapMarkerStyle
 import dj.velox.client.feature.taxi.map.VeloxMap
 import dj.velox.client.ui.theme.Inter
 import dj.velox.client.ui.theme.Poppins
@@ -101,6 +102,7 @@ fun TrackDeliveryScreen(
                     routeStart = driverLatLng,
                     routeEnd = state.destination,
                     routePolyline = route?.points,
+                    markerStyle = MapMarkerStyle.DELIVERY,
                     zoom = 15.0,
                     modifier = Modifier.fillMaxSize(),
                 )

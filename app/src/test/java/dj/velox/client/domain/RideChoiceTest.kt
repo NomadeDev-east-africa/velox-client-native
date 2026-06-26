@@ -10,8 +10,8 @@ class RideChoiceTest {
     @Test
     fun `standard price = base + perKm x distance`() {
         val standard = TaxiCatalog.byId("standard")
-        // base 200 + 50/km · 10 km = 700
-        assertEquals(700.0, standard.calculatePrice(10.0), 0.0001)
+        // base 500 + 50/km · 10 km = 1000
+        assertEquals(1000.0, standard.calculatePrice(10.0), 0.0001)
     }
 
     @Test
@@ -21,13 +21,12 @@ class RideChoiceTest {
     }
 
     @Test
-    fun `catalog tariffs match Flutter mock data`() {
+    fun `catalog has exactly two vehicles with client tariffs`() {
+        assertEquals(2, TaxiCatalog.choices.size)
         val standard = TaxiCatalog.byId("standard")
         val comfort = TaxiCatalog.byId("comfort")
-        val van = TaxiCatalog.byId("van")
-        assertEquals(200.0, standard.basePrice, 0.0); assertEquals(50.0, standard.pricePerKm, 0.0)
-        assertEquals(300.0, comfort.basePrice, 0.0); assertEquals(70.0, comfort.pricePerKm, 0.0)
-        assertEquals(400.0, van.basePrice, 0.0); assertEquals(80.0, van.pricePerKm, 0.0)
+        assertEquals(500.0, standard.basePrice, 0.0); assertEquals(50.0, standard.pricePerKm, 0.0)
+        assertEquals(650.0, comfort.basePrice, 0.0); assertEquals(70.0, comfort.pricePerKm, 0.0)
     }
 
     @Test
@@ -37,7 +36,7 @@ class RideChoiceTest {
 
     @Test
     fun `vehicleType is lowercase enum name`() {
-        assertEquals("van", TaxiCatalog.byId("van").vehicleType)
-        assertEquals(RideType.VAN, TaxiCatalog.byId("van").type)
+        assertEquals("standard", TaxiCatalog.byId("standard").vehicleType)
+        assertEquals(RideType.COMFORT, TaxiCatalog.byId("comfort").type)
     }
 }

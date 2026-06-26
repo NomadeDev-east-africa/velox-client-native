@@ -49,7 +49,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
@@ -74,9 +73,6 @@ import dj.velox.client.ui.theme.VeloxColors
 import dj.velox.client.ui.theme.VeloxTheme
 import kotlinx.coroutines.launch
 import kotlin.math.roundToInt
-
-private val GradGreenStart = Color(0xFF9FFF88)
-private val GradGreenEnd = Color(0xFF00FD00)
 
 private data class PayMethod(val value: String, val label: String, val icon: ImageVector)
 private val PAY_METHODS = listOf(
@@ -147,7 +143,7 @@ fun ConfirmRideScreen(
             Column(Modifier.weight(1f).verticalScroll(rememberScrollState())) {
                 // Map
                 Box(Modifier.fillMaxWidth().height(280.dp)) {
-                    VeloxMap(center = mid, routeStart = pickup, routeEnd = destination, routePolyline = route?.points, zoom = 12.0, modifier = Modifier.fillMaxSize())
+                    VeloxMap(center = mid, routeStart = pickup, routeEnd = destination, routePolyline = route?.points, markerStyle = dj.velox.client.feature.taxi.map.MapMarkerStyle.RIDE, zoom = 12.0, modifier = Modifier.fillMaxSize())
                     Row(
                         Modifier.align(Alignment.TopEnd).padding(16.dp).background(c.surfaceTop.copy(alpha = 0.9f)).padding(horizontal = 12.dp, vertical = 6.dp),
                         verticalAlignment = Alignment.CenterVertically,
@@ -232,7 +228,7 @@ fun ConfirmRideScreen(
         // Bouton Confirmer
         Box(Modifier.align(Alignment.BottomCenter).fillMaxWidth().background(c.bg).navigationBarsPadding().padding(horizontal = 24.dp, vertical = 16.dp)) {
             Box(
-                Modifier.fillMaxWidth().height(64.dp).background(Brush.horizontalGradient(listOf(GradGreenStart, GradGreenEnd)))
+                Modifier.fillMaxWidth().height(64.dp).background(c.primary)
                     .clickable(enabled = !ride.isCreating) {
                         val uid = session.firebaseUser?.uid ?: return@clickable
                         scope.launch {
@@ -255,12 +251,12 @@ fun ConfirmRideScreen(
                 contentAlignment = Alignment.Center,
             ) {
                 if (ride.isCreating) {
-                    CircularProgressIndicator(Modifier.size(24.dp), color = Color(0xFF026400), strokeWidth = 2.dp)
+                    CircularProgressIndicator(Modifier.size(24.dp), color = c.onPrimary, strokeWidth = 2.dp)
                 } else {
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text("CONFIRMER", color = Color(0xFF026400), fontFamily = Poppins, fontSize = 20.sp, fontWeight = FontWeight.Black, letterSpacing = 3.sp)
+                        Text("CONFIRMER", color = c.onPrimary, fontFamily = Poppins, fontSize = 20.sp, fontWeight = FontWeight.Black, letterSpacing = 3.sp)
                         Spacer(Modifier.size(12.dp))
-                        Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, null, tint = Color(0xFF026400), modifier = Modifier.size(26.dp))
+                        Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, null, tint = c.onPrimary, modifier = Modifier.size(26.dp))
                     }
                 }
             }

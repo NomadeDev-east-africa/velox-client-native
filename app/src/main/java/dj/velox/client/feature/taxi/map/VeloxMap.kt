@@ -27,10 +27,10 @@ import org.maplibre.android.maps.MapLibreMap
 import org.maplibre.android.maps.MapView
 import org.maplibre.android.maps.Style
 import org.maplibre.android.style.expressions.Expression
-import org.maplibre.android.style.layers.CircleLayer
 import org.maplibre.android.style.layers.LineLayer
 import org.maplibre.android.style.layers.Property
 import org.maplibre.android.style.layers.PropertyFactory
+import org.maplibre.android.style.layers.SymbolLayer
 import org.maplibre.android.style.sources.GeoJsonSource
 import org.maplibre.geojson.Feature
 import org.maplibre.geojson.FeatureCollection
@@ -76,6 +76,29 @@ private const val ROUTE_LAYER = "velox-route-layer"
 private const val POINTS_SRC = "velox-points-src"
 private const val POINTS_LAYER = "velox-points-layer"
 
+private const val IMG_USER = "velox-pin-user"
+private const val IMG_SCOOTER = "velox-pin-scooter"
+private const val IMG_DEST = "velox-pin-dest"
+
+/**
+ * Style des marqueurs de la carte.
+ * - [RIDE] (VTC) : départ = pin client bleu, arrivée = pin destination vert.
+ * - [DELIVERY] (suivi livreur) : départ = scooter vert, arrivée = pin client bleu.
+ */
+enum class MapMarkerStyle { RIDE, DELIVERY }
+
+/** Rasterise un drawable vectoriel en Bitmap (pour `Style.addImage`). */
+private fun drawableToBitmap(context: android.content.Context, resId: Int): android.graphics.Bitmap {
+    val drawable = androidx.core.content.res.ResourcesCompat.getDrawable(context.resources, resId, context.theme)!!
+    val w = drawable.intrinsicWidth.coerceAtLeast(1)
+    val h = drawable.intrinsicHeight.coerceAtLeast(1)
+    val bitmap = android.graphics.Bitmap.createBitmap(w, h, android.graphics.Bitmap.Config.ARGB_8888)
+    val canvas = android.graphics.Canvas(bitmap)
+    drawable.setBounds(0, 0, w, h)
+    drawable.draw(canvas)
+    return bitmap
+}
+
 /**
  * Carte MapLibre intégrée à Compose (remplace flutter_map/OSM).
  * - [center] : caméra centrée sur ce point.
@@ -91,6 +114,7 @@ fun VeloxMap(
     routeStart: LatLng? = null,
     routeEnd: LatLng? = null,
     routePolyline: List<LatLng>? = null,
+    markerStyle: MapMarkerStyle = MapMarkerStyle.RIDE,
     onMapReady: (MapLibreMap) -> Unit = {},
     onCenterIdle: ((LatLng) -> Unit)? = null,
 ) {
@@ -117,6 +141,7 @@ fun VeloxMap(
                 routeStart = routeStart,
                 routeEnd = routeEnd,
                 routePolyline = routePolyline,
+                markerStyle = markerStyle,
                 darkTiles = darkTiles,
                 onMapReady = onMapReady,
                 onCenterIdle = onCenterIdle,
@@ -133,6 +158,7 @@ private fun VeloxMapContent(
     routeStart: LatLng?,
     routeEnd: LatLng?,
     routePolyline: List<LatLng>?,
+    markerStyle: MapMarkerStyle,
     darkTiles: Boolean,
     onMapReady: (MapLibreMap) -> Unit,
     onCenterIdle: ((LatLng) -> Unit)?,
@@ -166,14 +192,31 @@ private fun VeloxMapContent(
 
     AndroidView(
         factory = {
+            // Empêche un parent défilant (verticalScroll) d'intercepter le pan/zoom de la carte.
+            mapView.setOnTouchListener { v, event ->
+                when (event.actionMasked) {
+                    android.view.MotionEvent.ACTION_DOWN,
+                    android.view.MotionEvent.ACTION_MOVE,
+                    -> v.parent?.requestDisallowInterceptTouchEvent(true)
+                    android.view.MotionEvent.ACTION_UP,
+                    android.view.MotionEvent.ACTION_CANCEL,
+                    -> v.parent?.requestDisallowInterceptTouchEvent(false)
+                }
+                false // ne consomme pas : la MapView traite le geste elle-même
+            }
             mapView.getMapAsync { map ->
                 map.setStyle(Style.Builder().fromJson(styleJson)) { style ->
                     mlMap = map
+                    // Icônes de marqueurs (pins) enregistrées une fois pour le SymbolLayer.
+                    style.addImage(IMG_USER, drawableToBitmap(context, dj.velox.client.R.drawable.ic_pin_user))
+                    style.addImage(IMG_SCOOTER, drawableToBitmap(context, dj.velox.client.R.drawable.ic_pin_scooter))
+                    style.addImage(IMG_DEST, drawableToBitmap(context, dj.velox.client.R.drawable.ic_pin_dest))
+
                     // Sources + couches route/marqueurs (vides au départ).
                     style.addSource(GeoJsonSource(ROUTE_SRC))
                     style.addLayer(
                         LineLayer(ROUTE_LAYER, ROUTE_SRC).withProperties(
-                            PropertyFactory.lineColor("#2D7FF9"),
+                            PropertyFactory.lineColor("#9FFF88"),
                             PropertyFactory.lineWidth(4f),
                             PropertyFactory.lineCap(Property.LINE_CAP_ROUND),
                             PropertyFactory.lineJoin(Property.LINE_JOIN_ROUND),
@@ -181,11 +224,12 @@ private fun VeloxMapContent(
                     )
                     style.addSource(GeoJsonSource(POINTS_SRC))
                     style.addLayer(
-                        CircleLayer(POINTS_LAYER, POINTS_SRC).withProperties(
-                            PropertyFactory.circleRadius(8f),
-                            PropertyFactory.circleColor(Expression.get("color")),
-                            PropertyFactory.circleStrokeColor("#FFFFFF"),
-                            PropertyFactory.circleStrokeWidth(2.5f),
+                        SymbolLayer(POINTS_LAYER, POINTS_SRC).withProperties(
+                            PropertyFactory.iconImage(Expression.get("icon")),
+                            PropertyFactory.iconSize(0.9f),
+                            PropertyFactory.iconAllowOverlap(true),
+                            PropertyFactory.iconIgnorePlacement(true),
+                            PropertyFactory.iconAnchor(Property.ICON_ANCHOR_BOTTOM),
                         ),
                     )
                     mlStyle = style
@@ -217,7 +261,7 @@ private fun VeloxMapContent(
 
     // Met à jour le tracé + marqueurs quand la route change.
     // Tracé = polyline routière ORS si fournie (≥ 2 points), sinon segment droit départ→arrivée.
-    LaunchedEffect(routeStart, routeEnd, routePolyline, mlStyle) {
+    LaunchedEffect(routeStart, routeEnd, routePolyline, markerStyle, mlStyle) {
         val style = mlStyle ?: return@LaunchedEffect
         val routeSrc = style.getSourceAs<GeoJsonSource>(ROUTE_SRC)
         val pointsSrc = style.getSourceAs<GeoJsonSource>(POINTS_SRC)
@@ -235,17 +279,15 @@ private fun VeloxMapContent(
                 LineString.fromLngLats(emptyList())
             },
         )
-        if (s != null && e != null) {
-            pointsSrc?.setGeoJson(
-                FeatureCollection.fromFeatures(
-                    listOf(
-                        Feature.fromGeometry(Point.fromLngLat(s.longitude, s.latitude)).apply { addStringProperty("color", "#22C55E") },
-                        Feature.fromGeometry(Point.fromLngLat(e.longitude, e.latitude)).apply { addStringProperty("color", "#2D7FF9") },
-                    ),
-                ),
-            )
-        } else {
-            pointsSrc?.setGeoJson(FeatureCollection.fromFeatures(emptyList()))
+
+        // Marqueurs : le départ est toujours affiché (même sans arrivée → pin client visible
+        // dès la 1ʳᵉ page VTC). Les icônes dépendent du contexte (course vs livraison).
+        val startIcon = if (markerStyle == MapMarkerStyle.DELIVERY) IMG_SCOOTER else IMG_USER
+        val endIcon = if (markerStyle == MapMarkerStyle.DELIVERY) IMG_USER else IMG_DEST
+        val features = buildList {
+            if (s != null) add(Feature.fromGeometry(Point.fromLngLat(s.longitude, s.latitude)).apply { addStringProperty("icon", startIcon) })
+            if (e != null) add(Feature.fromGeometry(Point.fromLngLat(e.longitude, e.latitude)).apply { addStringProperty("icon", endIcon) })
         }
+        pointsSrc?.setGeoJson(FeatureCollection.fromFeatures(features))
     }
 }
