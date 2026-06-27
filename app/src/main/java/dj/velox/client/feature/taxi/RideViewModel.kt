@@ -3,6 +3,7 @@ package dj.velox.client.feature.taxi
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
+import dj.velox.client.core.analytics.VeloxAnalytics
 import dj.velox.client.data.local.VeloxLocalStore
 import dj.velox.client.data.remote.RideService
 import dj.velox.client.domain.model.Ride
@@ -211,6 +212,7 @@ class RideViewModel @Inject constructor(
             store.saveRide(rideId, json.encodeToString(placeholderRide(rideId)))
             // saveRide écrit un placeholder ; le stream remplacera par le vrai snapshot
             startStream(rideId)
+            VeloxAnalytics.rideConfirmed(vehicleType, estimatedFare, distance, paymentMethod)
             _state.value = _state.value.copy(isCreating = false, isLoading = false)
             rideId
         } catch (e: Exception) {

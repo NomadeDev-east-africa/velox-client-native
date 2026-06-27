@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dj.velox.client.core.Constants
+import dj.velox.client.core.analytics.VeloxAnalytics
 import dj.velox.client.data.local.VeloxLocalStore
 import dj.velox.client.data.remote.OrderService
 import dj.velox.client.domain.model.LatLng
@@ -124,6 +125,7 @@ class CartViewModel @Inject constructor(
 
     fun addItem(item: OrderItem) {
         _state.value = _state.value.copy(items = _state.value.items + item)
+        _state.value.restaurant?.let { VeloxAnalytics.addToCart(it.id, item.name, item.totalPrice, item.quantity) }
         persist()
     }
 
@@ -218,6 +220,9 @@ class CartViewModel @Inject constructor(
             _state.value = _state.value.copy(isCreatingOrder = false, error = "Échec création commande")
             return null
         }
+
+        // Event métier : commande effectivement envoyée au restaurant (capturé avant le vidage panier).
+        VeloxAnalytics.orderPlaced(orderId, restaurant.id, order.total, paymentMethod)
 
         store.clearOrder()
         // Débit des points fidélité utilisés (incrément redeemedPoints), comme Flutter.

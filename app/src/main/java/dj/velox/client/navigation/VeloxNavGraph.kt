@@ -13,11 +13,14 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.navigation.NavHostController
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
+import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
+import dj.velox.client.core.analytics.VeloxAnalytics
 import dj.velox.client.feature.auth.AuthViewModel
 import dj.velox.client.feature.auth.EmailSignUpScreen
 import dj.velox.client.feature.auth.ForgotPasswordScreen
@@ -104,6 +107,19 @@ object Routes {
 }
 
 /**
+ * Logue un event `screen_view` Firebase à chaque changement de destination de navigation
+ * (la route sert de nom d'écran). Indispensable en Compose single-Activity : sinon Analytics
+ * ne voit qu'un seul écran (MainActivity).
+ */
+@Composable
+private fun TrackScreenViews(navController: NavHostController) {
+    val entry by navController.currentBackStackEntryAsState()
+    LaunchedEffect(entry?.destination?.route) {
+        entry?.destination?.route?.let { VeloxAnalytics.screenView(it) }
+    }
+}
+
+/**
  * Racine de l'app (équivalent AuthWrapper Flutter) :
  * observe la session et route vers loader / auth / accueil.
  * L'AuthViewModel est partagé (une seule instance) entre la session et les écrans d'auth.
@@ -136,6 +152,7 @@ fun RootContent(
 @Composable
 private fun MainNavGraph(session: SessionState, onLogout: () -> Unit) {
     val navController = rememberNavController()
+    TrackScreenViews(navController)
     // Panier hissé au niveau du graphe → partagé entre liste / détail / panier.
     val cartViewModel: CartViewModel = hiltViewModel()
     // Adresses hissées → partagées entre la liste et le formulaire d'ajout/édition.
@@ -417,6 +434,7 @@ private fun MainNavGraph(session: SessionState, onLogout: () -> Unit) {
 @Composable
 private fun AuthNavGraph(authViewModel: AuthViewModel) {
     val navController = rememberNavController()
+    TrackScreenViews(navController)
     NavHost(navController = navController, startDestination = Routes.ONBOARDING) {
         composable(Routes.ONBOARDING) {
             OnboardingScreen(onStart = { navController.navigate(Routes.SIGN_IN) })
