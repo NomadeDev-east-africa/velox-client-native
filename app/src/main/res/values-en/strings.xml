@@ -75,7 +75,6 @@
     <string name="use_current_location">Use Current Location</string>
     <string name="enter_new_address">Enter New Address</string>
     <string name="payment_method">Payment Method</string>
-    <string name="in_progress">In Progress</string>
     <string name="delivered">Delivered</string>
     <string name="completed">Completed</string>
     <string name="my_account">My Account</string>
@@ -326,6 +325,8 @@
     <string name="track_driver_btn">See the driver\'s location</string>
     <string name="loyalty_discount">Loyalty discount</string>
     <string name="confirm_delivery">Confirm delivery</string>
+    <string name="proceed_order">Continue</string>
+    <string name="order_send_countdown">Sending to the restaurant in </string>
     <string name="cancel_possible_for">Cancellation still possible for </string>
     <string name="cancel_order">Cancel order</string>
     <string name="cancel_order_q">Cancel the order?</string>

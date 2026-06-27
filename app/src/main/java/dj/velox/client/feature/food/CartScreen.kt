@@ -33,7 +33,6 @@ import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.ShoppingCart
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
@@ -44,7 +43,6 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -68,7 +66,6 @@ import dj.velox.client.ui.theme.Inter
 import dj.velox.client.ui.theme.Poppins
 import dj.velox.client.ui.theme.VeloxColors
 import dj.velox.client.ui.theme.VeloxTheme
-import kotlinx.coroutines.launch
 
 private data class PaymentMethod(val value: String, val label: String, val icon: ImageVector)
 
@@ -88,7 +85,7 @@ private val PAYMENT_METHODS = listOf(
 fun CartScreen(
     cartViewModel: CartViewModel,
     session: SessionState,
-    onOrderPlaced: (String) -> Unit,
+    onProceedToPending: () -> Unit,
     onBack: () -> Unit,
     onPickAddress: () -> Unit,
     pickedAddress: dj.velox.client.feature.location.PickedPlace?,
@@ -97,7 +94,6 @@ fun CartScreen(
     val c = VeloxTheme.colors
     val cart by cartViewModel.state.collectAsStateWithLifecycle()
     val availablePoints by cartViewModel.availablePoints.collectAsStateWithLifecycle()
-    val scope = rememberCoroutineScope()
 
     var selectedPayment by rememberSaveable { mutableStateOf("cash") }
     var pointsApplied by rememberSaveable { mutableIntStateOf(0) }
@@ -188,43 +184,35 @@ fun CartScreen(
             Spacer(Modifier.height(16.dp))
         }
 
-        // ── Bouton commander ──────────────────────────────────────
+        // ── Bouton commander → écran de pré-confirmation (pas de création ici) ──
         Box(Modifier.background(c.bg).navigationBarsPadding().padding(20.dp)) {
             Row(
                 Modifier
                     .fillMaxWidth().height(56.dp).clip(RoundedCornerShape(28.dp))
                     .background(if (hasAddress) c.primary else c.surfaceTop)
-                    .clickable(enabled = hasAddress && !cart.isCreatingOrder) {
-                        val uid = session.firebaseUser?.uid ?: return@clickable
-                        scope.launch {
-                            val lat = pickedLat; val lng = pickedLng
-                            val orderId = cartViewModel.createOrder(
-                                userId = uid,
-                                customerName = session.displayName,
-                                customerPhone = session.profile?.phone ?: session.firebaseUser?.phoneNumber ?: "Non renseigné",
+                    .clickable(enabled = hasAddress) {
+                        cartViewModel.prepareCheckout(
+                            PendingCheckout(
                                 paymentMethod = selectedPayment,
                                 deliveryAddress = addressName!!,
-                                deliveryLocation = if (lat != null && lng != null) dj.velox.client.domain.model.LatLng(lat, lng) else null,
+                                deliveryLat = pickedLat,
+                                deliveryLng = pickedLng,
                                 pointsUsed = pointsClamped,
-                            )
-                            if (orderId != null) onOrderPlaced(orderId)
-                        }
+                            ),
+                        )
+                        onProceedToPending()
                     },
                 horizontalArrangement = Arrangement.Center,
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                if (cart.isCreatingOrder) {
-                    CircularProgressIndicator(Modifier.size(22.dp), color = c.onPrimary, strokeWidth = 2.dp)
-                } else {
-                    Text(
-                        if (hasAddress) stringResource(R.string.place_order) else stringResource(R.string.choose_an_address),
-                        color = if (hasAddress) c.onPrimary else c.onSurfaceVariant,
-                        fontFamily = Inter, fontSize = 16.sp, fontWeight = FontWeight.Bold,
-                    )
-                    if (hasAddress) {
-                        Spacer(Modifier.size(8.dp))
-                        Icon(Icons.AutoMirrored.Filled.ArrowForward, null, tint = c.onPrimary, modifier = Modifier.size(18.dp))
-                    }
+                Text(
+                    if (hasAddress) stringResource(R.string.place_order) else stringResource(R.string.choose_an_address),
+                    color = if (hasAddress) c.onPrimary else c.onSurfaceVariant,
+                    fontFamily = Inter, fontSize = 16.sp, fontWeight = FontWeight.Bold,
+                )
+                if (hasAddress) {
+                    Spacer(Modifier.size(8.dp))
+                    Icon(Icons.AutoMirrored.Filled.ArrowForward, null, tint = c.onPrimary, modifier = Modifier.size(18.dp))
                 }
             }
         }

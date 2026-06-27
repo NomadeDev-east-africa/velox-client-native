@@ -43,10 +43,10 @@ class CartViewModelTest {
         vm.setRestaurant(restaurant())
         vm.addItem(burger())
 
-        // 100 points demandés → plafonnés à DELIVERY_FEE / POINT_VALUE = 500 / 15 = 33.
+        // Bien plus de points que le plafond (DELIVERY_FEE / POINT_VALUE) → doivent être plafonnés.
         val id = vm.createOrder(
             userId = "u1", customerName = "C", customerPhone = "P",
-            paymentMethod = "cash", deliveryAddress = "Djibouti", pointsUsed = 100,
+            paymentMethod = "cash", deliveryAddress = "Djibouti", pointsUsed = 100_000,
         )
 
         assertEquals("order123", id)

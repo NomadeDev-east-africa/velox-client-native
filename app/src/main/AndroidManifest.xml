@@ -17,6 +17,7 @@
         android:name=".VeloxApp"
         android:allowBackup="true"
         android:dataExtractionRules="@xml/data_extraction_rules"
+        android:enableOnBackInvokedCallback="true"
         android:fullBackupContent="@xml/backup_rules"
         android:icon="@drawable/logo_velox_bg"
         android:label="@string/app_name"

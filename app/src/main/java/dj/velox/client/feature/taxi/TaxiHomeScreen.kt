@@ -161,10 +161,13 @@ fun TaxiHomeScreen(
                 MapPreview(pickup, dest, activeRoute?.points, distance, durationMin, c, onRecenter = { locationVm.refresh() })
                 Spacer(Modifier.height(20.dp))
 
-                if (dest != null) {
-                    Text("Choisissez votre véhicule", color = c.onSurface, fontFamily = Poppins, fontSize = 18.sp, fontWeight = FontWeight.Bold)
-                    Spacer(Modifier.height(12.dp))
-                }
+                Text("Choisissez votre véhicule", color = c.onSurface, fontFamily = Poppins, fontSize = 18.sp, fontWeight = FontWeight.Bold)
+                Spacer(Modifier.height(4.dp))
+                Text(
+                    if (dest != null) "Prix estimé pour votre course" else "Prix de base — choisissez une destination pour l'estimation",
+                    color = c.onSurfaceVariant, fontFamily = Inter, fontSize = 12.sp,
+                )
+                Spacer(Modifier.height(12.dp))
                 Row {
                     TaxiCatalog.choices.forEachIndexed { i, choice ->
                         VehicleCard(choice, distance, choice.id == selectedRideId, c, Modifier.weight(1f)) { selectedRideId = choice.id }
@@ -282,15 +285,30 @@ private fun VehicleCard(choice: RideChoice, distance: Double, selected: Boolean,
         modifier
             .clip(RoundedCornerShape(16.dp))
             .background(if (selected) c.primary else c.surface)
-            .border(1.dp, if (selected) c.primary else c.outlineVariant.copy(alpha = 0.4f), RoundedCornerShape(16.dp))
+            .border(if (selected) 2.dp else 1.dp, if (selected) c.primary else c.outlineVariant.copy(alpha = 0.4f), RoundedCornerShape(16.dp))
             .clickable(onClick = onClick)
-            .padding(vertical = 14.dp, horizontal = 8.dp),
+            .padding(vertical = 16.dp, horizontal = 10.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
-        Image(androidx.compose.ui.res.painterResource(R.drawable.taxi_b), null, contentScale = ContentScale.Fit, modifier = Modifier.height(40.dp).fillMaxWidth())
+        Image(
+            androidx.compose.ui.res.painterResource(vehicleImage(choice.type)),
+            contentDescription = choice.name,
+            contentScale = ContentScale.Fit,
+            modifier = Modifier.height(62.dp).fillMaxWidth(),
+        )
+        Spacer(Modifier.height(10.dp))
+        Text(choice.name, color = if (selected) c.onPrimary else c.onSurface, fontFamily = Poppins, fontSize = 14.sp, fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis)
+        choice.estimatedArrivalTime?.let { eta ->
+            Spacer(Modifier.height(2.dp))
+            Text("~ $eta", color = if (selected) c.onPrimary.copy(alpha = 0.8f) else c.onSurfaceVariant, fontFamily = Inter, fontSize = 11.sp)
+        }
         Spacer(Modifier.height(8.dp))
-        Text(choice.name, color = if (selected) c.onPrimary else c.onSurface, fontFamily = Inter, fontSize = 13.sp, fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis)
-        Spacer(Modifier.height(2.dp))
-        Text("${choice.calculatePrice(distance).roundToInt()} FDJ", color = if (selected) c.onPrimary else c.primary, fontFamily = Inter, fontSize = 13.sp, fontWeight = FontWeight.W600)
+        Text("${choice.calculatePrice(distance).roundToInt()} FDJ", color = if (selected) c.onPrimary else c.primary, fontFamily = Poppins, fontSize = 16.sp, fontWeight = FontWeight.Bold)
     }
+}
+
+/** Image dédiée par type (alignée sur l'app Flutter : Standard → taxi_b, Confort → taxi_a). */
+private fun vehicleImage(type: dj.velox.client.domain.model.RideType): Int = when (type) {
+    dj.velox.client.domain.model.RideType.COMFORT -> R.drawable.taxi_a
+    else -> R.drawable.taxi_b
 }

@@ -153,9 +153,15 @@ dependencies {
     // ── Localisation GPS ──
     implementation(libs.play.services.location)
 
-    // ── Tests ──
+    // ── Baseline Profile ──
     // ProfileInstaller : installe le Baseline Profile généré au 1er lancement (AOT du code chaud).
     implementation(libs.androidx.profileinstaller)
+    // Relie le module producteur : sans cette dépendance, le plugin baselineprofile est appliqué
+    // mais aucun profil n'est généré/packagé. Avec elle, `:app:generateBaselineProfile` (sur
+    // appareil API 28+) produit le profil empaqueté en release → cold start nettement plus fluide.
+    baselineProfile(project(":baselineprofile"))
+
+    // ── Tests ──
 
     testImplementation(libs.junit)
     testImplementation(libs.mockk)

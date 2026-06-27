@@ -76,7 +76,6 @@
     <string name="use_current_location">Yooba gooba yabka</string>
     <string name="enter_new_address">Gooba barri gali</string>
     <string name="payment_method">Buxin rakaaba</string>
-    <string name="in_progress">Marra</string>
     <string name="delivered">Bussite</string>
     <string name="completed">Gidde</string>
     <string name="my_account">Tee xisaabe</string>
@@ -327,6 +326,9 @@
     <string name="track_driver_btn">Darawal gooba kee bax</string>
     <string name="loyalty_discount">Daacadnimoh qiime-dhimis</string>
     <string name="confirm_delivery">Buus nummasa</string>
+    <!-- TODO: traductions afar à fournir (placeholder français en attendant). -->
+    <string name="proceed_order">Poursuivre</string>
+    <string name="order_send_countdown">Envoi au restaurant dans </string>
     <string name="cancel_possible_for">Beyaanam weli duudaah </string>
     <string name="cancel_order">Esserora beya</string>
     <string name="cancel_order_q">Esserora beya?</string>

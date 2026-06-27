@@ -33,6 +33,7 @@ import dj.velox.client.feature.food.FoodHomeScreen
 import dj.velox.client.feature.food.FoodSearchScreen
 import dj.velox.client.feature.food.OrderCompletedScreen
 import dj.velox.client.feature.food.OrderTrackingScreen
+import dj.velox.client.feature.food.PendingOrderScreen
 import dj.velox.client.feature.food.TrackDeliveryScreen
 import dj.velox.client.feature.food.RestaurantDetailScreen
 import dj.velox.client.feature.home.HomeScreen
@@ -74,6 +75,7 @@ object Routes {
     const val RESTAURANT_DETAIL = "restaurant_detail"
     const val ADD_TO_ORDER = "add_to_order"
     const val CART = "cart"
+    const val PENDING_ORDER = "pending_order"
     const val ORDER_TRACKING = "order_tracking"
     const val ORDER_COMPLETED = "order_completed"
     const val TRACK_DELIVERY = "track_delivery"
@@ -355,16 +357,24 @@ private fun MainNavGraph(session: SessionState, onLogout: () -> Unit) {
             CartScreen(
                 cartViewModel = cartViewModel,
                 session = session,
-                onOrderPlaced = { orderId ->
-                    navController.navigate(Routes.orderTracking(orderId)) {
-                        // Vide la pile food jusqu'à l'accueil food : retour = accueil, pas le panier.
-                        popUpTo(Routes.FOOD_HOME) { inclusive = false }
-                    }
-                },
+                onProceedToPending = { navController.navigate(Routes.PENDING_ORDER) },
                 onBack = { navController.popBackStack() },
                 onPickAddress = { navController.navigate(Routes.pickAddress(pickAddrTitle)) },
                 pickedAddress = PickedPlace.decode(pickedRaw),
                 onConsumePicked = { entry.savedStateHandle[PickedPlace.KEY] = null },
+            )
+        }
+        composable(Routes.PENDING_ORDER) {
+            PendingOrderScreen(
+                cartViewModel = cartViewModel,
+                session = session,
+                onOrderCreated = { orderId ->
+                    navController.navigate(Routes.orderTracking(orderId)) {
+                        // Remplace pending + panier : retour depuis le suivi = accueil food.
+                        popUpTo(Routes.FOOD_HOME) { inclusive = false }
+                    }
+                },
+                onCancel = { navController.popBackStack() },
             )
         }
         composable(

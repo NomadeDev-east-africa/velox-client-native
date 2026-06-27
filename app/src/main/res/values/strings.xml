@@ -1,6 +1,6 @@
 <resources>
     <!-- Langue par défaut : Français (comme l'app Flutter) -->
-    <string name="app_name">Velox</string>
+    <string name="app_name" translatable="false">Velox</string>
     <string name="socle_ready">Socle prêt ✅ — Compose · Hilt · Firebase · DataStore</string>
 
     <!-- Communs (la base i18n s'étoffera au fil des modules) -->
@@ -136,7 +136,6 @@
     <string name="use_current_location">Utiliser ma position actuelle</string>
     <string name="enter_new_address">Entrer une nouvelle adresse</string>
     <string name="payment_method">Méthode de paiement</string>
-    <string name="in_progress">En cours</string>
     <string name="delivered">Livrée</string>
     <string name="completed">Terminée</string>
     <string name="my_account">Mon compte</string>
@@ -340,6 +339,8 @@
     <string name="track_driver_btn">Voir la position du livreur</string>
     <string name="loyalty_discount">Réduction fidélité</string>
     <string name="confirm_delivery">Confirmer la livraison</string>
+    <string name="proceed_order">Poursuivre</string>
+    <string name="order_send_countdown">Envoi au restaurant dans </string>
     <string name="cancel_possible_for">Annulation possible encore </string>
     <string name="cancel_order">Annuler la commande</string>
     <string name="cancel_order_q">Annuler la commande ?</string>

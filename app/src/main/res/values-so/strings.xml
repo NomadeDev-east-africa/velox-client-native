@@ -75,7 +75,6 @@
     <string name="use_current_location">Isticmaal goobta hadda</string>
     <string name="enter_new_address">Geli cinwaan cusub</string>
     <string name="payment_method">Habka lacag bixinta</string>
-    <string name="in_progress">Socota</string>
     <string name="delivered">La gaarsiiyey</string>
     <string name="completed">Dhammaystiran</string>
     <string name="my_account">Xisaabtayda</string>
@@ -326,6 +325,8 @@
     <string name="track_driver_btn">Arag goobta darawalka</string>
     <string name="loyalty_discount">Qiimo-dhimis daacadnimo</string>
     <string name="confirm_delivery">Xaqiiji keenista</string>
+    <string name="proceed_order">Sii wad</string>
+    <string name="order_send_countdown">Loo dirayo maqaayadda gudahood </string>
     <string name="cancel_possible_for">Joojin weli waa suurtagal </string>
     <string name="cancel_order">Jooji dalabka</string>
     <string name="cancel_order_q">Jooji dalabka?</string>

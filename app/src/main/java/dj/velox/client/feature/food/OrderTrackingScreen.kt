@@ -26,20 +26,12 @@ import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.DeliveryDining
 import androidx.compose.material.icons.filled.Place
 import androidx.compose.material.icons.filled.Restaurant
-import androidx.compose.material.icons.filled.Timer
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableIntStateOf
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -60,9 +52,6 @@ import dj.velox.client.ui.theme.Poppins
 import dj.velox.client.ui.theme.VeloxColors
 import dj.velox.client.ui.theme.VeloxTheme
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.launch
-
-private const val CANCEL_WINDOW_SECONDS = 120
 
 /**
  * Suivi temps réel d'une commande food — « Kinetic Monolith » (port d'OrderTrackingScreen).
@@ -79,7 +68,6 @@ fun OrderTrackingScreen(
 ) {
     val c = VeloxTheme.colors
     val state by vm.state.collectAsStateWithLifecycle()
-    val scope = rememberCoroutineScope()
 
     LaunchedEffect(orderId) { if (state.orderId != orderId) vm.attachOrder(orderId) }
 
@@ -94,7 +82,6 @@ fun OrderTrackingScreen(
             order == null -> LoadingView(c)
             else -> OrderContent(
                 order = order, c = c,
-                onCancel = { scope.launch { runCatching { vm.cancelOrder() } } },
                 onConfirmDelivery = onConfirmDelivery,
                 onTrackDriver = onTrackDriver,
             )
@@ -106,12 +93,9 @@ fun OrderTrackingScreen(
 private fun OrderContent(
     order: Order,
     c: VeloxColors,
-    onCancel: () -> Unit,
     onConfirmDelivery: () -> Unit,
     onTrackDriver: () -> Unit,
 ) {
-    var showCancelDialog by remember { mutableStateOf(false) }
-
     Column(Modifier.fillMaxSize()) {
         // ── Barre supérieure : logo seul (boutons menu/croix retirés) ──
         Row(
@@ -134,18 +118,7 @@ private fun OrderContent(
             Manifest(order, c)
         }
 
-        BottomActions(order, c, onRequestCancel = { showCancelDialog = true }, onConfirmDelivery = onConfirmDelivery)
-    }
-
-    if (showCancelDialog) {
-        AlertDialog(
-            onDismissRequest = { showCancelDialog = false },
-            containerColor = c.surface,
-            title = { Text(stringResource(R.string.cancel_order_q), color = c.onSurface, fontFamily = Poppins, fontWeight = FontWeight.Bold) },
-            text = { Text(stringResource(R.string.action_irreversible), color = c.onSurfaceVariant, fontFamily = Inter) },
-            confirmButton = { TextButton(onClick = { showCancelDialog = false; onCancel() }) { Text(stringResource(R.string.yes_cancel), color = c.error, fontWeight = FontWeight.Bold) } },
-            dismissButton = { TextButton(onClick = { showCancelDialog = false }) { Text(stringResource(R.string.no), color = c.onSurfaceVariant) } },
-        )
+        BottomActions(order, c, onConfirmDelivery = onConfirmDelivery)
     }
 }
 
@@ -163,7 +136,7 @@ private fun currentStepIndex(status: String): Int = when (status) {
 }
 
 @Composable
-private fun StatusCard(order: Order, c: VeloxColors) {
+fun StatusCard(order: Order, c: VeloxColors) {
     val steps = listOf(
         Step(stringResource(R.string.status_confirmed), stringResource(R.string.status_sub_confirmed)),
         Step(stringResource(R.string.status_preparing), stringResource(R.string.status_sub_preparing)),
@@ -212,7 +185,7 @@ private fun StatusCard(order: Order, c: VeloxColors) {
 }
 
 @Composable
-private fun ProviderCard(order: Order, c: VeloxColors) {
+fun ProviderCard(order: Order, c: VeloxColors) {
     Row(
         Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).background(c.surface).border(1.dp, c.outlineVariant.copy(alpha = 0.2f), RoundedCornerShape(12.dp)).padding(16.dp),
         verticalAlignment = Alignment.CenterVertically,
@@ -244,7 +217,7 @@ private fun TrackDriverButton(c: VeloxColors, onClick: () -> Unit) {
 }
 
 @Composable
-private fun Manifest(order: Order, c: VeloxColors) {
+fun Manifest(order: Order, c: VeloxColors) {
     Text("MANIFEST CONTENT", color = c.onSurfaceVariant, fontFamily = Inter, fontSize = 11.sp, fontWeight = FontWeight.W700, letterSpacing = 2.sp)
     Spacer(Modifier.height(12.dp))
     order.items.forEach { item ->
@@ -279,35 +252,19 @@ private fun ManifestRow(label: String, value: String, c: VeloxColors, muted: Boo
 // ── ACTIONS DU BAS ──────────────────────────────────────────────────────────
 
 @Composable
-private fun BottomActions(order: Order, c: VeloxColors, onRequestCancel: () -> Unit, onConfirmDelivery: () -> Unit) {
+private fun BottomActions(order: Order, c: VeloxColors, onConfirmDelivery: () -> Unit) {
+    // L'annulation se fait désormais AVANT envoi (écran « pending »). Une fois la commande
+    // créée, plus de bouton annuler : seule la confirmation de livraison reste, à la fin.
+    if (order.status != Order.STATUS_COMPLETED) return
     Column(Modifier.fillMaxWidth().background(c.surfaceLow).navigationBarsPadding().padding(16.dp)) {
-        if (order.status == Order.STATUS_COMPLETED) {
-            Box(
-                Modifier.fillMaxWidth().height(54.dp).clip(RoundedCornerShape(8.dp)).background(c.primary).clickable(onClick = onConfirmDelivery),
-                contentAlignment = Alignment.Center,
-            ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(Icons.Filled.CheckCircle, null, tint = c.onPrimary, modifier = Modifier.size(18.dp))
-                    Spacer(Modifier.size(8.dp))
-                    Text(stringResource(R.string.confirm_delivery).uppercase(), color = c.onPrimary, fontFamily = Inter, fontWeight = FontWeight.Bold, letterSpacing = 0.5.sp)
-                }
-            }
-        } else if (order.canBeCancelled) {
-            var secondsLeft by remember(order.id) { mutableIntStateOf(CANCEL_WINDOW_SECONDS) }
-            LaunchedEffect(order.id) { while (secondsLeft > 0) { delay(1_000); secondsLeft-- } }
-            if (secondsLeft > 0) {
-                Row(Modifier.fillMaxWidth().padding(bottom = 10.dp), horizontalArrangement = Arrangement.Center, verticalAlignment = Alignment.CenterVertically) {
-                    Icon(Icons.Filled.Timer, null, tint = c.onSurfaceVariant, modifier = Modifier.size(14.dp))
-                    Spacer(Modifier.size(6.dp))
-                    Text(stringResource(R.string.cancel_possible_for), color = c.onSurfaceVariant, fontFamily = Inter, fontSize = 13.sp)
-                    Text(formatCountdown(secondsLeft), color = c.error, fontFamily = Inter, fontSize = 13.sp, fontWeight = FontWeight.Bold)
-                }
-                Box(
-                    Modifier.fillMaxWidth().height(54.dp).clip(RoundedCornerShape(8.dp)).border(1.5.dp, c.error, RoundedCornerShape(8.dp)).clickable(onClick = onRequestCancel),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    Text(stringResource(R.string.cancel_order).uppercase(), color = c.error, fontFamily = Inter, fontWeight = FontWeight.Bold, letterSpacing = 0.5.sp)
-                }
+        Box(
+            Modifier.fillMaxWidth().height(54.dp).clip(RoundedCornerShape(8.dp)).background(c.primary).clickable(onClick = onConfirmDelivery),
+            contentAlignment = Alignment.Center,
+        ) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(Icons.Filled.CheckCircle, null, tint = c.onPrimary, modifier = Modifier.size(18.dp))
+                Spacer(Modifier.size(8.dp))
+                Text(stringResource(R.string.confirm_delivery).uppercase(), color = c.onPrimary, fontFamily = Inter, fontWeight = FontWeight.Bold, letterSpacing = 0.5.sp)
             }
         }
     }
@@ -338,6 +295,3 @@ private fun ErrorView(error: String, c: VeloxColors, onExit: () -> Unit) {
         }
     }
 }
-
-private fun formatCountdown(seconds: Int): String =
-    "${(seconds / 60).toString().padStart(2, '0')}:${(seconds % 60).toString().padStart(2, '0')}"

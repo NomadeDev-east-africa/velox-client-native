@@ -75,7 +75,6 @@
     <string name="use_current_location">استخدم موقعي الحالي</string>
     <string name="enter_new_address">أدخل عنوان جديد</string>
     <string name="payment_method">طريقة الدفع</string>
-    <string name="in_progress">قيد التنفيذ</string>
     <string name="delivered">تم التوصيل</string>
     <string name="completed">مكتمل</string>
     <string name="my_account">حسابي</string>
@@ -326,6 +325,8 @@
     <string name="track_driver_btn">عرض موقع السائق</string>
     <string name="loyalty_discount">خصم الولاء</string>
     <string name="confirm_delivery">تأكيد التوصيل</string>
+    <string name="proceed_order">متابعة</string>
+    <string name="order_send_countdown">الإرسال إلى المطعم خلال </string>
     <string name="cancel_possible_for">الإلغاء ممكن لمدة </string>
     <string name="cancel_order">إلغاء الطلب</string>
     <string name="cancel_order_q">إلغاء الطلب؟</string>

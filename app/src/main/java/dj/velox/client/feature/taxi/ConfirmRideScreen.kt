@@ -188,7 +188,8 @@ fun ConfirmRideScreen(
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     Box(Modifier.size(60.dp).background(c.surfaceHigh), contentAlignment = Alignment.Center) {
-                        Image(painterResource(R.drawable.taxi_b), null, contentScale = ContentScale.Fit, modifier = Modifier.size(48.dp))
+                        val vehicleImg = if (choice.type == dj.velox.client.domain.model.RideType.COMFORT) R.drawable.taxi_a else R.drawable.taxi_b
+                        Image(painterResource(vehicleImg), null, contentScale = ContentScale.Fit, modifier = Modifier.size(48.dp))
                     }
                     Spacer(Modifier.size(20.dp))
                     Column(Modifier.weight(1f)) {

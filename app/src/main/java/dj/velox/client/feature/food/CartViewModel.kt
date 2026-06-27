@@ -45,6 +45,18 @@ data class CartUiState(
 }
 
 /**
+ * Paramètres de livraison/paiement saisis au checkout, retenus en attendant la confirmation
+ * « Poursuivre ». L'identité client (uid, nom, téléphone) vient de la session à la création.
+ */
+data class PendingCheckout(
+    val paymentMethod: String,
+    val deliveryAddress: String,
+    val deliveryLat: Double?,
+    val deliveryLng: Double?,
+    val pointsUsed: Int,
+)
+
+/**
  * Panier food — portage de CartNotifier. Persistance via VeloxLocalStore (box cart),
  * réduction fidélité plafonnée aux frais de livraison.
  */
@@ -61,6 +73,17 @@ class CartViewModel @Inject constructor(
     /** Solde de points fidélité disponible (gagnés via commandes « completed » − rachetés). */
     private val _availablePoints = MutableStateFlow<Int?>(null)
     val availablePoints: StateFlow<Int?> = _availablePoints.asStateFlow()
+
+    /**
+     * Paramètres de checkout retenus à l'étape « Commander », en attente de confirmation
+     * (« Poursuivre »). Tant qu'ils sont là, AUCUNE commande n'est créée en base : c'est l'écran
+     * de pré-confirmation (PendingOrderScreen) qui appellera [createOrder] au bon moment.
+     */
+    private val _pendingCheckout = MutableStateFlow<PendingCheckout?>(null)
+    val pendingCheckout: StateFlow<PendingCheckout?> = _pendingCheckout.asStateFlow()
+
+    fun prepareCheckout(checkout: PendingCheckout) { _pendingCheckout.value = checkout }
+    fun clearPendingCheckout() { _pendingCheckout.value = null }
 
     init { restore() }
 
@@ -200,6 +223,7 @@ class CartViewModel @Inject constructor(
         // Débit des points fidélité utilisés (incrément redeemedPoints), comme Flutter.
         if (safePoints > 0) runCatching { orderService.redeemPoints(userId, safePoints) }
         clearCart()
+        clearPendingCheckout()
         _state.value = _state.value.copy(isCreatingOrder = false)
         return orderId
     }
