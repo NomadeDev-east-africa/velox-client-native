@@ -2,6 +2,7 @@ package dj.velox.client.data.remote
 
 import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.FirebaseFirestore
+import com.google.firebase.firestore.GeoPoint
 import com.google.firebase.firestore.Query
 import dj.velox.client.domain.model.Ride
 import dj.velox.client.domain.model.RideStatus
@@ -201,6 +202,33 @@ class RideService @Inject constructor(
         return snapshot.documents.mapNotNull {
             runCatching { Ride.fromFirestore(it) }.getOrNull()
         }
+    }
+
+    /**
+     * Position live du chauffeur taxi (`drivers/{id}`). On lit `currentLocation` puis
+     * `location` (GeoPoint ou map lat/lng). null si indisponible / GPS chauffeur éteint.
+     */
+    fun streamDriverLocation(driverId: String): Flow<DriverLocation?> = callbackFlow {
+        val reg = firestore.collection("drivers").document(driverId)
+            .addSnapshotListener { snap, error ->
+                if (error != null) { trySend(null); return@addSnapshotListener }
+                if (snap == null || !snap.exists()) { trySend(null); return@addSnapshotListener }
+                val fallbackTs = snap.getTimestamp("lastHeartbeat")?.toDate()?.time ?: System.currentTimeMillis()
+                val raw = snap.get("currentLocation") ?: snap.get("location")
+                val loc = when (raw) {
+                    is GeoPoint -> DriverLocation(raw.latitude, raw.longitude, fallbackTs)
+                    is Map<*, *> -> {
+                        val lat = (raw["latitude"] as? Number)?.toDouble()
+                        val lng = (raw["longitude"] as? Number)?.toDouble()
+                        // `updatedAt` est écrit DANS la map currentLocation par l'app chauffeur.
+                        val ts = (raw["updatedAt"] as? com.google.firebase.Timestamp)?.toDate()?.time ?: fallbackTs
+                        if (lat != null && lng != null) DriverLocation(lat, lng, ts) else null
+                    }
+                    else -> null
+                }
+                trySend(loc)
+            }
+        awaitClose { reg.remove() }
     }
 
     companion object {

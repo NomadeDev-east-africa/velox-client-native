@@ -23,6 +23,9 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -35,6 +38,7 @@ import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import dj.velox.client.R
+import dj.velox.client.domain.model.GeoUtils
 import dj.velox.client.domain.model.LatLng
 import dj.velox.client.feature.location.RouteViewModel
 import dj.velox.client.feature.taxi.map.MapMarkerStyle
@@ -61,10 +65,17 @@ fun TrackDeliveryScreen(
     // Itinéraire routier réel livreur → client (rechargé quand le livreur se déplace).
     val routeVm: RouteViewModel = hiltViewModel()
     val route by routeVm.route.collectAsStateWithLifecycle()
+    // Recharge le tracé routier seulement quand le livreur bouge notablement (> 40 m) :
+    // évite de saturer le quota ORS à chaque tick GPS (sinon repli en ligne droite).
+    var lastRouteFrom by remember { mutableStateOf<LatLng?>(null) }
     LaunchedEffect(driverLatLng, state.destination) {
-        val from = driverLatLng
-        val to = state.destination
-        if (from != null && to != null) routeVm.load(from, to)
+        val from = driverLatLng ?: return@LaunchedEffect
+        val to = state.destination ?: return@LaunchedEffect
+        val prev = lastRouteFrom
+        if (prev == null || GeoUtils.distanceKm(prev, from) > 0.04) {
+            lastRouteFrom = from
+            routeVm.load(from, to)
+        }
     }
 
     Column(Modifier.fillMaxSize().background(c.bg)) {

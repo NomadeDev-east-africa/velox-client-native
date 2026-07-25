@@ -1,0 +1,19 @@
+<!-- Marqueur chauffeur VTC : goutte verte + voiture (blanc). -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="28dp"
+    android:height="40dp"
+    android:viewportWidth="24"
+    android:viewportHeight="34">
+    <path
+        android:fillColor="#22C55E"
+        android:pathData="M12,0 C5.373,0 0,5.373 0,12 C0,21 12,34 12,34 C12,34 24,21 24,12 C24,5.373 18.627,0 12,0 Z" />
+    <group
+        android:translateX="6"
+        android:translateY="4.5"
+        android:scaleX="0.5"
+        android:scaleY="0.5">
+        <path
+            android:fillColor="#FFFFFF"
+            android:pathData="M18.92,6.01 C18.72,5.42 18.16,5 17.5,5 h-11 c-0.66,0 -1.21,0.42 -1.42,1.01 L3,12 v8 c0,0.55 0.45,1 1,1 h1 c0.55,0 1,-0.45 1,-1 v-1 h12 v1 c0,0.55 0.45,1 1,1 h1 c0.55,0 1,-0.45 1,-1 v-8 l-2.08,-5.99 z M6.5,16 C5.67,16 5,15.33 5,14.5 S5.67,13 6.5,13 8,13.67 8,14.5 7.33,16 6.5,16 z M17.5,16 c-0.83,0 -1.5,-0.67 -1.5,-1.5 s0.67,-1.5 1.5,-1.5 1.5,0.67 1.5,1.5 -0.67,1.5 -1.5,1.5 z M5,11 l1.5,-4.5 h11 L19,11 H5 z" />
+    </group>
+</vector>

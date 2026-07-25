@@ -78,6 +78,7 @@ private const val POINTS_LAYER = "velox-points-layer"
 
 private const val IMG_USER = "velox-pin-user"
 private const val IMG_SCOOTER = "velox-pin-scooter"
+private const val IMG_CAR = "velox-pin-car"
 private const val IMG_DEST = "velox-pin-dest"
 
 /**
@@ -85,7 +86,7 @@ private const val IMG_DEST = "velox-pin-dest"
  * - [RIDE] (VTC) : départ = pin client bleu, arrivée = pin destination vert.
  * - [DELIVERY] (suivi livreur) : départ = scooter vert, arrivée = pin client bleu.
  */
-enum class MapMarkerStyle { RIDE, DELIVERY }
+enum class MapMarkerStyle { RIDE, DELIVERY, RIDE_TRACKING }
 
 /** Rasterise un drawable vectoriel en Bitmap (pour `Style.addImage`). */
 private fun drawableToBitmap(context: android.content.Context, resId: Int): android.graphics.Bitmap {
@@ -210,6 +211,7 @@ private fun VeloxMapContent(
                     // Icônes de marqueurs (pins) enregistrées une fois pour le SymbolLayer.
                     style.addImage(IMG_USER, drawableToBitmap(context, dj.velox.client.R.drawable.ic_pin_user))
                     style.addImage(IMG_SCOOTER, drawableToBitmap(context, dj.velox.client.R.drawable.ic_pin_scooter))
+                    style.addImage(IMG_CAR, drawableToBitmap(context, dj.velox.client.R.drawable.ic_pin_car))
                     style.addImage(IMG_DEST, drawableToBitmap(context, dj.velox.client.R.drawable.ic_pin_dest))
 
                     // Sources + couches route/marqueurs (vides au départ).
@@ -282,7 +284,11 @@ private fun VeloxMapContent(
 
         // Marqueurs : le départ est toujours affiché (même sans arrivée → pin client visible
         // dès la 1ʳᵉ page VTC). Les icônes dépendent du contexte (course vs livraison).
-        val startIcon = if (markerStyle == MapMarkerStyle.DELIVERY) IMG_SCOOTER else IMG_USER
+        val startIcon = when (markerStyle) {
+            MapMarkerStyle.DELIVERY -> IMG_SCOOTER
+            MapMarkerStyle.RIDE_TRACKING -> IMG_CAR   // suivi VTC : le chauffeur = voiture
+            else -> IMG_USER
+        }
         val endIcon = if (markerStyle == MapMarkerStyle.DELIVERY) IMG_USER else IMG_DEST
         val features = buildList {
             if (s != null) add(Feature.fromGeometry(Point.fromLngLat(s.longitude, s.latitude)).apply { addStringProperty("icon", startIcon) })

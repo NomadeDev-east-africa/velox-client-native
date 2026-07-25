@@ -20,4 +20,14 @@ class PromotionService @Inject constructor(
                 .documents.mapNotNull { runCatching { Promotion.fromFirestore(it) }.getOrNull() }
                 .filter { it.isCurrentlyActive }
         }.getOrDefault(emptyList())
+
+    /** Toutes les promotions actives (tous restaurants) — pour recherche / catégories. */
+    suspend fun getAllActivePromotions(): List<Promotion> =
+        runCatching {
+            firestore.collection("promotions")
+                .whereEqualTo("isActive", true)
+                .get().await()
+                .documents.mapNotNull { runCatching { Promotion.fromFirestore(it) }.getOrNull() }
+                .filter { it.isCurrentlyActive }
+        }.getOrDefault(emptyList())
 }

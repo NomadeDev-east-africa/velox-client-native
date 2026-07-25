@@ -144,6 +144,7 @@
     <string name="full_history">Taariikhda oo dhan</string>
     <string name="favorite_restaurants">Makhaayadaha la jecel yahay</string>
     <string name="support_legal">Taageero &amp; Sharci</string>
+    <string name="website">Websaydka</string>
     <string name="help_center">Xarunta caawimaada</string>
     <string name="about_app">Ku saabsan</string>
     <string name="version">Nooca</string>
@@ -161,6 +162,10 @@
     <string name="logout_confirm">Ma hubtaa inaad ka baxdo?</string>
     <string name="logout_action">Ka bax</string>
     <string name="delete_account_title">Tirtir akoonka</string>
+    <string name="delete_account_msg">Tallaabadan lama soo celin karo: akoonkaaga iyo xogtaada waa la tirtiri doonaa si joogto ah. Waa inaad marka hore mar kale gashaa.</string>
+    <string name="delete_account_action">Tirtir</string>
+    <string name="reauth_title">Xaqiiji aqoonsigaaga</string>
+    <string name="reauth_msg">Geli furahaaga sirta ah si aad u xaqiijiso tirtiridda.</string>
     <string name="delete_account_warning">Tallaabadan dib looma celin karo. Dhammaan xogtaada (dalabyada, cinwaannada, profilaha) si joogto ah ayaa loo tirtiri doonaa.</string>
     <string name="type_delete_confirm">Qor TIRTIR si aad u xaqiijiso:</string>
     <string name="delete_keyword">TIRTIR</string>
@@ -311,6 +316,7 @@
     <string name="choose_sauces">Dooro suugooyinka</string>
     <string name="required_label">Loo baahan yahay</string>
     <string name="please_choose">Fadlan dooro: %1$s</string>
+    <string name="max_choices">Ilaa %1$d doorasho « %2$s »</string>
     <string name="different_restaurant_title">Makhaayad kale</string>
     <string name="different_restaurant_msg">Waxaad horey u haysatay alaab ka timid « %1$s ». Ma rabtaa inaad dambiishaada faaruqiso oo aad ku darto alaabtan « %2$s »?</string>
     <string name="another_restaurant">makhaayad kale</string>
@@ -339,6 +345,8 @@
     <string name="error_prefix">Khalad: %1$s</string>
     <string name="back_to_home">Ku noqo guriga</string>
     <string name="driver_position">Goobta darawalka</string>
+    <string name="chauffeur_position">Goobta darawalka</string>
+    <string name="view_driver_position">Arag goobta darawalka</string>
     <string name="locating_driver">Goobta darawalka la raadinayo…</string>
     <string name="driver_position_unavailable">Goobta darawalka lama heli karo</string>
     <string name="driver_gps_off">Darawalku weli ma uusan shidin raadinta GPS</string>
@@ -391,6 +399,8 @@
     <string name="delete_address_msg">Ma hubtaa inaad tirtirto « %1$s »?</string>
     <string name="no_addresses">Cinwaan lama keydin</string>
     <string name="no_addresses_hint">Taabo « Ku dar » si aad u keydiso cinwaankaaga koowaad</string>
+    <string name="no_favorites">Wax la jecel yahay ma jiro</string>
+    <string name="no_favorites_hint">Taabo wadnaha makhaayad si aad ugu darto kuwaaga la jecel yahay</string>
     <string name="default_label">Caadi ahaan</string>
     <string name="more_options">Doorashooyin</string>
     <string name="set_default">U deji caadi</string>
@@ -405,6 +415,7 @@
     <string name="extra_details">Faahfaahin dheeraad ah (ikhtiyaari)</string>
     <string name="details_hint">Dabaqa, dhismaha, tilmaamo…</string>
     <string name="add_address_action">Ku dar cinwaanka</string>
+    <string name="pick_on_map">Ka dooro khariidadda</string>
     <string name="confirm_destination">Xaqiiji halka aad u socoto</string>
     <string name="confirm_address_action">Xaqiiji cinwaanka</string>
 </resources>

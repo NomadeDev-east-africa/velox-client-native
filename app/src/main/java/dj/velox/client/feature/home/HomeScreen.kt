@@ -433,7 +433,7 @@ private fun ActionCard(icon: ImageVector, label: String, onTap: () -> Unit, c: V
 private fun Footer(c: VeloxColors) {
     Box(Modifier.fillMaxWidth().padding(vertical = 36.dp), contentAlignment = Alignment.Center) {
         Text(
-            "VELOX — SERVICE NATIONAL DJIBOUTIEN V1.0.0",
+            "VELOX CORP — SINCE 2026",
             color = c.onSurfaceVariant,
             fontFamily = Inter,
             fontSize = 10.sp,
@@ -448,10 +448,15 @@ private fun Footer(c: VeloxColors) {
 private fun BottomNav(onProfile: () -> Unit, c: VeloxColors, modifier: Modifier = Modifier) {
     Row(
         modifier
+            // Carte flottante centrée, plus étroite (marges latérales) et posée tout en bas
+            // (peu d'écart sous la barre système).
             .fillMaxWidth()
-            .background(c.surfaceLow)
             .navigationBarsPadding()
-            .height(72.dp),
+            .padding(start = 72.dp, end = 72.dp, bottom = 4.dp)
+            .clip(RoundedCornerShape(28.dp))
+            .background(c.surfaceLow)
+            .border(1.dp, c.outlineVariant.copy(alpha = 0.25f), RoundedCornerShape(28.dp))
+            .height(58.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         NavItem(Icons.Filled.Home, active = true, onTap = {}, c = c, modifier = Modifier.weight(1f))

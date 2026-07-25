@@ -127,6 +127,6 @@ private fun CategoryDishTile(m: MenuItem, restaurantName: String?, c: VeloxColor
             }
         }
         Spacer(Modifier.size(8.dp))
-        Text("${m.price.toInt()} FDJ", color = c.primary, fontFamily = Poppins, fontSize = 13.sp, fontWeight = FontWeight.Bold)
+        DishPriceRow(m, c, 13.sp)
     }
 }

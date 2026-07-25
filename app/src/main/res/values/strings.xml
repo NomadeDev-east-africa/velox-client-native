@@ -208,6 +208,7 @@
     <string name="full_history">Historique complet</string>
     <string name="favorite_restaurants">Restaurants favoris</string>
     <string name="support_legal">Support &amp; Légal</string>
+    <string name="website">Site web</string>
     <string name="help_center">Centre d\'aide</string>
     <string name="about_app">À propos</string>
     <string name="version">Version</string>
@@ -225,6 +226,10 @@
     <string name="logout_confirm">Voulez-vous vraiment vous déconnecter ?</string>
     <string name="logout_action">Déconnecter</string>
     <string name="delete_account_title">Supprimer le compte</string>
+    <string name="delete_account_msg">Cette action est irréversible : votre compte et vos données seront définitivement supprimés. Vous devrez d\'abord vous reconnecter.</string>
+    <string name="delete_account_action">Supprimer</string>
+    <string name="reauth_title">Confirmez votre identité</string>
+    <string name="reauth_msg">Saisissez votre mot de passe pour confirmer la suppression.</string>
     <string name="delete_account_warning">Cette action est irréversible. Toutes vos données (commandes, adresses, profil) seront supprimées définitivement.</string>
     <string name="type_delete_confirm">Tapez SUPPRIMER pour confirmer :</string>
     <string name="delete_keyword">SUPPRIMER</string>
@@ -326,6 +331,7 @@
     <string name="choose_sauces">Choix des sauces</string>
     <string name="required_label">Requis</string>
     <string name="please_choose">Veuillez choisir : %1$s</string>
+    <string name="max_choices">%1$d choix maximum pour « %2$s »</string>
     <string name="different_restaurant_title">Restaurant différent</string>
     <string name="different_restaurant_msg">Vous avez déjà des articles de « %1$s ». Voulez-vous vider votre panier et ajouter cet article de « %2$s » ?</string>
     <string name="another_restaurant">un autre restaurant</string>
@@ -354,6 +360,8 @@
     <string name="error_prefix">Erreur : %1$s</string>
     <string name="back_to_home">Retour à l\'accueil</string>
     <string name="driver_position">Position du livreur</string>
+    <string name="chauffeur_position">Position du chauffeur</string>
+    <string name="view_driver_position">Voir la position du chauffeur</string>
     <string name="locating_driver">Localisation du livreur…</string>
     <string name="driver_position_unavailable">Position du livreur non disponible</string>
     <string name="driver_gps_off">Le livreur n\'a pas encore activé son suivi GPS</string>
@@ -406,6 +414,8 @@
     <string name="delete_address_msg">Voulez-vous vraiment supprimer « %1$s » ?</string>
     <string name="no_addresses">Aucune adresse enregistrée</string>
     <string name="no_addresses_hint">Appuyez sur « Ajouter » pour enregistrer votre première adresse</string>
+    <string name="no_favorites">Aucun favori</string>
+    <string name="no_favorites_hint">Touchez le cœur d\'un restaurant pour l\'ajouter à vos favoris</string>
     <string name="default_label">Par défaut</string>
     <string name="more_options">Options</string>
     <string name="set_default">Définir par défaut</string>
@@ -420,6 +430,7 @@
     <string name="extra_details">Détails supplémentaires (optionnel)</string>
     <string name="details_hint">Étage, bâtiment, instructions…</string>
     <string name="add_address_action">Ajouter l\'adresse</string>
+    <string name="pick_on_map">Choisir sur la carte</string>
     <string name="confirm_destination">Confirmer la destination</string>
     <string name="confirm_address_action">Confirmer l\'adresse</string>
 </resources>

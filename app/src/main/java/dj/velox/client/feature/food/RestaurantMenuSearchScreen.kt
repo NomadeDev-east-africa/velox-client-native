@@ -149,6 +149,6 @@ private fun DishRow(m: MenuItem, c: VeloxColors, onClick: () -> Unit) {
             Text(m.category, color = c.onSurfaceVariant, fontFamily = Inter, fontSize = 12.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
         }
         Spacer(Modifier.size(8.dp))
-        Text("${m.price.toInt()} FDJ", color = c.primary, fontFamily = Poppins, fontSize = 13.sp, fontWeight = FontWeight.Bold)
+        DishPriceRow(m, c, 13.sp)
     }
 }

@@ -144,6 +144,7 @@
     <string name="full_history">Full history</string>
     <string name="favorite_restaurants">Favorite restaurants</string>
     <string name="support_legal">Support &amp; Legal</string>
+    <string name="website">Website</string>
     <string name="help_center">Help center</string>
     <string name="about_app">About</string>
     <string name="version">Version</string>
@@ -161,6 +162,10 @@
     <string name="logout_confirm">Do you really want to log out?</string>
     <string name="logout_action">Log out</string>
     <string name="delete_account_title">Delete account</string>
+    <string name="delete_account_msg">This is irreversible: your account and data will be permanently deleted. You must sign in again first.</string>
+    <string name="delete_account_action">Delete</string>
+    <string name="reauth_title">Confirm your identity</string>
+    <string name="reauth_msg">Enter your password to confirm deletion.</string>
     <string name="delete_account_warning">This action is irreversible. All your data (orders, addresses, profile) will be permanently deleted.</string>
     <string name="type_delete_confirm">Type DELETE to confirm:</string>
     <string name="delete_keyword">DELETE</string>
@@ -311,6 +316,7 @@
     <string name="choose_sauces">Choose sauces</string>
     <string name="required_label">Required</string>
     <string name="please_choose">Please choose: %1$s</string>
+    <string name="max_choices">Up to %1$d choices for « %2$s »</string>
     <string name="different_restaurant_title">Different restaurant</string>
     <string name="different_restaurant_msg">You already have items from « %1$s ». Do you want to empty your cart and add this item from « %2$s »?</string>
     <string name="another_restaurant">another restaurant</string>
@@ -339,6 +345,8 @@
     <string name="error_prefix">Error: %1$s</string>
     <string name="back_to_home">Back to home</string>
     <string name="driver_position">Driver location</string>
+    <string name="chauffeur_position">Driver location</string>
+    <string name="view_driver_position">See driver location</string>
     <string name="locating_driver">Locating the driver…</string>
     <string name="driver_position_unavailable">Driver location unavailable</string>
     <string name="driver_gps_off">The driver has not enabled GPS tracking yet</string>
@@ -391,6 +399,8 @@
     <string name="delete_address_msg">Do you really want to delete « %1$s »?</string>
     <string name="no_addresses">No saved address</string>
     <string name="no_addresses_hint">Tap « Add » to save your first address</string>
+    <string name="no_favorites">No favorites</string>
+    <string name="no_favorites_hint">Tap the heart on a restaurant to add it to your favorites</string>
     <string name="default_label">Default</string>
     <string name="more_options">Options</string>
     <string name="set_default">Set as default</string>
@@ -405,6 +415,7 @@
     <string name="extra_details">Additional details (optional)</string>
     <string name="details_hint">Floor, building, instructions…</string>
     <string name="add_address_action">Add address</string>
+    <string name="pick_on_map">Pick on the map</string>
     <string name="confirm_destination">Confirm destination</string>
     <string name="confirm_address_action">Confirm address</string>
 </resources>

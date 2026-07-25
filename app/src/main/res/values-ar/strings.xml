@@ -144,6 +144,7 @@
     <string name="full_history">السجل الكامل</string>
     <string name="favorite_restaurants">المطاعم المفضلة</string>
     <string name="support_legal">الدعم والقانوني</string>
+    <string name="website">الموقع الإلكتروني</string>
     <string name="help_center">مركز المساعدة</string>
     <string name="about_app">حول</string>
     <string name="version">الإصدار</string>
@@ -161,6 +162,10 @@
     <string name="logout_confirm">هل تريد حقًا تسجيل الخروج؟</string>
     <string name="logout_action">تسجيل الخروج</string>
     <string name="delete_account_title">حذف الحساب</string>
+    <string name="delete_account_msg">هذا الإجراء لا رجعة فيه: سيتم حذف حسابك وبياناتك نهائيًا. يجب تسجيل الدخول مرة أخرى أولاً.</string>
+    <string name="delete_account_action">حذف</string>
+    <string name="reauth_title">أكّد هويتك</string>
+    <string name="reauth_msg">أدخل كلمة المرور لتأكيد الحذف.</string>
     <string name="delete_account_warning">هذا الإجراء لا يمكن التراجع عنه. سيتم حذف جميع بياناتك (الطلبات، العناوين، الملف الشخصي) نهائيًا.</string>
     <string name="type_delete_confirm">اكتب \"حذف\" للتأكيد:</string>
     <string name="delete_keyword">حذف</string>
@@ -311,6 +316,7 @@
     <string name="choose_sauces">اختر الصلصات</string>
     <string name="required_label">مطلوب</string>
     <string name="please_choose">يرجى اختيار: %1$s</string>
+    <string name="max_choices">%1$d خيارات كحد أقصى لـ « %2$s »</string>
     <string name="different_restaurant_title">مطعم مختلف</string>
     <string name="different_restaurant_msg">لديك بالفعل عناصر من « %1$s ». هل تريد إفراغ سلتك وإضافة هذا العنصر من « %2$s »؟</string>
     <string name="another_restaurant">مطعم آخر</string>
@@ -339,6 +345,8 @@
     <string name="error_prefix">خطأ: %1$s</string>
     <string name="back_to_home">العودة إلى الرئيسية</string>
     <string name="driver_position">موقع السائق</string>
+    <string name="chauffeur_position">موقع السائق</string>
+    <string name="view_driver_position">عرض موقع السائق</string>
     <string name="locating_driver">جارٍ تحديد موقع السائق…</string>
     <string name="driver_position_unavailable">موقع السائق غير متاح</string>
     <string name="driver_gps_off">لم يقم السائق بتفعيل تتبع GPS بعد</string>
@@ -391,6 +399,8 @@
     <string name="delete_address_msg">هل تريد فعلاً حذف « %1$s »؟</string>
     <string name="no_addresses">لا توجد عناوين محفوظة</string>
     <string name="no_addresses_hint">اضغط « إضافة » لحفظ عنوانك الأول</string>
+    <string name="no_favorites">لا مفضلات</string>
+    <string name="no_favorites_hint">اضغط على قلب المطعم لإضافته إلى مفضلاتك</string>
     <string name="default_label">افتراضي</string>
     <string name="more_options">خيارات</string>
     <string name="set_default">تعيين كافتراضي</string>
@@ -405,6 +415,7 @@
     <string name="extra_details">تفاصيل إضافية (اختياري)</string>
     <string name="details_hint">الطابق، المبنى، تعليمات…</string>
     <string name="add_address_action">إضافة العنوان</string>
+    <string name="pick_on_map">اختر على الخريطة</string>
     <string name="confirm_destination">تأكيد الوجهة</string>
     <string name="confirm_address_action">تأكيد العنوان</string>
 </resources>

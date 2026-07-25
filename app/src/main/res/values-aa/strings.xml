@@ -145,6 +145,7 @@
     <string name="full_history">Taariix inkih</string>
     <string name="favorite_restaurants">Maqaayito kicinto</string>
     <string name="support_legal">Cato &amp; Qaanuun</string>
+    <string name="website">Website</string>
     <string name="help_center">Cato xarun</string>
     <string name="about_app">Xaggih</string>
     <string name="version">Version</string>
@@ -162,6 +163,10 @@
     <string name="logout_confirm">Cissa baxxaam faxximtaa?</string>
     <string name="logout_action">Bax</string>
     <string name="delete_account_title">Akoon bayis</string>
+    <string name="delete_account_msg">Tama gacsi mano gace: ku akoon kee ku xayyi wagar bayissa. Naharak koo qidewa faxximah.</string>
+    <string name="delete_account_action">Bayis</string>
+    <string name="reauth_title">Ku ismi naharak xaqqi</string>
+    <string name="reauth_msg">Ku password cul bayissa xaqqi.</string>
     <string name="delete_account_warning">Tah taama mawlasinta. Inkih xogtaaqa (amritte, cinwaanitte, profil) inkinah baytima.</string>
     <string name="type_delete_confirm">TIRTIR kut nummataamah:</string>
     <string name="delete_keyword">TIRTIR</string>
@@ -312,6 +317,7 @@
     <string name="choose_sauces">Suugo doora</string>
     <string name="required_label">Faxximte</string>
     <string name="please_choose">Doorisso: %1$s</string>
+    <string name="max_choices">« %2$s » : %1$d doorit maqaanε</string>
     <string name="different_restaurant_title">Maqaayi kalah</string>
     <string name="different_restaurant_msg">« %1$s » luk alay duma lito. Dambiisa faaruqsaay alaytan « %2$s » luk osul faxxa?</string>
     <string name="another_restaurant">maqaayi kalah</string>
@@ -341,6 +347,8 @@
     <string name="error_prefix">Qellitto: %1$s</string>
     <string name="back_to_home">Keenah gabbe</string>
     <string name="driver_position">Darawal gooba</string>
+    <string name="chauffeur_position">Darawal gooba</string>
+    <string name="view_driver_position">Darawal gooba ublee</string>
     <string name="locating_driver">Darawal gooba raadima…</string>
     <string name="driver_position_unavailable">Darawal gooba magettan</string>
     <string name="driver_gps_off">Darawal weli GPS raadim mayabakkin</string>
@@ -393,6 +401,8 @@
     <string name="delete_address_msg">« %1$s » bahisak faxxa?</string>
     <string name="no_addresses">Cinwaan makaydintan</string>
     <string name="no_addresses_hint">« Osul » taabaay ku cinwaan qunxaa kaydis</string>
+    <string name="no_favorites">Kacnu maleh</string>
+    <string name="no_favorites_hint">Maqaayi wadna taabaay kacnuk osul</string>
     <string name="default_label">Caadi</string>
     <string name="more_options">Doorat</string>
     <string name="set_default">Caadih deji</string>
@@ -407,6 +417,7 @@
     <string name="extra_details">Osul faahfaahin (ikhtiyaari)</string>
     <string name="details_hint">Dabaq, dhismi, tilmaamo…</string>
     <string name="add_address_action">Cinwaan osul</string>
+    <string name="pick_on_map">Kaartah doorit</string>
     <string name="confirm_destination">Gexsotto nummasa</string>
     <string name="confirm_address_action">Cinwaan nummasa</string>
 </resources>

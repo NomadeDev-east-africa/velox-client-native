@@ -2,6 +2,7 @@ package dj.velox.client.data.remote
 
 import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.FirebaseFirestore
+import com.google.firebase.firestore.SetOptions
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
@@ -36,9 +37,13 @@ class FavoriteRestaurantsService @Inject constructor(
         awaitClose { reg.remove() }
     }
 
-    /** Ajoute ou retire un restaurant des favoris (arrayUnion / arrayRemove). */
+    /**
+     * Ajoute ou retire un restaurant des favoris (arrayUnion / arrayRemove). `set(merge)`
+     * (comme iOS) plutôt qu'`update` : crée le champ/document au besoin, sans échouer si
+     * `favoriteRestaurants` n'existe pas encore.
+     */
     suspend fun setFavorite(userId: String, restaurantId: String, favorite: Boolean) {
         val op = if (favorite) FieldValue.arrayUnion(restaurantId) else FieldValue.arrayRemove(restaurantId)
-        userDoc(userId).update("favoriteRestaurants", op).await()
+        userDoc(userId).set(mapOf("favoriteRestaurants" to op), SetOptions.merge()).await()
     }
 }

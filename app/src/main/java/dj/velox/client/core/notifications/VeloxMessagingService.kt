@@ -72,10 +72,10 @@ class VeloxMessagingService : FirebaseMessagingService() {
 
         val notification = NotificationCompat.Builder(this, VeloxNotifications.channelFor(rideId, orderId))
             // Petite icône (barre d'état) : logo Velox → silhouette monochrome teintée en vert néon.
-            .setSmallIcon(R.drawable.logo_velox_bg)
+            .setSmallIcon(R.drawable.ic_notification)
             .setColor(ContextCompat.getColor(this, R.color.velox_green))
             // Grande icône (notif déroulée) : logo Velox en couleur.
-            .setLargeIcon(BitmapFactory.decodeResource(resources, R.drawable.logo_velox_bg))
+            .setLargeIcon(BitmapFactory.decodeResource(resources, R.drawable.logo_velox_home))
             .setContentTitle(title)
             .setContentText(body)
             .setAutoCancel(true)

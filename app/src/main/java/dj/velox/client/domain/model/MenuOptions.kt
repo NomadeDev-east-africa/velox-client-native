@@ -45,13 +45,25 @@ data class SauceOption(
 enum class OptionType { SINGLE, MULTIPLE }
 
 @Serializable
-data class OptionChoice(val name: String, val price: Int = 0) {
-    fun toMap(): Map<String, Any?> = mapOf("name" to name, "price" to price)
+data class OptionChoice(
+    val name: String,
+    val price: Int = 0,
+    /** Rupture de stock si `false` (piloté resto/admin). Absent ⇒ disponible. */
+    val available: Boolean = true,
+) {
+    // `available` n'est émis QUE lorsqu'il vaut false (additif, ne change rien à l'existant).
+    fun toMap(): Map<String, Any?> = buildMap {
+        put("name", name)
+        put("price", price)
+        if (!available) put("available", false)
+    }
 
     companion object {
         fun fromMap(map: Map<String, Any?>): OptionChoice = OptionChoice(
             name = (map["name"] ?: "").toString(),
             price = (map["price"] as? Number)?.toInt() ?: 0,
+            // Absent ⇒ disponible. NE JAMAIS lire `== true` (masquerait tout l'existant).
+            available = map["available"] != false,
         )
     }
 }
@@ -61,28 +73,41 @@ data class OptionGroup(
     val name: String,
     val type: OptionType = OptionType.MULTIPLE,
     val required: Boolean = false,
+    /** Plafond de sélection pour un groupe `multiple`. 0 = illimité. Ignoré si `single`. */
+    val maxChoices: Int = 0,
     val choices: List<OptionChoice> = emptyList(),
 ) {
     val isSingle: Boolean get() = type == OptionType.SINGLE
 
-    fun toMap(): Map<String, Any?> = mapOf(
-        "name" to name,
-        "type" to if (isSingle) "single" else "multiple",
-        "required" to required,
-        "choices" to choices.map { it.toMap() },
-    )
+    fun toMap(): Map<String, Any?> = buildMap {
+        put("name", name)
+        put("type", if (isSingle) "single" else "multiple")
+        put("required", required)
+        if (maxChoices > 0) put("maxChoices", maxChoices)
+        put("choices", choices.map { it.toMap() })
+    }
 
     companion object {
-        fun fromMap(map: Map<String, Any?>): OptionGroup = OptionGroup(
-            name = (map["name"] ?: "").toString(),
-            type = if ((map["type"] ?: "multiple").toString().lowercase() == "single")
-                OptionType.SINGLE else OptionType.MULTIPLE,
-            required = map["required"] == true,
-            choices = (map["choices"] as? List<*>)
+        fun fromMap(map: Map<String, Any?>): OptionGroup {
+            val type = if ((map["type"] ?: "multiple").toString().lowercase() == "single")
+                OptionType.SINGLE else OptionType.MULTIPLE
+            // Filtre les choix EN RUPTURE avant tout : ils ne doivent jamais atteindre l'UI.
+            val choices = (map["choices"] as? List<*>)
                 ?.filterIsInstance<Map<String, Any?>>()
                 ?.map { OptionChoice.fromMap(it) }
-                ?: emptyList(),
-        )
+                ?.filter { it.available }
+                ?: emptyList()
+            // maxChoices seulement pour un groupe multiple (0 sinon : la limite single = 1).
+            val maxChoices =
+                if (type == OptionType.MULTIPLE) (map["maxChoices"] as? Number)?.toInt() ?: 0 else 0
+            return OptionGroup(
+                name = (map["name"] ?: "").toString(),
+                type = type,
+                required = map["required"] == true,
+                maxChoices = maxChoices,
+                choices = choices,
+            )
+        }
 
         /** Parser tolérant : null / liste vide / liste de Maps → liste de groupes. */
         fun listFromRaw(raw: Any?): List<OptionGroup> =

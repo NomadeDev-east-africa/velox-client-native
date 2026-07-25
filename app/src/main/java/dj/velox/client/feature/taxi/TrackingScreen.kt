@@ -42,6 +42,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -49,6 +50,7 @@ import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil.compose.AsyncImage
+import dj.velox.client.R
 import dj.velox.client.domain.model.LatLng
 import dj.velox.client.domain.model.Ride
 import dj.velox.client.domain.model.RideStatus
@@ -65,6 +67,7 @@ import kotlin.math.roundToInt
 fun TrackingScreen(
     onFinished: () -> Unit,
     onCompleted: (rideId: String) -> Unit,
+    onViewDriverPosition: (rideId: String) -> Unit,
     rideVm: RideViewModel = hiltViewModel(),
 ) {
     val c = VeloxTheme.colors
@@ -117,6 +120,7 @@ fun TrackingScreen(
                 ride = ride, c = c,
                 onCall = { ride.driverPhone?.let { dial(context, it) } },
                 onCancel = { scope.launch { runCatching { rideVm.cancelRide("Annulée par l'utilisateur") } } },
+                onViewPosition = { onViewDriverPosition(ride.rideId) },
                 modifier = Modifier.align(Alignment.BottomCenter),
             )
         } else {
@@ -213,7 +217,7 @@ private fun MapControl(icon: androidx.compose.ui.graphics.vector.ImageVector, c:
 }
 
 @Composable
-private fun DriverCard(ride: Ride, c: VeloxColors, onCall: () -> Unit, onCancel: () -> Unit, modifier: Modifier = Modifier) {
+private fun DriverCard(ride: Ride, c: VeloxColors, onCall: () -> Unit, onCancel: () -> Unit, onViewPosition: () -> Unit, modifier: Modifier = Modifier) {
     val cancellable = ride.status in setOf(RideStatus.REQUESTED, RideStatus.ACCEPTED, RideStatus.ARRIVING, RideStatus.ARRIVED)
     Column(
         modifier.fillMaxWidth().clip(RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp)).background(c.surface).navigationBarsPadding().padding(20.dp),
@@ -259,6 +263,20 @@ private fun DriverCard(ride: Ride, c: VeloxColors, onCall: () -> Unit, onCancel:
                     contentAlignment = Alignment.Center,
                 ) {
                     Text("APPELER", color = c.onPrimary, fontFamily = Inter, fontSize = 15.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.sp)
+                }
+            }
+            // Voir la position live du chauffeur (dispo dès qu'un chauffeur est assigné).
+            if (ride.driverId != null) {
+                Spacer(Modifier.height(12.dp))
+                Row(
+                    Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).border(1.dp, c.primary.copy(alpha = 0.5f), RoundedCornerShape(12.dp))
+                        .clickable(onClick = onViewPosition).padding(vertical = 14.dp),
+                    horizontalArrangement = Arrangement.Center,
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Icon(Icons.Filled.MyLocation, null, tint = c.primary, modifier = Modifier.size(18.dp))
+                    Spacer(Modifier.size(8.dp))
+                    Text(stringResource(R.string.view_driver_position), color = c.primary, fontFamily = Inter, fontSize = 15.sp, fontWeight = FontWeight.Bold)
                 }
             }
         }

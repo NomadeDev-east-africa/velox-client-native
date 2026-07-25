@@ -29,6 +29,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.AccessTime
+import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.FavoriteBorder
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.ShoppingCart
@@ -80,6 +81,8 @@ fun FoodHomeScreen(
     onOpenCart: () -> Unit,
     onOpenSearch: () -> Unit,
     onBack: () -> Unit,
+    favorites: Set<String>,
+    onToggleFavorite: (String) -> Unit,
     restaurantsVm: RestaurantsViewModel = hiltViewModel(),
 ) {
     val c = VeloxTheme.colors
@@ -129,7 +132,7 @@ fun FoodHomeScreen(
                     item { Spacer(Modifier.height(16.dp)) }
                     item {
                         AutoScrollCarousel(items = popular, height = 212.dp, pageFraction = 0.5f, c = c) { r ->
-                            PopularCard(r, c) { onOpenRestaurant(r.id) }
+                            PopularCard(r, r.id in favorites, c, { onToggleFavorite(r.id) }) { onOpenRestaurant(r.id) }
                         }
                     }
                     item { Spacer(Modifier.height(28.dp)) }
@@ -138,7 +141,7 @@ fun FoodHomeScreen(
                 item { SectionHeader(stringResource(R.string.all_restaurants).uppercase(), c) }
                 item { Spacer(Modifier.height(16.dp)) }
                 items(restaurants, key = { it.id }) { restaurant ->
-                    RestaurantCard(restaurant, c) { onOpenRestaurant(restaurant.id) }
+                    RestaurantCard(restaurant, restaurant.id in favorites, c, { onToggleFavorite(restaurant.id) }) { onOpenRestaurant(restaurant.id) }
                     Spacer(Modifier.height(16.dp))
                 }
                 item { Spacer(Modifier.height(110.dp)) }
@@ -287,7 +290,13 @@ private fun PromoBanner(c: VeloxColors) {
 
 // ── CARTE « MEILLEUR CHOIX » (compacte, horizontale) ─────────────────────────
 @Composable
-private fun PopularCard(restaurant: Restaurant, c: VeloxColors, onClick: () -> Unit) {
+private fun PopularCard(
+    restaurant: Restaurant,
+    isFavorite: Boolean,
+    c: VeloxColors,
+    onToggleFavorite: () -> Unit,
+    onClick: () -> Unit,
+) {
     Column(
         Modifier
             .fillMaxSize()
@@ -304,10 +313,15 @@ private fun PopularCard(restaurant: Restaurant, c: VeloxColors, onClick: () -> U
                 modifier = Modifier.fillMaxWidth().height(115.dp).clip(RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp)),
             )
             Box(
-                Modifier.align(Alignment.TopEnd).padding(7.dp).size(28.dp).clip(CircleShape).background(c.surfaceTop.copy(alpha = 0.85f)),
+                Modifier.align(Alignment.TopEnd).padding(7.dp).size(28.dp).clip(CircleShape).background(c.surfaceTop.copy(alpha = 0.85f)).clickable(onClick = onToggleFavorite),
                 contentAlignment = Alignment.Center,
             ) {
-                Icon(Icons.Filled.FavoriteBorder, stringResource(R.string.favorites), tint = c.onSurfaceVariant, modifier = Modifier.size(15.dp))
+                Icon(
+                    if (isFavorite) Icons.Filled.Favorite else Icons.Filled.FavoriteBorder,
+                    stringResource(R.string.favorites),
+                    tint = if (isFavorite) Color(0xFFE53935) else Color.White,
+                    modifier = Modifier.size(15.dp),
+                )
             }
             Box(
                 Modifier.align(Alignment.BottomStart).padding(7.dp).clip(RoundedCornerShape(6.dp))
@@ -339,7 +353,13 @@ private fun PopularCard(restaurant: Restaurant, c: VeloxColors, onClick: () -> U
 
 // ── CARTE RESTAURANT (liste complète) ────────────────────────────────────────
 @Composable
-private fun RestaurantCard(restaurant: Restaurant, c: VeloxColors, onClick: () -> Unit) {
+private fun RestaurantCard(
+    restaurant: Restaurant,
+    isFavorite: Boolean,
+    c: VeloxColors,
+    onToggleFavorite: () -> Unit,
+    onClick: () -> Unit,
+) {
     Row(
         Modifier
             .fillMaxWidth()
@@ -359,10 +379,15 @@ private fun RestaurantCard(restaurant: Restaurant, c: VeloxColors, onClick: () -
                     modifier = Modifier.fillMaxWidth().height(170.dp).clip(RoundedCornerShape(topStart = 18.dp, topEnd = 18.dp)),
                 )
                 Box(
-                    Modifier.padding(12.dp).size(36.dp).clip(CircleShape).background(c.surfaceTop.copy(alpha = 0.85f)),
+                    Modifier.padding(12.dp).size(36.dp).clip(CircleShape).background(c.surfaceTop.copy(alpha = 0.85f)).clickable(onClick = onToggleFavorite),
                     contentAlignment = Alignment.Center,
                 ) {
-                    Icon(Icons.Filled.FavoriteBorder, stringResource(R.string.favorites), tint = c.onSurfaceVariant, modifier = Modifier.size(18.dp))
+                    Icon(
+                        if (isFavorite) Icons.Filled.Favorite else Icons.Filled.FavoriteBorder,
+                        stringResource(R.string.favorites),
+                        tint = if (isFavorite) Color(0xFFE53935) else Color.White,
+                        modifier = Modifier.size(18.dp),
+                    )
                 }
                 Row(
                     Modifier.align(Alignment.TopEnd).padding(12.dp).clip(RoundedCornerShape(6.dp))

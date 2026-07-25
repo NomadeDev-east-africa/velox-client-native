@@ -207,6 +207,35 @@ class AuthViewModel @Inject constructor(
         }
     }
 
+    // ─── Suppression de compte (reconnexion récente exigée) ─────────
+
+    /** Fournisseur principal du compte : "google.com" | "password" | "phone" | null. */
+    val accountProvider: String? get() = repo.primaryProvider
+
+    /** Reconnexion Google (idToken frais) puis suppression. onResult(null)=OK sinon message. */
+    fun deleteAccountWithGoogle(idToken: String, onResult: (String?) -> Unit) = deleteFlow(onResult) {
+        repo.reauthenticateWithGoogle(idToken)
+        repo.deleteAccount()
+    }
+
+    /** Reconnexion email+mot de passe puis suppression. */
+    fun deleteAccountWithPassword(password: String, onResult: (String?) -> Unit) = deleteFlow(onResult) {
+        repo.reauthenticateWithPassword(password)
+        repo.deleteAccount()
+    }
+
+    /** Suppression directe (téléphone : suppose une connexion récente). */
+    fun deleteAccountDirect(onResult: (String?) -> Unit) = deleteFlow(onResult) {
+        repo.deleteAccount()
+    }
+
+    private inline fun deleteFlow(crossinline onResult: (String?) -> Unit, crossinline action: suspend () -> Unit) {
+        viewModelScope.launch {
+            val err = runCatching { action() }.exceptionOrNull()
+            onResult((err as? AuthException)?.message ?: err?.message)
+        }
+    }
+
     /** Envoie l'email de réinitialisation ; onDone(null) si OK, sinon message. */
     fun resetPassword(email: String, onDone: (String?) -> Unit) {
         viewModelScope.launch {

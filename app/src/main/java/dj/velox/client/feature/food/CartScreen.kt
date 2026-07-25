@@ -21,7 +21,9 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.AccessTime
+import androidx.compose.material.icons.filled.AccountBalance
 import androidx.compose.material.icons.filled.AccountBalanceWallet
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Fastfood
@@ -74,11 +76,14 @@ private val PAYMENT_METHODS = listOf(
     PaymentMethod("waafi", "Waafi", Icons.Filled.AccountBalanceWallet),
     PaymentMethod("d_money", "D-Money", Icons.Filled.AccountBalanceWallet),
     PaymentMethod("cac_pay", "CAC Pay", Icons.Filled.AccountBalanceWallet),
+    PaymentMethod("bci_pay", "BCI Pay", Icons.Filled.AccountBalance),
+    PaymentMethod("exim_bank", "Exim Bank", Icons.Filled.AccountBalance),
+    PaymentMethod("dahab_plus", "Dahab+", Icons.Filled.AccountBalanceWallet),
 )
 
 /**
  * Checkout — « Kinetic Monolith » (port de `order_details_screen.dart`).
- * Adresse de livraison (saisie), sélection des articles, **4 moyens de paiement**,
+ * Adresse de livraison (saisie), sélection des articles, **moyens de paiement**,
  * **rachat de points fidélité** (plafonné aux frais de livraison), récap, commande.
  */
 @Composable
@@ -136,8 +141,11 @@ fun CartScreen(
         // ── Header ────────────────────────────────────────────────
         Column(Modifier.statusBarsPadding().padding(start = 20.dp, top = 12.dp, end = 20.dp, bottom = 8.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Icon(Icons.Filled.LocationOn, stringResource(R.string.back), tint = c.primary, modifier = Modifier.size(18.dp).clickable(onClick = onBack))
-                Spacer(Modifier.size(6.dp))
+                // Bouton retour explicite (avant : une épingle 📍 non identifiable comme retour).
+                Icon(Icons.AutoMirrored.Filled.ArrowBack, stringResource(R.string.back), tint = c.onSurface, modifier = Modifier.size(24.dp).clickable(onClick = onBack))
+                Spacer(Modifier.size(10.dp))
+                Icon(Icons.Filled.LocationOn, null, tint = c.primary, modifier = Modifier.size(16.dp))
+                Spacer(Modifier.size(4.dp))
                 Text(stringResource(R.string.checkout).uppercase(), color = c.primary, fontFamily = Inter, fontSize = 13.sp, fontWeight = FontWeight.W700, letterSpacing = 0.3.sp)
                 Spacer(Modifier.weight(1f))
                 Icon(Icons.Filled.Search, null, tint = c.onSurfaceVariant, modifier = Modifier.size(22.dp))

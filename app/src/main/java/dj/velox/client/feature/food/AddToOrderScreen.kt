@@ -53,6 +53,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil.compose.AsyncImage
 import dj.velox.client.R
+import kotlin.math.roundToInt
 import dj.velox.client.domain.model.MenuItem
 import dj.velox.client.domain.model.OptionSelection
 import dj.velox.client.domain.model.OrderItem
@@ -112,16 +113,26 @@ private fun AddToOrderContent(
     var showDialog by remember { mutableStateOf(false) }
 
     val surcharge = if (dataDriven) OptionSelection.surcharge(groups, selections) else 0
-    val totalPrice = (item.price.toInt() + surcharge) * quantity
+    // Prix remisé si le plat est en promotion (sinon = prix plein).
+    val unitBase = item.discountedPrice.roundToInt()
+    val totalPrice = (unitBase + surcharge) * quantity
 
     fun toggleChoice(gi: Int, ci: Int) {
+        val g = groups[gi]
+        val current = selections[gi]
+        // Plafond maxChoices (groupes multiples) : refuse d'ajouter au-delà, et informe.
+        if (!g.isSingle && !current.contains(ci) && g.maxChoices > 0 && current.size >= g.maxChoices) {
+            Toast.makeText(
+                context,
+                context.getString(R.string.max_choices, g.maxChoices, g.name),
+                Toast.LENGTH_SHORT,
+            ).show()
+            return
+        }
         selections = selections.mapIndexed { i, set ->
             if (i != gi) set
-            else {
-                val g = groups[gi]
-                if (g.isSingle) { if (set.contains(ci) && !g.required) emptySet() else setOf(ci) }
-                else { if (set.contains(ci)) set - ci else set + ci }
-            }
+            else if (g.isSingle) { if (set.contains(ci) && !g.required) emptySet() else setOf(ci) }
+            else { if (set.contains(ci)) set - ci else set + ci }
         }
     }
 
@@ -131,7 +142,7 @@ private fun AddToOrderContent(
         return OrderItem(
             menuId = item.id, name = item.name, description = item.description,
             imageUrl = item.imageUrl ?: "", category = item.category,
-            basePrice = item.price.toInt(), quantity = quantity,
+            basePrice = unitBase, quantity = quantity,
             extras = mapping.extras, sauces = mapping.sauces,
         )
     }
@@ -277,7 +288,7 @@ private fun PriceAndQuantity(item: MenuItem, quantity: Int, onMinus: () -> Unit,
         Column(Modifier.weight(1f)) {
             Text("BASE COST", color = c.onSurfaceVariant, fontFamily = Inter, fontSize = 10.sp, fontWeight = FontWeight.W600, letterSpacing = 1.8.sp)
             Spacer(Modifier.height(2.dp))
-            Text("%.1f FDJ".format(item.price), color = c.primary, fontFamily = Poppins, fontSize = 22.sp, fontWeight = FontWeight.Bold, letterSpacing = (-0.5).sp)
+            DishPriceRow(item, c, 22.sp)
         }
         Row(
             Modifier.clip(RoundedCornerShape(4.dp)).background(c.surfaceHigh),

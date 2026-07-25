@@ -3,6 +3,7 @@ package dj.velox.client.data.remote
 import android.app.Activity
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.FirebaseAuthException
+import com.google.firebase.auth.EmailAuthProvider
 import com.google.firebase.auth.FirebaseUser
 import com.google.firebase.auth.GoogleAuthProvider
 import com.google.firebase.auth.PhoneAuthCredential
@@ -200,6 +201,51 @@ class AuthRepository @Inject constructor(
     }
 
     fun signOut() = auth.signOut()
+
+    // ════════════════════════════════════════════════════════════
+    // SUPPRESSION DE COMPTE (exige une reconnexion récente)
+    // ════════════════════════════════════════════════════════════
+
+    /** Fournisseur principal du compte : "google.com" | "password" | "phone" | null. */
+    val primaryProvider: String?
+        get() = auth.currentUser?.providerData
+            ?.firstOrNull { it.providerId != "firebase" }?.providerId
+
+    /** Ré-authentifie avec un idToken Google frais. */
+    suspend fun reauthenticateWithGoogle(idToken: String) {
+        val user = auth.currentUser ?: throw AuthException("Session expirée. Reconnectez-vous.")
+        try {
+            user.reauthenticate(GoogleAuthProvider.getCredential(idToken, null)).await()
+        } catch (e: FirebaseAuthException) {
+            throw AuthException(mapError(e))
+        }
+    }
+
+    /** Ré-authentifie avec l'email du compte + mot de passe saisi. */
+    suspend fun reauthenticateWithPassword(password: String) {
+        val user = auth.currentUser ?: throw AuthException("Session expirée. Reconnectez-vous.")
+        val email = user.email ?: throw AuthException("Email introuvable pour ce compte.")
+        try {
+            user.reauthenticate(EmailAuthProvider.getCredential(email, password)).await()
+        } catch (e: FirebaseAuthException) {
+            throw AuthException(mapError(e))
+        }
+    }
+
+    /**
+     * Supprime le compte : d'abord le document profil (tant que l'utilisateur est authentifié,
+     * requis par les règles), puis le compte Firebase Auth. Doit être précédé d'une
+     * ré-authentification récente, sinon Firebase lève `ERROR_REQUIRES_RECENT_LOGIN`.
+     */
+    suspend fun deleteAccount() {
+        val user = auth.currentUser ?: throw AuthException("Session expirée. Reconnectez-vous.")
+        runCatching { users().document(user.uid).delete().await() }
+        try {
+            user.delete().await()
+        } catch (e: FirebaseAuthException) {
+            throw AuthException(mapError(e))
+        }
+    }
 
     /** Charge le profil Firestore de l'utilisateur courant (null si absent). */
     suspend fun loadUserProfile(uid: String): VeloxUser? {

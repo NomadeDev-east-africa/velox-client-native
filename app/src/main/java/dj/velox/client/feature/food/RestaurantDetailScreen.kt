@@ -198,7 +198,7 @@ private fun RestaurantHeader(
                 Icon(
                     if (isFavorite) Icons.Filled.Favorite else Icons.Filled.FavoriteBorder,
                     contentDescription = stringResource(R.string.favorites),
-                    tint = if (isFavorite) c.primary else c.onSurfaceVariant,
+                    tint = if (isFavorite) Color(0xFFE53935) else c.onSurfaceVariant,
                     modifier = Modifier.size(26.dp),
                 )
             }
@@ -243,20 +243,19 @@ private fun InfoBit(icon: ImageVector, text: String, sub: String, c: VeloxColors
 @Composable
 private fun FeaturedCard(m: MenuItem, c: VeloxColors, onClick: () -> Unit) {
     Column(Modifier.width(170.dp).clickable(onClick = onClick)) {
-        AsyncImage(
-            model = m.imageUrl,
-            contentDescription = m.name,
-            contentScale = ContentScale.Crop,
-            modifier = Modifier.fillMaxWidth().height(150.dp).clip(RoundedCornerShape(12.dp)).background(c.surfaceHigh),
-        )
+        Box {
+            AsyncImage(
+                model = m.imageUrl,
+                contentDescription = m.name,
+                contentScale = ContentScale.Crop,
+                modifier = Modifier.fillMaxWidth().height(150.dp).clip(RoundedCornerShape(12.dp)).background(c.surfaceHigh),
+            )
+            DishPromoBadge(m, Modifier.align(Alignment.TopStart).padding(8.dp))
+        }
         Spacer(Modifier.height(10.dp))
         Text(m.name, color = c.onSurface, fontFamily = Poppins, fontSize = 16.sp, fontWeight = FontWeight.W600, maxLines = 1, overflow = TextOverflow.Ellipsis)
         Spacer(Modifier.height(4.dp))
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Text("${m.discountedPrice.roundToInt()} FDJ", color = c.primary, fontFamily = Poppins, fontSize = 14.sp, fontWeight = FontWeight.Bold)
-            Spacer(Modifier.size(6.dp))
-            Text("· ${m.category}", color = c.onSurfaceVariant, fontFamily = Inter, fontSize = 13.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
-        }
+        DishPriceRow(m, c, 14.sp)
     }
 }
 
@@ -282,12 +281,15 @@ private fun MenuRow(m: MenuItem, c: VeloxColors, onClick: () -> Unit) {
         Modifier.fillMaxWidth().clickable(onClick = onClick).padding(horizontal = 20.dp, vertical = 14.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        AsyncImage(
-            model = m.imageUrl,
-            contentDescription = m.name,
-            contentScale = ContentScale.Crop,
-            modifier = Modifier.size(72.dp).clip(RoundedCornerShape(12.dp)).background(c.surfaceHigh),
-        )
+        Box {
+            AsyncImage(
+                model = m.imageUrl,
+                contentDescription = m.name,
+                contentScale = ContentScale.Crop,
+                modifier = Modifier.size(72.dp).clip(RoundedCornerShape(12.dp)).background(c.surfaceHigh),
+            )
+            DishPromoBadge(m, Modifier.align(Alignment.TopStart).padding(4.dp))
+        }
         Spacer(Modifier.size(16.dp))
         Column(Modifier.weight(1f)) {
             Text(m.name, color = c.onSurface, fontFamily = Poppins, fontSize = 18.sp, fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis)
@@ -299,6 +301,6 @@ private fun MenuRow(m: MenuItem, c: VeloxColors, onClick: () -> Unit) {
             }
         }
         Spacer(Modifier.size(12.dp))
-        Text("${m.discountedPrice.roundToInt()} FDJ", color = c.primary, fontFamily = Poppins, fontSize = 16.sp, fontWeight = FontWeight.Bold)
+        DishPriceRow(m, c, 16.sp)
     }
 }

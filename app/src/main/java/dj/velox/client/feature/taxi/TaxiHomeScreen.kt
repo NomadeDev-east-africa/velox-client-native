@@ -30,6 +30,7 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.EditLocation
+import androidx.compose.material.icons.filled.LocalTaxi
 import androidx.compose.material.icons.filled.MyLocation
 import androidx.compose.material.icons.filled.NotificationsNone
 import androidx.compose.material.icons.filled.Place
@@ -205,6 +206,8 @@ fun TaxiHomeScreen(
                         }
                     } else {
                         Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(Icons.Filled.LocalTaxi, null, tint = c.onPrimary, modifier = Modifier.size(22.dp))
+                            Spacer(Modifier.size(10.dp))
                             Column(horizontalAlignment = Alignment.CenterHorizontally) {
                                 Text("Confirmer la course", color = c.onPrimary, fontFamily = Inter, fontSize = 17.sp, fontWeight = FontWeight.Bold)
                                 Text("${selected.calculatePrice(distance).roundToInt()} FDJ · ${selected.name}", color = c.onPrimary.copy(alpha = 0.9f), fontFamily = Inter, fontSize = 12.sp)
@@ -258,7 +261,9 @@ private fun TripCard(departure: String, destinationLabel: String, hasDestination
 // ── APERÇU CARTE ─────────────────────────────────────────────────────────────
 @Composable
 private fun MapPreview(pickup: LatLng?, destination: LatLng?, routePoints: List<LatLng>?, distance: Double, durationMin: Int, c: VeloxColors, onRecenter: () -> Unit) {
-    Box(Modifier.fillMaxWidth().height(380.dp).clip(RoundedCornerShape(20.dp)).background(c.surfaceHigh)) {
+    // Hauteur réduite : laisse la place au sélecteur « Choisissez votre véhicule » (2 cartes)
+    // au-dessus du bouton, comme la maquette (avant : 380dp masquait les cartes).
+    Box(Modifier.fillMaxWidth().height(240.dp).clip(RoundedCornerShape(20.dp)).background(c.surfaceHigh)) {
         VeloxMap(center = pickup, routeStart = pickup, routeEnd = destination, routePolyline = routePoints, markerStyle = MapMarkerStyle.RIDE, modifier = Modifier.fillMaxSize())
         if (destination != null) {
             Row(
@@ -298,6 +303,10 @@ private fun VehicleCard(choice: RideChoice, distance: Double, selected: Boolean,
         )
         Spacer(Modifier.height(10.dp))
         Text(choice.name, color = if (selected) c.onPrimary else c.onSurface, fontFamily = Poppins, fontSize = 14.sp, fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis)
+        if (choice.type == dj.velox.client.domain.model.RideType.COMFORT) {
+            Spacer(Modifier.height(2.dp))
+            Text("+ clim", color = if (selected) c.onPrimary else c.primary, fontFamily = Inter, fontSize = 11.sp, fontWeight = FontWeight.W600)
+        }
         choice.estimatedArrivalTime?.let { eta ->
             Spacer(Modifier.height(2.dp))
             Text("~ $eta", color = if (selected) c.onPrimary.copy(alpha = 0.8f) else c.onSurfaceVariant, fontFamily = Inter, fontSize = 11.sp)
