@@ -147,6 +147,47 @@ class AuthRepository @Inject constructor(
     }
 
     // ════════════════════════════════════════════════════════════
+    // LIEN D'UN NUMÉRO AU COMPTE COURANT (login Google → pas de numéro)
+    // ════════════════════════════════════════════════════════════
+
+    /**
+     * Lie un credential téléphone **vérifié** au compte actuellement connecté et écrit le
+     * numéro dans `users/{uid}.phone`. On utilise `linkWithCredential` (et NON
+     * `signInWithCredential`) pour rester sur le même compte Google au lieu de basculer sur
+     * un compte téléphone distinct. Le champ `phone` est modifiable côté règles Firestore
+     * (identique au CompletePhoneScreen Flutter).
+     */
+    suspend fun linkPhoneCredential(
+        credential: PhoneAuthCredential,
+        phoneNumber: String,
+    ): FirebaseUser {
+        val user = auth.currentUser ?: throw AuthException("Session expirée. Reconnectez-vous.")
+        try {
+            user.linkWithCredential(credential).await()
+        } catch (e: FirebaseAuthException) {
+            throw AuthException(mapError(e))
+        }
+        users().document(user.uid).set(
+            mapOf(
+                "phone" to phoneNumber,
+                "updatedAt" to FieldValue.serverTimestamp(),
+            ),
+            SetOptions.merge(),
+        ).await()
+        return user
+    }
+
+    /** Variante à partir d'un code OTP saisi manuellement (verificationId + code). */
+    suspend fun linkPhoneWithOtp(
+        verificationId: String,
+        smsCode: String,
+        phoneNumber: String,
+    ): FirebaseUser {
+        val credential = PhoneAuthProvider.getCredential(verificationId, smsCode)
+        return linkPhoneCredential(credential, phoneNumber)
+    }
+
+    // ════════════════════════════════════════════════════════════
     // DIVERS
     // ════════════════════════════════════════════════════════════
 
@@ -195,11 +236,13 @@ class AuthRepository @Inject constructor(
                 )
             ).await()
         } else {
+            // NB : `isVerified` est un champ protégé côté règles Firestore
+            // (piloté serveur) — ne pas l'écrire depuis le client, sinon
+            // l'update est refusé (permission-denied) et casse la connexion.
             ref.update(
                 mapOf(
                     "lastActiveAt" to FieldValue.serverTimestamp(),
                     "updatedAt" to FieldValue.serverTimestamp(),
-                    "isVerified" to user.isEmailVerified,
                 )
             ).await()
         }
@@ -253,7 +296,8 @@ class AuthRepository @Inject constructor(
         "ERROR_OPERATION_NOT_ALLOWED" -> "Cette méthode de connexion n'est pas activée."
         "ERROR_NETWORK_REQUEST_FAILED" -> "Erreur réseau. Vérifiez votre connexion."
         "ERROR_REQUIRES_RECENT_LOGIN" -> "Session expirée. Reconnectez-vous."
-        "ERROR_CREDENTIAL_ALREADY_IN_USE" -> "Ce compte est déjà associé à un autre utilisateur."
+        "ERROR_CREDENTIAL_ALREADY_IN_USE" -> "Ce numéro est déjà utilisé par un autre compte."
+        "ERROR_PROVIDER_ALREADY_LINKED" -> "Un numéro est déjà associé à ce compte."
         "ERROR_INVALID_CREDENTIAL" -> "Identifiants invalides. Vérifiez vos informations."
         else -> e.message ?: e.errorCode
     }

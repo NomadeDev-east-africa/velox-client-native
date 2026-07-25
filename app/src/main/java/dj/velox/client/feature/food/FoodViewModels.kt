@@ -185,6 +185,7 @@ class FoodSearchViewModel @Inject constructor(
     data class Results(
         val restaurants: List<Restaurant> = emptyList(),
         val dishes: List<MenuItem> = emptyList(),
+        val categories: List<String> = emptyList(),
     )
 
     private val _query = MutableStateFlow("")
@@ -230,8 +231,81 @@ class FoodSearchViewModel @Inject constructor(
             restaurants = allRestaurants.filter { it.name.lowercase().contains(q) },
             dishes = allMenus.filter {
                 byId.containsKey(it.restaurantId) &&
-                    (it.name.lowercase().contains(q) || it.description.lowercase().contains(q))
+                    (it.name.lowercase().contains(q) ||
+                        it.description.lowercase().contains(q) ||
+                        it.category.lowercase().contains(q))
             },
+            categories = allMenus.map { it.category }.distinct()
+                .filter { it.lowercase().contains(q) },
         )
+    }
+}
+
+/**
+ * Tous les plats d'une catégorie, **tous restaurants confondus** (nouvel écran
+ * CategoryItemsScreen). Le nom du restaurant est joint pour l'afficher sous chaque plat.
+ */
+@HiltViewModel
+class CategoryItemsViewModel @Inject constructor(
+    restaurantService: RestaurantService,
+    menuService: MenuService,
+    savedStateHandle: SavedStateHandle,
+) : ViewModel() {
+    val category: String = savedStateHandle["category"] ?: ""
+
+    private val _items = MutableStateFlow<List<MenuItem>>(emptyList())
+    val items: StateFlow<List<MenuItem>> = _items.asStateFlow()
+
+    private val _loading = MutableStateFlow(true)
+    val loading: StateFlow<Boolean> = _loading.asStateFlow()
+
+    private var names: Map<String, String> = emptyMap()
+    fun restaurantNameFor(item: MenuItem): String? = names[item.restaurantId]
+
+    init {
+        viewModelScope.launch {
+            val menus = async { menuService.getAllMenus() }
+            val restos = async { restaurantService.getRestaurants() }
+            names = restos.await().associate { it.id to it.name }
+            _items.value = menus.await().filter { it.category.equals(category, ignoreCase = true) }
+            _loading.value = false
+        }
+    }
+}
+
+/** Recherche **scopée** au menu d'un restaurant (par nom + catégorie du plat). */
+@HiltViewModel
+class RestaurantMenuSearchViewModel @Inject constructor(
+    menuService: MenuService,
+    restaurantService: RestaurantService,
+    savedStateHandle: SavedStateHandle,
+) : ViewModel() {
+    val restaurantId: String = savedStateHandle["restaurantId"] ?: ""
+
+    private val _restaurantName = MutableStateFlow<String?>(null)
+    val restaurantName: StateFlow<String?> = _restaurantName.asStateFlow()
+
+    private val _query = MutableStateFlow("")
+    val query: StateFlow<String> = _query.asStateFlow()
+
+    private val _results = MutableStateFlow<List<MenuItem>>(emptyList())
+    val results: StateFlow<List<MenuItem>> = _results.asStateFlow()
+
+    private var all: List<MenuItem> = emptyList()
+
+    init {
+        viewModelScope.launch {
+            all = menuService.getMenusByRestaurant(restaurantId)
+            _restaurantName.value = restaurantService.getRestaurantById(restaurantId)?.name
+            _results.value = all
+        }
+    }
+
+    fun onQueryChange(value: String) {
+        _query.value = value
+        val q = value.trim().lowercase()
+        _results.value = if (q.isEmpty()) all else all.filter {
+            it.name.lowercase().contains(q) || it.category.lowercase().contains(q)
+        }
     }
 }

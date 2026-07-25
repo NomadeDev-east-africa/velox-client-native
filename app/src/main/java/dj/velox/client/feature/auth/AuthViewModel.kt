@@ -9,6 +9,7 @@ import com.google.firebase.auth.PhoneAuthCredential
 import com.google.firebase.auth.PhoneAuthProvider
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dj.velox.client.core.notifications.NotificationTokenManager
+import dj.velox.client.data.local.VeloxLocalStore
 import dj.velox.client.data.remote.AuthException
 import dj.velox.client.data.remote.AuthRepository
 import dj.velox.client.domain.model.VeloxUser
@@ -40,19 +41,24 @@ data class AuthFormState(
     val error: String? = null,
 )
 
-/** État du flux OTP téléphone. */
+/** État du flux OTP téléphone (connexion **et** liaison de numéro). */
 data class PhoneAuthState(
     val isSending: Boolean = false,
     val codeSent: Boolean = false,
     val verificationId: String? = null,
     val isVerifying: Boolean = false,
     val error: String? = null,
+    /** Code auto-récupéré du SMS (instant verification) → remplit le champ. */
+    val autoCode: String? = null,
+    /** Liaison du numéro au compte réussie (flux « numéro obligatoire »). */
+    val linked: Boolean = false,
 )
 
 @HiltViewModel
 class AuthViewModel @Inject constructor(
     private val repo: AuthRepository,
     private val tokenManager: NotificationTokenManager,
+    private val store: VeloxLocalStore,
 ) : ViewModel() {
 
     /**
@@ -86,6 +92,12 @@ class AuthViewModel @Inject constructor(
 
     private var resendToken: PhoneAuthProvider.ForceResendingToken? = null
 
+    // ─── Liaison d'un numéro au compte courant (login Google → pas de numéro) ───
+    private val _phoneLink = MutableStateFlow(PhoneAuthState())
+    val phoneLink: StateFlow<PhoneAuthState> = _phoneLink.asStateFlow()
+    private var linkResendToken: PhoneAuthProvider.ForceResendingToken? = null
+    private var pendingLinkNumber: String = ""
+
     fun clearError() {
         _form.value = _form.value.copy(error = null)
         _phone.value = _phone.value.copy(error = null)
@@ -94,6 +106,68 @@ class AuthViewModel @Inject constructor(
     fun resetPhoneFlow() {
         _phone.value = PhoneAuthState()
         resendToken = null
+    }
+
+    fun resetPhoneLink() {
+        _phoneLink.value = PhoneAuthState()
+        linkResendToken = null
+        pendingLinkNumber = ""
+    }
+
+    // ─── Flux « numéro obligatoire » ─────────────────────────────
+
+    /**
+     * Étape 1 : envoie le SMS pour lier [phoneNumber] au compte connecté. En cas
+     * d'auto-récupération du code (instant verification), on lie directement et on
+     * expose `autoCode` pour remplir le champ à l'écran.
+     */
+    fun startPhoneLink(activity: Activity, phoneNumber: String) {
+        pendingLinkNumber = phoneNumber.trim()
+        _phoneLink.value = PhoneAuthState(isSending = true)
+        val callbacks = object : PhoneAuthProvider.OnVerificationStateChangedCallbacks() {
+            override fun onVerificationCompleted(credential: PhoneAuthCredential) {
+                _phoneLink.value = _phoneLink.value.copy(
+                    codeSent = true,
+                    autoCode = credential.smsCode,
+                    isVerifying = true,
+                    error = null,
+                )
+                linkWith { repo.linkPhoneCredential(credential, pendingLinkNumber) }
+            }
+
+            override fun onVerificationFailed(e: FirebaseException) {
+                _phoneLink.value = PhoneAuthState(error = e.message ?: "Échec de l'envoi du code.")
+            }
+
+            override fun onCodeSent(
+                verificationId: String,
+                token: PhoneAuthProvider.ForceResendingToken,
+            ) {
+                linkResendToken = token
+                _phoneLink.value = PhoneAuthState(codeSent = true, verificationId = verificationId)
+            }
+        }
+        repo.verifyPhoneNumber(activity, pendingLinkNumber, callbacks, linkResendToken)
+    }
+
+    /** Étape 2 : vérifie le code saisi manuellement puis lie le numéro au compte. */
+    fun verifyPhoneLink(code: String) {
+        val verificationId = _phoneLink.value.verificationId ?: return
+        _phoneLink.value = _phoneLink.value.copy(isVerifying = true, error = null)
+        linkWith { repo.linkPhoneWithOtp(verificationId, code.trim(), pendingLinkNumber) }
+    }
+
+    private inline fun linkWith(crossinline action: suspend () -> Unit) {
+        viewModelScope.launch {
+            runCatching { action() }
+                .onSuccess { _phoneLink.value = _phoneLink.value.copy(isVerifying = false, linked = true) }
+                .onFailure {
+                    _phoneLink.value = _phoneLink.value.copy(
+                        isVerifying = false,
+                        error = (it as? AuthException)?.message ?: it.message ?: "Échec de la liaison du numéro.",
+                    )
+                }
+        }
     }
 
     // ─── Actions ─────────────────────────────────────────────────
@@ -119,7 +193,16 @@ class AuthViewModel @Inject constructor(
     fun signOut() {
         val uid = repo.currentUser?.uid
         viewModelScope.launch {
+            // 1) Retirer le token FCM tant que l'auth est encore valide (écrit sous users/{uid}).
             uid?.let { runCatching { tokenManager.clearToken(it) } }
+            // 2) Vider les données de session persistées (panier, commande/course active,
+            //    notif en attente) AVANT de couper l'auth. Sinon elles survivent dans
+            //    DataStore et le prochain compte connecté sur ce téléphone les recharge
+            //    (fuite inter-comptes qui survit même au redémarrage de l'app). Les prefs
+            //    UI — thème, langue — sont conservées par clearAllSession().
+            runCatching { store.clearAllSession() }
+            // 3) Couper l'auth : le RootNavGraph bascule alors sur les écrans d'auth et
+            //    détruit MainNavGraph (donc l'état mémoire du panier).
             repo.signOut()
         }
     }

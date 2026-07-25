@@ -92,6 +92,7 @@ fun ProfileScreen(
     onEditProfile: () -> Unit,
     onSelectLanguage: () -> Unit,
     onOpenSupport: () -> Unit,
+    favoriteCount: Int = 0,
     themeViewModel: ThemeViewModel = hiltViewModel(),
 ) {
     val c = VeloxTheme.colors
@@ -316,7 +317,7 @@ fun ProfileScreen(
             SettingRow(
                 icon = Icons.Filled.Favorite,
                 title = stringResource(R.string.favorite_restaurants),
-                subtitle = "0 ${stringResource(R.string.restaurants)}",
+                subtitle = "$favoriteCount ${stringResource(R.string.restaurants)}",
                 c = c,
                 onClick = soon,
                 trailing = { Chevron(c) },

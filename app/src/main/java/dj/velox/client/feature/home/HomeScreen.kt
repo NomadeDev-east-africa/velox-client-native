@@ -1,6 +1,5 @@
 package dj.velox.client.feature.home
 
-import android.widget.Toast
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -22,8 +21,6 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.AccountBalanceWallet
-import androidx.compose.material.icons.filled.CreditCard
 import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.LocationOn
@@ -38,7 +35,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontStyle
@@ -175,7 +171,7 @@ private fun Header(firstName: String, photoUrl: String?, c: VeloxColors) {
             )
         }
         Image(
-            painter = painterResource(R.drawable.logo_velox_bg),
+            painter = painterResource(R.drawable.logo_velox_home),
             contentDescription = "Velox",
             contentScale = ContentScale.Fit,
             modifier = Modifier.height(72.dp),
@@ -398,9 +394,6 @@ private fun Divider(c: VeloxColors) {
 // ── ACTIONS RAPIDES ──────────────────────────────────────────────────────────
 @Composable
 private fun QuickActions(onOpenOrders: () -> Unit, c: VeloxColors) {
-    val context = LocalContext.current
-    val soonMsg = stringResource(R.string.coming_soon)
-    val soon = { Toast.makeText(context, soonMsg, Toast.LENGTH_SHORT).show() }
     Column {
         Text(
             stringResource(R.string.quick_actions),
@@ -412,11 +405,8 @@ private fun QuickActions(onOpenOrders: () -> Unit, c: VeloxColors) {
             modifier = Modifier.padding(start = 20.dp, top = 28.dp, end = 20.dp, bottom = 16.dp),
         )
         Row(Modifier.padding(horizontal = 20.dp)) {
+            // Portefeuille/Paiements retirés (non fonctionnels) — seul « Historique » reste.
             ActionCard(Icons.Filled.History, stringResource(R.string.history), onOpenOrders, c, Modifier.weight(1f))
-            Spacer(Modifier.width(10.dp))
-            ActionCard(Icons.Filled.CreditCard, stringResource(R.string.payments), soon, c, Modifier.weight(1f))
-            Spacer(Modifier.width(10.dp))
-            ActionCard(Icons.Filled.AccountBalanceWallet, stringResource(R.string.wallet), soon, c, Modifier.weight(1f))
         }
     }
 }

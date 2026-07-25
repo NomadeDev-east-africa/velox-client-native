@@ -269,6 +269,8 @@
     <string name="auth_otp_subtitle">SMS-ak gettem koodh cul.</string>
     <string name="auth_otp_code">6 lambarih koodh</string>
     <string name="auth_verify">Numma</string>
+    <string name="complete_phone_title">Ku telefoon lakqo</string>
+    <string name="complete_phone_message">Telefoon lakqo faxximah, dalabaadaa kee gexsootaah koo xayyowtaamah.</string>
     <string name="auth_welcome_to">Nagaay temeeten</string>
     <string name="auth_signin_subtitle">Taleefon lambar loynay email cula culul. Maaqo numuk raaxis :)</string>
     <string name="auth_no_account_q">Akoon mantu? </string>
@@ -298,6 +300,7 @@
     <string name="closed_label">Qide</string>
     <string name="orders_abbrev">DKE</string>
     <string name="search_hint_food">Maqaayi loynay xaqo...</string>
+    <string name="search_hint_dish">Loynay xaqo…</string>
     <string name="clear_label">Bahis</string>
     <string name="search_prompt">Maqaayi loynay xaqo goob</string>
     <string name="no_results_for">Natiijo magettin « %1$s »</string>

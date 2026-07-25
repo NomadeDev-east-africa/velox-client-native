@@ -130,7 +130,7 @@ fun TaxiHomeScreen(
                     Icon(Icons.AutoMirrored.Filled.ArrowBack, "Retour", tint = c.onSurface)
                 }
                 Spacer(Modifier.size(4.dp))
-                Image(androidx.compose.ui.res.painterResource(R.drawable.logo_velox_bg), "Velox", contentScale = ContentScale.Fit, modifier = Modifier.height(30.dp))
+                Image(androidx.compose.ui.res.painterResource(R.drawable.logo_velox_home), "Velox", contentScale = ContentScale.Fit, modifier = Modifier.height(30.dp))
                 Spacer(Modifier.size(6.dp))
                 Text("Velox", color = c.primary, fontFamily = Poppins, fontSize = 20.sp, fontWeight = FontWeight.Bold)
                 Spacer(Modifier.weight(1f))

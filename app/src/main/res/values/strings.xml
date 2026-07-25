@@ -3,6 +3,7 @@
     <string name="app_name" translatable="false">Velox</string>
     <string name="socle_ready">Socle prêt ✅ — Compose · Hilt · Firebase · DataStore</string>
 
+
     <!-- Communs (la base i18n s'étoffera au fil des modules) -->
     <string name="common_loading">Chargement…</string>
     <string name="common_retry">Réessayer</string>
@@ -52,6 +53,8 @@
     <string name="auth_otp_subtitle">Saisissez le code reçu par SMS.</string>
     <string name="auth_otp_code">Code à 6 chiffres</string>
     <string name="auth_verify">Vérifier</string>
+    <string name="complete_phone_title">Votre numéro de téléphone</string>
+    <string name="complete_phone_message">Un numéro est nécessaire pour vous contacter lors de vos commandes et courses.</string>
 
     <!-- Auth — écrans Sign In / Sign Up (libellés inédits ; so/aa best-effort À RELIRE par un natif) -->
     <string name="auth_welcome_to">Bienvenue sur</string>
@@ -311,6 +314,7 @@
     <string name="closed_label">Fermé</string>
     <string name="orders_abbrev">CMDS</string>
     <string name="search_hint_food">Restaurant ou plat...</string>
+    <string name="search_hint_dish">Rechercher un plat…</string>
     <string name="clear_label">Effacer</string>
     <string name="search_prompt">Cherchez un restaurant ou un plat</string>
     <string name="no_results_for">Aucun résultat pour « %1$s »</string>

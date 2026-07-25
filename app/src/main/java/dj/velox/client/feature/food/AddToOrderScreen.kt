@@ -53,33 +53,20 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil.compose.AsyncImage
 import dj.velox.client.R
-import dj.velox.client.domain.model.ExtraOption
 import dj.velox.client.domain.model.MenuItem
-import dj.velox.client.domain.model.OptionGroup
 import dj.velox.client.domain.model.OptionSelection
 import dj.velox.client.domain.model.OrderItem
 import dj.velox.client.domain.model.Restaurant
-import dj.velox.client.domain.model.SauceOption
 import dj.velox.client.ui.theme.Inter
 import dj.velox.client.ui.theme.Poppins
 import dj.velox.client.ui.theme.VeloxColors
 import dj.velox.client.ui.theme.VeloxTheme
 
-// Options par défaut (plats sans optionGroups) — miroir de `add_to_order_screen.dart`.
-private val FALLBACK_EXTRAS = listOf(
-    ExtraOption("Frites", 500), ExtraOption("Tomates", 500), ExtraOption("Oignons", 500),
-    ExtraOption("Salade", 500), ExtraOption("Taille L", 500), ExtraOption("Taille XL", 500),
-    ExtraOption("Taille XXL", 500),
-)
-private val FALLBACK_SAUCES = listOf(
-    SauceOption("Samouraï", 50), SauceOption("Mayonnaise", 50), SauceOption("Ketchup", 50),
-    SauceOption("Barbecue", 50), SauceOption("Harissa", 50), SauceOption("Moutarde", 50),
-)
-
 /**
  * Écran d'ajout au panier avec options (port de `add_to_order_screen.dart`).
- * Data-driven via `item.optionGroups` (FORMULE single = radios, SUPPLÉMENTS multiple = cases) ;
- * sinon repli sur extras/sauces par défaut. Gère le changement de restaurant.
+ * Data-driven via `item.optionGroups` (FORMULE single = radios, SUPPLÉMENTS multiple = cases).
+ * Un plat sans options n'affiche AUCUNE section (pas d'extras/sauces en dur) : seulement
+ * le prix de base + la quantité. Gère le changement de restaurant.
  */
 @Composable
 fun AddToOrderScreen(
@@ -122,14 +109,9 @@ private fun AddToOrderContent(
             groups.map { g -> if (g.isSingle && g.required && g.choices.isNotEmpty()) setOf(0) else emptySet() },
         )
     }
-    // Repli extras/sauces : ensembles d'index sélectionnés.
-    var extrasSel by remember(item.id) { mutableStateOf(emptySet<Int>()) }
-    var saucesSel by remember(item.id) { mutableStateOf(emptySet<Int>()) }
-
     var showDialog by remember { mutableStateOf(false) }
 
-    val surcharge = if (dataDriven) OptionSelection.surcharge(groups, selections)
-    else extrasSel.sumOf { FALLBACK_EXTRAS[it].price } + saucesSel.sumOf { FALLBACK_SAUCES[it].price }
+    val surcharge = if (dataDriven) OptionSelection.surcharge(groups, selections) else 0
     val totalPrice = (item.price.toInt() + surcharge) * quantity
 
     fun toggleChoice(gi: Int, ci: Int) {
@@ -145,10 +127,7 @@ private fun AddToOrderContent(
 
     fun buildOrderItem(): OrderItem {
         val mapping = if (dataDriven) OptionSelection.toCart(groups, selections)
-        else dj.velox.client.domain.model.OptionCartMapping(
-            extras = extrasSel.map { FALLBACK_EXTRAS[it].copy(isSelected = true) },
-            sauces = saucesSel.map { FALLBACK_SAUCES[it].copy(isSelected = true) },
-        )
+        else dj.velox.client.domain.model.OptionCartMapping(extras = emptyList(), sauces = emptyList())
         return OrderItem(
             menuId = item.id, name = item.name, description = item.description,
             imageUrl = item.imageUrl ?: "", category = item.category,
@@ -209,19 +188,6 @@ private fun AddToOrderContent(
                             c = c,
                             onClick = { toggleChoice(gi, ci) },
                         )
-                    }
-                }
-            } else {
-                SectionHeader(stringResource(R.string.choose_extras).uppercase(), true, c)
-                FALLBACK_EXTRAS.forEachIndexed { i, e ->
-                    ChoiceRow(e.name.uppercase(), "+ ${e.price} FDJ", extrasSel.contains(i), isSingle = false, priced = true, c = c) {
-                        extrasSel = if (extrasSel.contains(i)) extrasSel - i else extrasSel + i
-                    }
-                }
-                SectionHeader(stringResource(R.string.choose_sauces).uppercase(), false, c)
-                FALLBACK_SAUCES.forEachIndexed { i, s ->
-                    ChoiceRow(s.name.uppercase(), "+ ${s.price} FDJ", saucesSel.contains(i), isSingle = false, priced = true, c = c) {
-                        saucesSel = if (saucesSel.contains(i)) saucesSel - i else saucesSel + i
                     }
                 }
             }

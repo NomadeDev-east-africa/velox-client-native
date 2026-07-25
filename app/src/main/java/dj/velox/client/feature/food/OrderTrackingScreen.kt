@@ -103,7 +103,7 @@ private fun OrderContent(
             horizontalArrangement = Arrangement.Center,
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Image(painterResource(R.drawable.logo_velox_bg), "Velox", contentScale = ContentScale.Fit, modifier = Modifier.height(34.dp))
+            Image(painterResource(R.drawable.logo_velox_home), "Velox", contentScale = ContentScale.Fit, modifier = Modifier.height(34.dp))
         }
 
         Column(Modifier.weight(1f).verticalScroll(rememberScrollState()).padding(16.dp)) {

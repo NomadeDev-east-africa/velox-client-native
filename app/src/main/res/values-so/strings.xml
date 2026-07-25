@@ -268,6 +268,8 @@
     <string name="auth_otp_subtitle">Geli koodhka SMS-ka lagugu soo diray.</string>
     <string name="auth_otp_code">Koodh 6 lambar ah</string>
     <string name="auth_verify">Xaqiiji</string>
+    <string name="complete_phone_title">Lambarkaaga taleefanka</string>
+    <string name="complete_phone_message">Lambarka taleefanka waa lagama maarmaan si aan kuula soo xiriirno dalabaadkaaga iyo safarradaada.</string>
     <string name="auth_welcome_to">Ku soo dhowow</string>
     <string name="auth_signin_subtitle">Geli lambarka taleefankaaga ama emailkaaga si aad u gasho. Ku raaxayso cuntadaada :)</string>
     <string name="auth_no_account_q">Ma lihid akoon? </string>
@@ -297,6 +299,7 @@
     <string name="closed_label">Xidhan</string>
     <string name="orders_abbrev">DLB</string>
     <string name="search_hint_food">Makhaayad ama cunto...</string>
+    <string name="search_hint_dish">Raadi cunto…</string>
     <string name="clear_label">Tirtir</string>
     <string name="search_prompt">Raadi makhaayad ama cunto</string>
     <string name="no_results_for">Natiijo lama helin « %1$s »</string>

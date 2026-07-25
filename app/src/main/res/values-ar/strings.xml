@@ -268,6 +268,8 @@
     <string name="auth_otp_subtitle">أدخل الرمز المُستلم عبر الرسائل القصيرة.</string>
     <string name="auth_otp_code">رمز من 6 أرقام</string>
     <string name="auth_verify">تحقّق</string>
+    <string name="complete_phone_title">رقم هاتفك</string>
+    <string name="complete_phone_message">رقم الهاتف مطلوب حتى نتمكن من التواصل معك بشأن طلباتك ورحلاتك.</string>
     <string name="auth_welcome_to">مرحبًا بك في</string>
     <string name="auth_signin_subtitle">أدخل رقم هاتفك أو بريدك الإلكتروني لتسجيل الدخول. استمتع بطعامك :)</string>
     <string name="auth_no_account_q">ليس لديك حساب؟ </string>
@@ -297,6 +299,7 @@
     <string name="closed_label">مغلق</string>
     <string name="orders_abbrev">طلب</string>
     <string name="search_hint_food">مطعم أو طبق...</string>
+    <string name="search_hint_dish">ابحث عن طبق…</string>
     <string name="clear_label">مسح</string>
     <string name="search_prompt">ابحث عن مطعم أو طبق</string>
     <string name="no_results_for">لا نتائج لـ « %1$s »</string>

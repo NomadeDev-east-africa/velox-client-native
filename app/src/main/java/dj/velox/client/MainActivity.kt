@@ -1,10 +1,15 @@
 package dj.velox.client
 
+import android.Manifest
 import android.content.Intent
+import android.content.pm.PackageManager
+import android.os.Build
 import android.os.Bundle
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.content.ContextCompat
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Scaffold
@@ -36,9 +41,16 @@ class MainActivity : AppCompatActivity() {
 
     @Inject lateinit var notificationRouter: NotificationRouter
 
+    // Android 13+ : POST_NOTIFICATIONS est une permission runtime. Sans elle,
+    // l'OS bloque l'affichage de TOUTES les notifs (y compris « commande prête »),
+    // même si le token FCM est bien enregistré et le push envoyé côté serveur.
+    private val requestNotificationPermission =
+        registerForActivityResult(ActivityResultContracts.RequestPermission()) { /* choix respecté ; le token est déjà enregistré */ }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         enableEdgeToEdge()
         super.onCreate(savedInstanceState)
+        maybeRequestNotificationPermission()
         handleDeepLink(intent)
         setContent {
             // Thème piloté par la préférence persistée (Apparence → Mode sombre).
@@ -56,6 +68,15 @@ class MainActivity : AppCompatActivity() {
         super.onNewIntent(intent)
         setIntent(intent)
         handleDeepLink(intent)
+    }
+
+    /** Demande POST_NOTIFICATIONS sur API 33+ si pas déjà accordée (no-op avant Android 13). */
+    private fun maybeRequestNotificationPermission() {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) return
+        val granted = ContextCompat.checkSelfPermission(
+            this, Manifest.permission.POST_NOTIFICATIONS,
+        ) == PackageManager.PERMISSION_GRANTED
+        if (!granted) requestNotificationPermission.launch(Manifest.permission.POST_NOTIFICATIONS)
     }
 
     /**

@@ -268,6 +268,8 @@
     <string name="auth_otp_subtitle">Enter the code received by SMS.</string>
     <string name="auth_otp_code">6-digit code</string>
     <string name="auth_verify">Verify</string>
+    <string name="complete_phone_title">Your phone number</string>
+    <string name="complete_phone_message">A phone number is required so we can reach you about your orders and rides.</string>
     <string name="auth_welcome_to">Welcome to</string>
     <string name="auth_signin_subtitle">Enter your phone number or email address to sign in. Enjoy your food :)</string>
     <string name="auth_no_account_q">Don\'t have an account? </string>
@@ -297,6 +299,7 @@
     <string name="closed_label">Closed</string>
     <string name="orders_abbrev">ORD</string>
     <string name="search_hint_food">Restaurant or dish...</string>
+    <string name="search_hint_dish">Search a dish…</string>
     <string name="clear_label">Clear</string>
     <string name="search_prompt">Search for a restaurant or a dish</string>
     <string name="no_results_for">No results for « %1$s »</string>

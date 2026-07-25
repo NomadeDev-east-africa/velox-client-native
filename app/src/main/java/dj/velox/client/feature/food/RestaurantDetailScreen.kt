@@ -28,11 +28,14 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.AccessTime
 import androidx.compose.material.icons.filled.AttachMoney
+import androidx.compose.material.icons.filled.Favorite
+import androidx.compose.material.icons.filled.FavoriteBorder
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.filled.ShoppingCart
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -62,6 +65,7 @@ import dj.velox.client.ui.theme.Inter
 import dj.velox.client.ui.theme.Poppins
 import dj.velox.client.ui.theme.VeloxColors
 import dj.velox.client.ui.theme.VeloxTheme
+import dj.velox.client.core.Constants
 import kotlin.math.roundToInt
 
 /**
@@ -75,6 +79,9 @@ fun RestaurantDetailScreen(
     onOpenItem: (restaurantId: String, menuId: String) -> Unit,
     onOpenCart: () -> Unit,
     onBack: () -> Unit,
+    isFavorite: Boolean = false,
+    onToggleFavorite: () -> Unit = {},
+    onOpenMenuSearch: () -> Unit = {},
     menuVm: MenuViewModel = hiltViewModel(),
 ) {
     val c = VeloxTheme.colors
@@ -92,7 +99,9 @@ fun RestaurantDetailScreen(
     val filtered = remember(menu, selectedCategory) {
         if (selectedCategory.isEmpty()) menu else menu.filter { it.category == selectedCategory }
     }
-    val avgTime = remember(menu) { if (menu.isEmpty()) 25 else menu.map { it.preparationTime }.average().roundToInt() }
+    // Temps de livraison affiché : valeur fixe (décision produit, aligné iOS) —
+    // plus de moyenne dynamique des temps de préparation des plats.
+    val avgTime = 35
     val soonMsg = stringResource(R.string.coming_soon)
     val soon = { Toast.makeText(context, soonMsg, Toast.LENGTH_SHORT).show() }
 
@@ -106,11 +115,11 @@ fun RestaurantDetailScreen(
                 TopIcon(Icons.AutoMirrored.Filled.ArrowBack, stringResource(R.string.back), c, onBack)
                 Spacer(Modifier.weight(1f))
                 TopIcon(Icons.Filled.Share, stringResource(R.string.share_label), c, soon)
-                TopIcon(Icons.Filled.Search, stringResource(R.string.search), c, soon)
+                TopIcon(Icons.Filled.Search, stringResource(R.string.search), c, onOpenMenuSearch)
             }
 
             LazyColumn(Modifier.fillMaxSize()) {
-                item { restaurant?.let { RestaurantHeader(it, avgTime, c, soon) } }
+                item { restaurant?.let { RestaurantHeader(it, avgTime, isFavorite, c, onToggleFavorite, soon) } }
 
                 if (featured.isNotEmpty()) {
                     item { Spacer(Modifier.height(20.dp)) }
@@ -174,9 +183,26 @@ private fun TopIcon(icon: ImageVector, cd: String, c: VeloxColors, onClick: () -
 }
 
 @Composable
-private fun RestaurantHeader(r: Restaurant, avgTime: Int, c: VeloxColors, onTakeAway: () -> Unit) {
+private fun RestaurantHeader(
+    r: Restaurant,
+    avgTime: Int,
+    isFavorite: Boolean,
+    c: VeloxColors,
+    onToggleFavorite: () -> Unit,
+    onTakeAway: () -> Unit,
+) {
     Column(Modifier.padding(horizontal = 20.dp, vertical = 8.dp)) {
-        Text(r.name, color = c.onSurface, fontFamily = Poppins, fontSize = 28.sp, fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis, letterSpacing = (-0.5).sp)
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text(r.name, color = c.onSurface, fontFamily = Poppins, fontSize = 28.sp, fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis, letterSpacing = (-0.5).sp, modifier = Modifier.weight(1f))
+            IconButton(onClick = onToggleFavorite) {
+                Icon(
+                    if (isFavorite) Icons.Filled.Favorite else Icons.Filled.FavoriteBorder,
+                    contentDescription = stringResource(R.string.favorites),
+                    tint = if (isFavorite) c.primary else c.onSurfaceVariant,
+                    modifier = Modifier.size(26.dp),
+                )
+            }
+        }
         Spacer(Modifier.height(8.dp))
         Text(r.address, color = c.onSurfaceVariant, fontFamily = Inter, fontSize = 14.sp, maxLines = 2, overflow = TextOverflow.Ellipsis)
         Spacer(Modifier.height(10.dp))
@@ -189,7 +215,7 @@ private fun RestaurantHeader(r: Restaurant, avgTime: Int, c: VeloxColors, onTake
         }
         Spacer(Modifier.height(18.dp))
         Row(verticalAlignment = Alignment.CenterVertically) {
-            InfoBit(Icons.Filled.AttachMoney, stringResource(R.string.free), stringResource(R.string.delivery), c)
+            InfoBit(Icons.Filled.AttachMoney, "${Constants.DELIVERY_FEE} FDJ", stringResource(R.string.delivery), c)
             Spacer(Modifier.size(20.dp))
             InfoBit(Icons.Filled.AccessTime, "$avgTime", stringResource(R.string.minutes), c)
             Spacer(Modifier.weight(1f))

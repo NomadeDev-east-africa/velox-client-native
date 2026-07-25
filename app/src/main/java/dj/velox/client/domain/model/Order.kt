@@ -46,10 +46,11 @@ data class Order(
     val subtotal: Int get() = items.sumOf { it.totalPrice }
     val total: Int get() = subtotal + deliveryFee - discount
 
+    // Les règles Firestore n'autorisent l'annulation client que depuis
+    // `pending` ou `accepted` — au-delà (preparing/ready), le restaurant a
+    // engagé la commande. Rester aligné évite un bouton « Annuler » qui échoue.
     val canBeCancelled: Boolean
-        get() = status in setOf(
-            STATUS_PENDING, STATUS_CONFIRMED, STATUS_ACCEPTED, STATUS_PREPARING, STATUS_READY,
-        )
+        get() = status in setOf(STATUS_PENDING, STATUS_ACCEPTED)
     val isCompleted: Boolean get() = status == STATUS_COMPLETED || status == STATUS_CANCELLED
     val isActive: Boolean get() = status != STATUS_COMPLETED && status != STATUS_CANCELLED
 

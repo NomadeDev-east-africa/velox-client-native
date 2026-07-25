@@ -22,6 +22,7 @@ import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import dj.velox.client.core.analytics.VeloxAnalytics
 import dj.velox.client.feature.auth.AuthViewModel
+import dj.velox.client.feature.auth.CompletePhoneScreen
 import dj.velox.client.feature.auth.EmailSignUpScreen
 import dj.velox.client.feature.auth.ForgotPasswordScreen
 import dj.velox.client.feature.auth.OtpScreen
@@ -32,8 +33,10 @@ import dj.velox.client.feature.auth.SignUpScreen
 import dj.velox.client.feature.food.AddToOrderScreen
 import dj.velox.client.feature.food.CartScreen
 import dj.velox.client.feature.food.CartViewModel
+import dj.velox.client.feature.food.CategoryItemsScreen
 import dj.velox.client.feature.food.FoodHomeScreen
 import dj.velox.client.feature.food.FoodSearchScreen
+import dj.velox.client.feature.food.RestaurantMenuSearchScreen
 import dj.velox.client.feature.food.OrderCompletedScreen
 import dj.velox.client.feature.food.OrderTrackingScreen
 import dj.velox.client.feature.food.PendingOrderScreen
@@ -75,6 +78,8 @@ object Routes {
     const val PICK_ADDRESS = "pick_address"
     const val FOOD_HOME = "food_home"
     const val FOOD_SEARCH = "food_search"
+    const val CATEGORY_ITEMS = "category_items"
+    const val RESTAURANT_MENU_SEARCH = "restaurant_menu_search"
     const val RESTAURANT_DETAIL = "restaurant_detail"
     const val ADD_TO_ORDER = "add_to_order"
     const val CART = "cart"
@@ -91,6 +96,8 @@ object Routes {
     const val SUPPORT = "support"
 
     fun restaurantDetail(id: String) = "$RESTAURANT_DETAIL/$id"
+    fun categoryItems(category: String) = "$CATEGORY_ITEMS?category=${android.net.Uri.encode(category)}"
+    fun restaurantMenuSearch(restaurantId: String) = "$RESTAURANT_MENU_SEARCH/$restaurantId"
     fun addToOrder(restaurantId: String, menuId: String) = "$ADD_TO_ORDER/$restaurantId/$menuId"
     fun orderTracking(id: String) = "$ORDER_TRACKING/$id"
     fun orderCompleted(id: String) = "$ORDER_COMPLETED/$id"
@@ -139,6 +146,13 @@ fun RootContent(
     Box(modifier.fillMaxSize()) {
         when {
             session.isLoading -> VeloxLoader()
+            // Compte connecté sans numéro (typiquement Google) → écran bloquant de
+            // complétion : sinon le client est injoignable pour ses commandes/courses.
+            session.isAuthenticated && session.profile?.phone.isNullOrBlank() ->
+                CompletePhoneScreen(
+                    viewModel = authViewModel,
+                    onLogout = authViewModel::signOut,
+                )
             session.isAuthenticated -> MainNavGraph(
                 session = session,
                 onLogout = authViewModel::signOut,
@@ -157,6 +171,9 @@ private fun MainNavGraph(session: SessionState, onLogout: () -> Unit) {
     val cartViewModel: CartViewModel = hiltViewModel()
     // Adresses hissées → partagées entre la liste et le formulaire d'ajout/édition.
     val addressViewModel: dj.velox.client.feature.profile.AddressViewModel = hiltViewModel()
+    // Favoris restaurants hissés → cœur cohérent entre détail / recherche. Réactif à l'uid.
+    val favoritesViewModel: dj.velox.client.feature.food.FavoritesViewModel = hiltViewModel()
+    val favoriteIds by favoritesViewModel.favorites.collectAsStateWithLifecycle()
 
     // Évite une double navigation entre le deep-link (notif tapée) et la restauration
     // au lancement : le premier des deux qui s'exécute pose ce drapeau, l'autre s'abstient.
@@ -217,6 +234,7 @@ private fun MainNavGraph(session: SessionState, onLogout: () -> Unit) {
                 onEditProfile = { navController.navigate(Routes.EDIT_PROFILE) },
                 onSelectLanguage = { navController.navigate(Routes.LANGUAGE) },
                 onOpenSupport = { navController.navigate(Routes.SUPPORT) },
+                favoriteCount = favoriteIds.size,
             )
         }
         composable(Routes.EDIT_PROFILE) {
@@ -332,6 +350,7 @@ private fun MainNavGraph(session: SessionState, onLogout: () -> Unit) {
             FoodHomeScreen(
                 cartViewModel = cartViewModel,
                 onOpenRestaurant = { id -> navController.navigate(Routes.restaurantDetail(id)) },
+                onOpenCategory = { cat -> navController.navigate(Routes.categoryItems(cat)) },
                 onOpenCart = { navController.navigate(Routes.CART) },
                 onOpenSearch = { navController.navigate(Routes.FOOD_SEARCH) },
                 onBack = { navController.popBackStack() },
@@ -340,6 +359,29 @@ private fun MainNavGraph(session: SessionState, onLogout: () -> Unit) {
         composable(Routes.FOOD_SEARCH) {
             FoodSearchScreen(
                 onOpenRestaurant = { id -> navController.navigate(Routes.restaurantDetail(id)) },
+                onOpenCategory = { cat -> navController.navigate(Routes.categoryItems(cat)) },
+                favorites = favoriteIds,
+                onToggleFavorite = { id -> favoritesViewModel.toggle(id) },
+                onBack = { navController.popBackStack() },
+            )
+        }
+        composable(
+            route = "${Routes.CATEGORY_ITEMS}?category={category}",
+            arguments = listOf(navArgument("category") { type = NavType.StringType; defaultValue = "" }),
+        ) {
+            CategoryItemsScreen(
+                onOpenRestaurant = { id -> navController.navigate(Routes.restaurantDetail(id)) },
+                onBack = { navController.popBackStack() },
+            )
+        }
+        composable(
+            route = "${Routes.RESTAURANT_MENU_SEARCH}/{restaurantId}",
+            arguments = listOf(navArgument("restaurantId") { type = NavType.StringType }),
+        ) {
+            RestaurantMenuSearchScreen(
+                onOpenItem = { restaurantId, menuId ->
+                    navController.navigate(Routes.addToOrder(restaurantId, menuId))
+                },
                 onBack = { navController.popBackStack() },
             )
         }
@@ -347,6 +389,7 @@ private fun MainNavGraph(session: SessionState, onLogout: () -> Unit) {
             route = "${Routes.RESTAURANT_DETAIL}/{restaurantId}",
             arguments = listOf(navArgument("restaurantId") { type = NavType.StringType }),
         ) {
+            val rid = it.arguments?.getString("restaurantId").orEmpty()
             RestaurantDetailScreen(
                 cartViewModel = cartViewModel,
                 onOpenItem = { restaurantId, menuId ->
@@ -354,6 +397,9 @@ private fun MainNavGraph(session: SessionState, onLogout: () -> Unit) {
                 },
                 onOpenCart = { navController.navigate(Routes.CART) },
                 onBack = { navController.popBackStack() },
+                isFavorite = rid in favoriteIds,
+                onToggleFavorite = { favoritesViewModel.toggle(rid) },
+                onOpenMenuSearch = { navController.navigate(Routes.restaurantMenuSearch(rid)) },
             )
         }
         composable(

@@ -2,15 +2,18 @@ package dj.velox.client.feature.food
 
 import dj.velox.client.core.Constants
 import dj.velox.client.data.local.VeloxLocalStore
+import dj.velox.client.data.remote.AuthRepository
 import dj.velox.client.data.remote.OrderService
 import dj.velox.client.domain.model.Order
 import dj.velox.client.domain.model.OrderItem
 import dj.velox.client.domain.model.Restaurant
 import dj.velox.client.util.MainDispatcherRule
 import io.mockk.coEvery
+import io.mockk.every
 import io.mockk.mockk
 import io.mockk.slot
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.emptyFlow
 import kotlinx.coroutines.test.runTest
 import kotlinx.serialization.json.Json
 import org.junit.Assert.assertEquals
@@ -25,6 +28,9 @@ class CartViewModelTest {
 
     private val store: VeloxLocalStore = mockk(relaxed = true)
     private val orderService: OrderService = mockk(relaxed = true)
+    private val authRepo: AuthRepository = mockk(relaxed = true) {
+        every { authState } returns emptyFlow()
+    }
     private val json = Json { ignoreUnknownKeys = true }
 
     private fun restaurant() = Restaurant(
@@ -39,7 +45,7 @@ class CartViewModelTest {
         val captured = slot<Order>()
         coEvery { orderService.createOrder(capture(captured)) } returns "order123"
 
-        val vm = CartViewModel(orderService, store, json)
+        val vm = CartViewModel(orderService, store, json, authRepo)
         vm.setRestaurant(restaurant())
         vm.addItem(burger())
 
@@ -57,7 +63,7 @@ class CartViewModelTest {
 
     @Test
     fun `createOrder returns null when the cart is empty`() = runTest {
-        val vm = CartViewModel(orderService, store, json)
+        val vm = CartViewModel(orderService, store, json, authRepo)
         val id = vm.createOrder(
             userId = "u1", customerName = "C", customerPhone = "P",
             paymentMethod = "cash", deliveryAddress = "Djibouti",

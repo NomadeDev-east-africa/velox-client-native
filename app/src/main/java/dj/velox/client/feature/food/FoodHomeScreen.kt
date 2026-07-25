@@ -76,6 +76,7 @@ import kotlinx.coroutines.delay
 fun FoodHomeScreen(
     cartViewModel: CartViewModel,
     onOpenRestaurant: (String) -> Unit,
+    onOpenCategory: (String) -> Unit,
     onOpenCart: () -> Unit,
     onOpenSearch: () -> Unit,
     onBack: () -> Unit,
@@ -112,7 +113,9 @@ fun FoodHomeScreen(
                     item { Spacer(Modifier.height(16.dp)) }
                     item {
                         AutoScrollCarousel(items = categories, height = 128.dp, pageFraction = 0.42f, c = c) { cat ->
-                            CategoryTile(cat, c) { onOpenRestaurant(cat.restaurantId) }
+                            // Une catégorie liste TOUS les plats de cette catégorie (tous
+                            // restaurants), pas le restaurant du plat-vignette.
+                            CategoryTile(cat, c) { onOpenCategory(cat.name) }
                         }
                     }
                     item { Spacer(Modifier.height(28.dp)) }

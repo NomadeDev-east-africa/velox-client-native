@@ -14,6 +14,8 @@ import dj.velox.client.domain.model.Restaurant
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.launchIn
+import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.launch
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.decodeFromString
@@ -66,6 +68,7 @@ class CartViewModel @Inject constructor(
     private val orderService: OrderService,
     private val store: VeloxLocalStore,
     private val json: Json,
+    private val authRepository: dj.velox.client.data.remote.AuthRepository,
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(CartUiState())
@@ -86,7 +89,26 @@ class CartViewModel @Inject constructor(
     fun prepareCheckout(checkout: PendingCheckout) { _pendingCheckout.value = checkout }
     fun clearPendingCheckout() { _pendingCheckout.value = null }
 
-    init { restore() }
+    init {
+        restore()
+        // Purge du panier EN MÉMOIRE à la déconnexion réelle. L'instance survit au
+        // changement de compte (VM scopée à l'Activity) et `restore()` ne tourne qu'une
+        // fois — sans ça, le compte suivant verrait le panier du précédent. La persistance
+        // DataStore, elle, est déjà purgée par AuthViewModel.signOut().
+        var hadUser = false
+        authRepository.authState
+            .onEach { user ->
+                if (user != null) {
+                    hadUser = true
+                } else if (hadUser) {
+                    hadUser = false
+                    _state.value = CartUiState()
+                    _availablePoints.value = null
+                    _pendingCheckout.value = null
+                }
+            }
+            .launchIn(viewModelScope)
+    }
 
     /** Recalcule le solde dispo comme Flutter : (commandes completed × 10) − redeemedPoints. */
     fun loadAvailablePoints(userId: String, redeemed: Int) {
