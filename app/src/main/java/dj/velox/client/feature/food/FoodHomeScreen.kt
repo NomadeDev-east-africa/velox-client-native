@@ -37,6 +37,7 @@ import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.filled.TrackChanges
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
+import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -73,6 +74,7 @@ import kotlinx.coroutines.delay
  * Header « LIVRER À / Ville de Djibouti », carrousels auto (catégories + meilleurs choix),
  * bannière promo, liste complète des restaurants, bouton panier flottant.
  */
+@OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
 @Composable
 fun FoodHomeScreen(
     cartViewModel: CartViewModel,
@@ -89,6 +91,7 @@ fun FoodHomeScreen(
     val restaurants by restaurantsVm.restaurants.collectAsStateWithLifecycle()
     val popular by restaurantsVm.popular.collectAsStateWithLifecycle()
     val categories by restaurantsVm.categories.collectAsStateWithLifecycle()
+    val refreshing by restaurantsVm.refreshing.collectAsStateWithLifecycle()
     val cart by cartViewModel.state.collectAsStateWithLifecycle()
 
     Box(Modifier.fillMaxSize().background(c.bg)) {
@@ -109,7 +112,12 @@ fun FoodHomeScreen(
                 HeaderIcon(Icons.Filled.Search, stringResource(R.string.search), c, onOpenSearch)
             }
 
-            // ── Contenu défilant ──────────────────────────────────
+            // ── Contenu défilant (tirer vers le bas pour rafraîchir) ──
+            PullToRefreshBox(
+                isRefreshing = refreshing,
+                onRefresh = { restaurantsVm.refresh() },
+                modifier = Modifier.fillMaxSize(),
+            ) {
             LazyColumn(Modifier.fillMaxSize()) {
                 if (categories.isNotEmpty()) {
                     item { SectionHeader(stringResource(R.string.categories).uppercase(), c) }
@@ -145,6 +153,7 @@ fun FoodHomeScreen(
                     Spacer(Modifier.height(16.dp))
                 }
                 item { Spacer(Modifier.height(110.dp)) }
+            }
             }
         }
 

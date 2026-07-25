@@ -292,9 +292,11 @@ private fun MainNavGraph(session: SessionState, onLogout: () -> Unit) {
         composable(Routes.TAXI_HOME) { entry ->
             val pickedRaw by entry.savedStateHandle.getStateFlow<String?>(PickedPlace.KEY, null).collectAsStateWithLifecycle()
             val pickDestTitle = stringResource(R.string.confirm_destination)
+            val pickDepartTitle = stringResource(R.string.confirm_address_action)
             TaxiHomeScreen(
                 onBack = { navController.popBackStack() },
                 onPickDestination = { navController.navigate(Routes.pickAddress(pickDestTitle)) },
+                onPickDeparture = { navController.navigate(Routes.pickAddress(pickDepartTitle)) },
                 pickedDestination = PickedPlace.decode(pickedRaw),
                 onConsumePicked = { entry.savedStateHandle[PickedPlace.KEY] = null },
                 onConfirmRide = { pickup, dest, pAddr, dAddr, distance, vehicleId ->

@@ -42,6 +42,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -73,6 +74,7 @@ import kotlin.math.roundToInt
 fun TaxiHomeScreen(
     onBack: () -> Unit,
     onPickDestination: () -> Unit,
+    onPickDeparture: () -> Unit,
     pickedDestination: dj.velox.client.feature.location.PickedPlace?,
     onConsumePicked: () -> Unit,
     onConfirmRide: (pickup: LatLng, destination: LatLng, pickupAddress: String, destinationAddress: String, distance: Double, vehicleId: String) -> Unit,
@@ -82,15 +84,32 @@ fun TaxiHomeScreen(
     val context = LocalContext.current
     val loc by locationVm.state.collectAsStateWithLifecycle()
 
-    var destination by remember { mutableStateOf<LatLng?>(null) }
-    var destAddress by remember { mutableStateOf<String?>(null) }
-    var selectedRideId by remember { mutableStateOf(TaxiCatalog.choices.first().id) }
+    // rememberSaveable : ces états doivent SURVIVRE à l'aller-retour vers le picker carte
+    // (sinon `pickingDeparture` se réinitialise à false et le point choisi part en destination).
+    var destLat by rememberSaveable { mutableStateOf<Double?>(null) }
+    var destLng by rememberSaveable { mutableStateOf<Double?>(null) }
+    var destAddress by rememberSaveable { mutableStateOf<String?>(null) }
+    var selectedRideId by rememberSaveable { mutableStateOf(TaxiCatalog.choices.first().id) }
+    // Départ modifiable (drop-pin) : override la position GPS quand l'utilisateur le change.
+    var pickupLat by rememberSaveable { mutableStateOf<Double?>(null) }
+    var pickupLng by rememberSaveable { mutableStateOf<Double?>(null) }
+    var pickupAddrOverride by rememberSaveable { mutableStateOf<String?>(null) }
+    var pickingDeparture by rememberSaveable { mutableStateOf(false) }
 
-    // Adresse choisie via le picker carte → applique puis consomme.
+    val destination = if (destLat != null && destLng != null) LatLng(destLat!!, destLng!!) else null
+    val pickupOverride = if (pickupLat != null && pickupLng != null) LatLng(pickupLat!!, pickupLng!!) else null
+
+    // Retour du picker carte → applique au départ ou à la destination, puis consomme.
     LaunchedEffect(pickedDestination) {
         pickedDestination?.let {
-            destination = LatLng(it.lat, it.lng)
-            destAddress = it.address
+            if (pickingDeparture) {
+                pickupLat = it.lat; pickupLng = it.lng
+                pickupAddrOverride = it.address
+                pickingDeparture = false
+            } else {
+                destLat = it.lat; destLng = it.lng
+                destAddress = it.address
+            }
             onConsumePicked()
         }
     }
@@ -105,7 +124,8 @@ fun TaxiHomeScreen(
         else permissionLauncher.launch(arrayOf(Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION))
     }
 
-    val pickup = loc.position
+    val pickup = pickupOverride ?: loc.position
+    val departureAddress = pickupAddrOverride ?: loc.address
     val dest = destination
 
     // Itinéraire routier réel (ORS) → distance/durée/prix calculés sur la route, pas à vol d'oiseau.
@@ -150,12 +170,13 @@ fun TaxiHomeScreen(
                 Spacer(Modifier.height(20.dp))
 
                 TripCard(
-                    departure = loc.address ?: if (loc.permissionDenied) "Localisation désactivée" else "Localisation en cours…",
+                    departure = departureAddress ?: if (loc.permissionDenied) "Localisation désactivée" else "Localisation en cours…",
                     destinationLabel = destAddress ?: "Destination — Où allez-vous ?",
                     hasDestination = dest != null,
                     c = c,
-                    onPickDestination = onPickDestination,
-                    onClearDestination = { destination = null; destAddress = null },
+                    onPickDeparture = { pickingDeparture = true; onPickDeparture() },
+                    onPickDestination = { pickingDeparture = false; onPickDestination() },
+                    onClearDestination = { destLat = null; destLng = null; destAddress = null },
                 )
                 Spacer(Modifier.height(16.dp))
 
@@ -178,8 +199,8 @@ fun TaxiHomeScreen(
                 Spacer(Modifier.height(20.dp))
             }
 
-            // ── Bouton bas (dégradé) ──
-            Box(Modifier.padding(horizontal = 20.dp).navigationBarsPadding().padding(bottom = 16.dp)) {
+            // ── Bouton bas (bloqué en bas, flush) ──
+            Box(Modifier.padding(horizontal = 20.dp).navigationBarsPadding().padding(bottom = 6.dp)) {
                 val canConfirm = pickup != null
                 Box(
                     Modifier.fillMaxWidth().height(58.dp).clip(RoundedCornerShape(50))
@@ -190,7 +211,7 @@ fun TaxiHomeScreen(
                             } else {
                                 onConfirmRide(
                                     pickup!!, dest,
-                                    loc.address ?: "Position actuelle",
+                                    departureAddress ?: "Position actuelle",
                                     destAddress ?: "Destination sélectionnée",
                                     distance, selectedRideId,
                                 )
@@ -224,7 +245,7 @@ fun TaxiHomeScreen(
 
 // ── CARTE TRAJET ─────────────────────────────────────────────────────────────
 @Composable
-private fun TripCard(departure: String, destinationLabel: String, hasDestination: Boolean, c: VeloxColors, onPickDestination: () -> Unit, onClearDestination: () -> Unit) {
+private fun TripCard(departure: String, destinationLabel: String, hasDestination: Boolean, c: VeloxColors, onPickDeparture: () -> Unit, onPickDestination: () -> Unit, onClearDestination: () -> Unit) {
     Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(18.dp)).background(c.surface).padding(16.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Box(Modifier.size(14.dp).clip(CircleShape).background(c.primary))
@@ -237,8 +258,8 @@ private fun TripCard(departure: String, destinationLabel: String, hasDestination
                 }
                 Text(departure, color = c.onSurface, fontFamily = Poppins, fontSize = 16.sp, fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis)
             }
-            Box(Modifier.size(32.dp).clip(CircleShape).background(c.surfaceHigh), contentAlignment = Alignment.Center) {
-                Icon(Icons.Filled.EditLocation, null, tint = c.onSurfaceVariant, modifier = Modifier.size(16.dp))
+            Box(Modifier.size(32.dp).clip(CircleShape).background(c.surfaceHigh).clickable(onClick = onPickDeparture), contentAlignment = Alignment.Center) {
+                Icon(Icons.Filled.EditLocation, "Modifier le départ", tint = c.primary, modifier = Modifier.size(16.dp))
             }
         }
         Box(Modifier.padding(start = 6.dp, top = 4.dp, bottom = 4.dp).width(2.dp).height(18.dp).background(c.outlineVariant))

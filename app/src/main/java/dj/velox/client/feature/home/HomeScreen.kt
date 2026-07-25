@@ -448,15 +448,13 @@ private fun Footer(c: VeloxColors) {
 private fun BottomNav(onProfile: () -> Unit, c: VeloxColors, modifier: Modifier = Modifier) {
     Row(
         modifier
-            // Carte flottante centrée, plus étroite (marges latérales) et posée tout en bas
-            // (peu d'écart sous la barre système).
+            // Barre pleine largeur collée tout en bas : le fond descend jusqu'au bord de
+            // l'écran, le contenu reste au-dessus de la barre système (navigationBarsPadding).
             .fillMaxWidth()
-            .navigationBarsPadding()
-            .padding(start = 72.dp, end = 72.dp, bottom = 4.dp)
-            .clip(RoundedCornerShape(28.dp))
+            .clip(RoundedCornerShape(topStart = 22.dp, topEnd = 22.dp))
             .background(c.surfaceLow)
-            .border(1.dp, c.outlineVariant.copy(alpha = 0.25f), RoundedCornerShape(28.dp))
-            .height(58.dp),
+            .navigationBarsPadding()
+            .height(62.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         NavItem(Icons.Filled.Home, active = true, onTap = {}, c = c, modifier = Modifier.weight(1f))

@@ -31,7 +31,7 @@ data class FoodCategory(val name: String, val imageUrl: String, val restaurantId
 @HiltViewModel
 class RestaurantsViewModel @Inject constructor(
     service: RestaurantService,
-    menuService: MenuService,
+    private val menuService: MenuService,
 ) : ViewModel() {
     val restaurants: StateFlow<List<Restaurant>> = service.streamRestaurants()
         .catch { emit(emptyList()) }
@@ -45,15 +45,27 @@ class RestaurantsViewModel @Inject constructor(
     private val _categories = MutableStateFlow<List<FoodCategory>>(emptyList())
     val categories: StateFlow<List<FoodCategory>> = _categories.asStateFlow()
 
-    init {
+    private val _refreshing = MutableStateFlow(false)
+    val refreshing: StateFlow<Boolean> = _refreshing.asStateFlow()
+
+    init { viewModelScope.launch { loadCategories() } }
+
+    /** Pull-to-refresh : recharge les catégories (les restaurants sont déjà en stream live). */
+    fun refresh() {
         viewModelScope.launch {
-            val menus = menuService.getAllMenus()
-            // 1 vignette par catégorie : premier plat ayant une image.
-            _categories.value = menus
-                .filter { !it.imageUrl.isNullOrEmpty() }
-                .groupBy { it.category }
-                .map { (cat, items) -> FoodCategory(cat, items.first().imageUrl!!, items.first().restaurantId) }
+            _refreshing.value = true
+            loadCategories()
+            _refreshing.value = false
         }
+    }
+
+    private suspend fun loadCategories() {
+        val menus = menuService.getAllMenus()
+        // 1 vignette par catégorie : premier plat ayant une image.
+        _categories.value = menus
+            .filter { !it.imageUrl.isNullOrEmpty() }
+            .groupBy { it.category }
+            .map { (cat, items) -> FoodCategory(cat, items.first().imageUrl!!, items.first().restaurantId) }
     }
 }
 
