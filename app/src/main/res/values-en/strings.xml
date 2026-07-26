@@ -83,6 +83,12 @@
     <string name="email">Email</string>
     <string name="phone">Phone</string>
     <string name="phone_number">Phone Number</string>
+    <string name="phone_not_set">Not set</string>
+    <string name="phone_taken_help">This number is already linked to another account. Enter a different number, or sign out and use “Continue with phone” to sign in to the account that owns it.</string>
+    <string name="change_phone_action">Change</string>
+    <string name="change_phone_title">Change number</string>
+    <string name="change_phone_message">Your new number will be verified by SMS before being saved.</string>
+    <string name="change_phone_current">Current number: %1$s</string>
     <string name="addresses">Addresses</string>
     <string name="my_addresses">My Addresses</string>
     <string name="add_address">Add Address</string>
@@ -129,6 +135,9 @@
     <string name="enter_location">Please enter your location</string>
     <string name="appearance_personalization">Appearance &amp; Personalization</string>
     <string name="dark_mode">Dark mode</string>
+    <string name="map_theme">Map theme</string>
+    <string name="map_theme_dark">Dark</string>
+    <string name="map_theme_light">Light</string>
     <string name="enabled">Enabled</string>
     <string name="disabled">Disabled</string>
     <string name="edit_profile">Edit my profile</string>
@@ -267,7 +276,7 @@
     <string name="auth_forgot_subtitle">Enter your email to receive a reset link.</string>
     <string name="auth_send_reset">Send link</string>
     <string name="auth_phone_title">Phone sign in</string>
-    <string name="auth_phone_hint">Number (e.g. +25377xxxxxx)</string>
+    <string name="auth_phone_hint">Number — +253 added automatically (e.g. 77 12 34 56)</string>
     <string name="auth_send_code">Send code</string>
     <string name="auth_otp_title">Verification</string>
     <string name="auth_otp_subtitle">Enter the code received by SMS.</string>
@@ -280,8 +289,6 @@
     <string name="auth_no_account_q">Don\'t have an account? </string>
     <string name="auth_create_account_link">Create new account.</string>
     <string name="auth_signin_with_phone">Sign in with phone</string>
-    <string name="auth_facebook">Continue with Facebook</string>
-    <string name="auth_facebook_soon">Facebook: coming soon</string>
     <string name="auth_brand_subtitle">Delivery &amp; taxi in Djibouti</string>
     <string name="auth_create_your_account">Create your account</string>
     <string name="auth_join_thousands">Join thousands of users in Djibouti</string>

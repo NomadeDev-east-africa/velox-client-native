@@ -23,13 +23,16 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import dj.velox.client.R
+import dj.velox.client.core.util.toE164
 
 /**
- * Écran bloquant « numéro obligatoire » — affiché à la place de l'app quand le compte
- * connecté (typiquement via Google, qui n'apporte pas de numéro) n'a pas de téléphone.
+ * Écran bloquant « numéro obligatoire » — affiché à la place de l'app tant que le compte
+ * connecté n'a pas de numéro **vérifié** (provider `phone` de Firebase Auth). Concerne les
+ * inscriptions Google et email/mot de passe, ainsi que les comptes historiques dont le numéro
+ * n'existait que dans Firestore.
  *
  * Le numéro est vérifié par SMS (OTP) puis **lié** au compte (`linkWithCredential`) et écrit
- * dans `users/{uid}.phone`. Dès que le numéro est présent, `RootContent` rebascule
+ * dans `users/{uid}.phone`. Dès que la liaison est faite, `RootContent` rebascule
  * automatiquement sur l'app (le stream du profil met à jour la session). Le code SMS est
  * auto-rempli quand l'instant verification Firebase le fournit.
  */
@@ -62,13 +65,14 @@ fun CompletePhoneScreen(
                 keyboardType = KeyboardType.Phone,
             )
             link.error?.let { ErrorText(it) }
+            if (link.errorCode == ERROR_NUMBER_TAKEN) PhoneTakenHelp()
             Spacer(Modifier.height(8.dp))
             SubmitButton(
                 text = stringResource(R.string.auth_send_code),
                 loading = link.isSending,
                 enabled = number.isNotBlank(),
             ) {
-                (context as? Activity)?.let { viewModel.startPhoneLink(it, number.trim()) }
+                (context as? Activity)?.let { viewModel.startPhoneLink(it, toE164(number)) }
             }
             LogoutRow(onLogout)
         }
@@ -94,6 +98,7 @@ fun CompletePhoneScreen(
                 keyboardType = KeyboardType.Number,
             )
             link.error?.let { ErrorText(it) }
+            if (link.errorCode == ERROR_NUMBER_TAKEN) PhoneTakenHelp()
             Spacer(Modifier.height(8.dp))
             SubmitButton(
                 text = stringResource(R.string.auth_verify),
@@ -107,8 +112,30 @@ fun CompletePhoneScreen(
                 onClick = { viewModel.resetPhoneLink() },
                 modifier = Modifier.fillMaxWidth(),
             ) { Text(stringResource(R.string.auth_back)) }
+            // Écran bloquant : la déconnexion doit rester atteignable aux deux étapes,
+            // sinon un utilisateur dont le numéro est déjà pris n'a plus aucune sortie.
+            LogoutRow(onLogout)
         }
     }
+}
+
+/** Code Firebase renvoyé quand le numéro appartient déjà à un autre compte. */
+private const val ERROR_NUMBER_TAKEN = "ERROR_CREDENTIAL_ALREADY_IN_USE"
+
+/**
+ * Sortie de secours du cas « numéro déjà rattaché à un autre compte ». Sans cette
+ * explication, l'utilisateur reste coincé sur l'écran bloquant avec un message d'échec
+ * qui ne lui dit pas quoi faire.
+ */
+@Composable
+private fun PhoneTakenHelp() {
+    Spacer(Modifier.height(12.dp))
+    Text(
+        text = stringResource(R.string.phone_taken_help),
+        style = MaterialTheme.typography.bodyMedium,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+        modifier = Modifier.fillMaxWidth(),
+    )
 }
 
 @Composable

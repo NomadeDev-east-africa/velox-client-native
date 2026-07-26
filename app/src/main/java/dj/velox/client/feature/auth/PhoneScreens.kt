@@ -21,6 +21,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import dj.velox.client.R
+import dj.velox.client.core.util.toE164
 
 // ════════════════════════════════════════════════════════════════
 // SAISIE DU NUMÉRO → envoi du SMS
@@ -56,7 +57,7 @@ fun PhoneLoginScreen(
             loading = phone.isSending,
             enabled = number.isNotBlank(),
         ) {
-            (context as? Activity)?.let { viewModel.startPhoneVerification(it, number.trim()) }
+            (context as? Activity)?.let { viewModel.startPhoneVerification(it, toE164(number)) }
         }
 
         TextButton(

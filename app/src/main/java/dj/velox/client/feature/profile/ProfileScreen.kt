@@ -29,6 +29,7 @@ import androidx.compose.material.icons.automirrored.filled.ListAlt
 import androidx.compose.material.icons.automirrored.filled.Logout
 import androidx.compose.material.icons.filled.AddLocationAlt
 import androidx.compose.material.icons.filled.DarkMode
+import androidx.compose.material.icons.filled.Map
 import androidx.compose.material.icons.filled.Email
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.Home
@@ -108,6 +109,7 @@ fun ProfileScreen(
     val context = LocalContext.current
     val profile = session.profile
     val darkMode by themeViewModel.darkMode.collectAsStateWithLifecycle()
+    val mapDark by themeViewModel.mapDark.collectAsStateWithLifecycle()
     val currentLanguageName = remember {
         LocaleManager.supportedLanguages.firstOrNull { it.code == LocaleManager.currentLanguageCode() }?.nativeName ?: "Français"
     }
@@ -252,6 +254,26 @@ fun ProfileScreen(
                     Switch(
                         checked = darkMode,
                         onCheckedChange = { themeViewModel.setDarkMode(it) },
+                        colors = SwitchDefaults.colors(
+                            checkedThumbColor = c.onPrimary,
+                            checkedTrackColor = c.primary,
+                            uncheckedThumbColor = c.onSurfaceVariant,
+                            uncheckedTrackColor = c.surfaceTop,
+                            uncheckedBorderColor = c.outlineVariant,
+                        ),
+                    )
+                },
+            )
+            RowDivider(c)
+            SettingRow(
+                icon = Icons.Filled.Map,
+                title = stringResource(R.string.map_theme),
+                subtitle = if (mapDark) stringResource(R.string.map_theme_dark) else stringResource(R.string.map_theme_light),
+                c = c,
+                trailing = {
+                    Switch(
+                        checked = mapDark,
+                        onCheckedChange = { themeViewModel.setMapDark(it) },
                         colors = SwitchDefaults.colors(
                             checkedThumbColor = c.onPrimary,
                             checkedTrackColor = c.primary,

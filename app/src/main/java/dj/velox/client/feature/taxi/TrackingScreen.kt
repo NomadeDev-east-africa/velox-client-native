@@ -119,7 +119,15 @@ fun TrackingScreen(
             DriverCard(
                 ride = ride, c = c,
                 onCall = { ride.driverPhone?.let { dial(context, it) } },
-                onCancel = { scope.launch { runCatching { rideVm.cancelRide("Annulée par l'utilisateur") } } },
+                // Annulation → retour immédiat à l'accueil. On ne dépend pas du round-trip
+                // Firestore (le stream finit par nettoyer la course, mais l'utilisateur
+                // resterait sinon plusieurs secondes sur un écran de suivi déjà annulé).
+                onCancel = {
+                    scope.launch {
+                        runCatching { rideVm.cancelRide("Annulée par l'utilisateur") }
+                            .onSuccess { rideVm.clearRide(); onFinished() }
+                    }
+                },
                 onViewPosition = { onViewDriverPosition(ride.rideId) },
                 modifier = Modifier.align(Alignment.BottomCenter),
             )

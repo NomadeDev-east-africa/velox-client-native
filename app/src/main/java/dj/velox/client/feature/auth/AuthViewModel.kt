@@ -33,6 +33,13 @@ data class SessionState(
 ) {
     val isAuthenticated: Boolean get() = firebaseUser != null
     val displayName: String get() = profile?.displayName ?: firebaseUser?.displayName ?: "Utilisateur"
+
+    /**
+     * Numéro **vérifié par SMS** (provider `phone` de Firebase Auth) — et non le champ
+     * `users/{uid}.phone`, qui n'en est que le reflet d'affichage. C'est ce numéro-là qui
+     * identifie le compte lors d'une connexion par OTP.
+     */
+    val verifiedPhone: String? get() = firebaseUser?.phoneNumber?.takeIf { it.isNotBlank() }
 }
 
 /** État d'un formulaire d'auth (soumission / erreur traduite). */
@@ -48,6 +55,8 @@ data class PhoneAuthState(
     val verificationId: String? = null,
     val isVerifying: Boolean = false,
     val error: String? = null,
+    /** `errorCode` Firebase brut — permet à l'UI de traiter à part le numéro déjà pris. */
+    val errorCode: String? = null,
     /** Code auto-récupéré du SMS (instant verification) → remplit le champ. */
     val autoCode: String? = null,
     /** Liaison du numéro au compte réussie (flux « numéro obligatoire »). */
@@ -165,6 +174,7 @@ class AuthViewModel @Inject constructor(
                     _phoneLink.value = _phoneLink.value.copy(
                         isVerifying = false,
                         error = (it as? AuthException)?.message ?: it.message ?: "Échec de la liaison du numéro.",
+                        errorCode = (it as? AuthException)?.code,
                     )
                 }
         }
@@ -176,8 +186,8 @@ class AuthViewModel @Inject constructor(
         repo.signInWithEmailPassword(email, password)
     }
 
-    fun signUp(name: String, email: String, password: String, phone: String?) = submit {
-        repo.signUpWithEmailPassword(email, password, name, phone)
+    fun signUp(name: String, email: String, password: String) = submit {
+        repo.signUpWithEmailPassword(email, password, name)
     }
 
     fun signInWithGoogleIdToken(idToken: String) = submit {

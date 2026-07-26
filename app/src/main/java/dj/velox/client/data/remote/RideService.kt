@@ -192,16 +192,24 @@ class RideService @Inject constructor(
         awaitClose { reg.remove() }
     }
 
-    suspend fun getUserRideHistory(userId: String, limit: Long = 20): List<Ride> {
+    /**
+     * Historique des courses du client, le plus récent d'abord.
+     *
+     * Le tri est fait **en mémoire** et non par `orderBy("requestedAt")` : combiné au filtre
+     * `userId`, l'orderBy exige un index composite `taxiRides(userId, requestedAt)` qui n'est
+     * pas déployé — la requête échouait alors silencieusement et l'historique VTC restait
+     * vide. Le filtre sur `userId` seul se contente de l'index automatique, et le volume par
+     * client (quelques dizaines de courses) rend le tri local négligeable.
+     */
+    suspend fun getUserRideHistory(userId: String, limit: Int = 20): List<Ride> {
         val snapshot = collection
             .whereEqualTo("userId", userId)
-            .orderBy("requestedAt", Query.Direction.DESCENDING)
-            .limit(limit)
             .get()
             .await()
-        return snapshot.documents.mapNotNull {
-            runCatching { Ride.fromFirestore(it) }.getOrNull()
-        }
+        return snapshot.documents
+            .mapNotNull { runCatching { Ride.fromFirestore(it) }.getOrNull() }
+            .sortedByDescending { it.requestedAt }
+            .take(limit)
     }
 
     /**

@@ -83,6 +83,12 @@
     <string name="email">Iimayl</string>
     <string name="phone">Taleefanka</string>
     <string name="phone_number">Lambarka taleefanka</string>
+    <string name="phone_not_set">Lama qorin</string>
+    <string name="phone_taken_help">Lambarkan waxaa hore ugu xidhan akoon kale. Gali lambar kale, ama ka bax oo isticmaal «Ku sii wad taleefanka» si aad u gasho akoonka lahaanshaha lambarkan.</string>
+    <string name="change_phone_action">Bedel</string>
+    <string name="change_phone_title">Bedel lambarka</string>
+    <string name="change_phone_message">Lambarkaaga cusub waxaa lagu xaqiijin doonaa SMS ka hor inta aan la keydin.</string>
+    <string name="change_phone_current">Lambarka hadda: %1$s</string>
     <string name="addresses">Cinwaannada</string>
     <string name="my_addresses">Cinwaannadayda</string>
     <string name="add_address">Ku dar cinwaan</string>
@@ -129,6 +135,9 @@
     <string name="enter_location">Fadlan geli goobta</string>
     <string name="appearance_personalization">Muuqaalka &amp; Habaynta</string>
     <string name="dark_mode">Habka madow</string>
+    <string name="map_theme">Muuqaalka khariidadda</string>
+    <string name="map_theme_dark">Madow</string>
+    <string name="map_theme_light">Iftiin</string>
     <string name="enabled">La shaqaysiiyay</string>
     <string name="disabled">La damiyay</string>
     <string name="edit_profile">Wax ka beddel profilekayga</string>
@@ -267,7 +276,7 @@
     <string name="auth_forgot_subtitle">Geli emailkaaga si aad u hesho linki dib-u-dejin.</string>
     <string name="auth_send_reset">Dir linkiga</string>
     <string name="auth_phone_title">Ku gal taleefan</string>
-    <string name="auth_phone_hint">Lambar (tusaale +25377xxxxxx)</string>
+    <string name="auth_phone_hint">Lambar — +253 si toos ah (tusaale 77 12 34 56)</string>
     <string name="auth_send_code">Dir koodhka</string>
     <string name="auth_otp_title">Xaqiijin</string>
     <string name="auth_otp_subtitle">Geli koodhka SMS-ka lagugu soo diray.</string>
@@ -280,8 +289,6 @@
     <string name="auth_no_account_q">Ma lihid akoon? </string>
     <string name="auth_create_account_link">Samee akoon cusub.</string>
     <string name="auth_signin_with_phone">Ku gal taleefan</string>
-    <string name="auth_facebook">Ku sii wad Facebook</string>
-    <string name="auth_facebook_soon">Facebook: dhawaan</string>
     <string name="auth_brand_subtitle">Gaarsiin &amp; tagaasi Jabuuti</string>
     <string name="auth_create_your_account">Samee akoonkaaga</string>
     <string name="auth_join_thousands">Ku biir kumannaan isticmaale ee Jabuuti</string>

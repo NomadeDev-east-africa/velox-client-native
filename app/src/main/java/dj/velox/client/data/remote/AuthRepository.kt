@@ -22,8 +22,13 @@ import java.util.concurrent.TimeUnit
 import javax.inject.Inject
 import javax.inject.Singleton
 
-/** Erreur d'authentification déjà traduite (message prêt pour l'UI). */
-class AuthException(message: String) : Exception(message)
+/**
+ * Erreur d'authentification déjà traduite (message prêt pour l'UI). [code] conserve le
+ * `errorCode` Firebase d'origine pour les cas où l'UI doit réagir spécifiquement — p.ex.
+ * `ERROR_CREDENTIAL_ALREADY_IN_USE`, qui demande d'orienter l'utilisateur plutôt que
+ * d'afficher un simple message d'échec.
+ */
+class AuthException(message: String, val code: String? = null) : Exception(message)
 
 /**
  * Authentification Firebase — miroir de auth_service.dart + partie auth de
@@ -68,15 +73,19 @@ class AuthRepository @Inject constructor(
             ).await()
             return user
         } catch (e: FirebaseAuthException) {
-            throw AuthException(mapError(e))
+            throw AuthException(mapError(e), e.errorCode)
         }
     }
 
+    /**
+     * Crée un compte email/mot de passe. **Aucun numéro n'est écrit ici** : le téléphone
+     * n'est jamais accepté sans vérification SMS (cf. [linkPhoneCredential]). Le nouveau
+     * compte est aussitôt envoyé sur `CompletePhoneScreen` par le gating de `RootContent`.
+     */
     suspend fun signUpWithEmailPassword(
         email: String,
         password: String,
         name: String,
-        phone: String? = null,
     ): FirebaseUser {
         try {
             val user = auth.createUserWithEmailAndPassword(email.trim(), password).await().user
@@ -86,10 +95,10 @@ class AuthRepository @Inject constructor(
                 UserProfileChangeRequest.Builder().setDisplayName(name).build()
             ).await()
 
-            users().document(user.uid).set(newUserDocument(name, email.trim(), phone)).await()
+            users().document(user.uid).set(newUserDocument(name, email.trim(), phone = null)).await()
             return user
         } catch (e: FirebaseAuthException) {
-            throw AuthException(mapError(e))
+            throw AuthException(mapError(e), e.errorCode)
         }
     }
 
@@ -105,7 +114,7 @@ class AuthRepository @Inject constructor(
             createOrUpdateUserDocument(user)
             return user
         } catch (e: FirebaseAuthException) {
-            throw AuthException(mapError(e))
+            throw AuthException(mapError(e), e.errorCode)
         }
     }
 
@@ -135,7 +144,7 @@ class AuthRepository @Inject constructor(
             val credential = PhoneAuthProvider.getCredential(verificationId, smsCode)
             return signInWithPhoneCredential(credential)
         } catch (e: FirebaseAuthException) {
-            throw AuthException(mapError(e))
+            throw AuthException(mapError(e), e.errorCode)
         }
     }
 
@@ -152,11 +161,18 @@ class AuthRepository @Inject constructor(
     // ════════════════════════════════════════════════════════════
 
     /**
-     * Lie un credential téléphone **vérifié** au compte actuellement connecté et écrit le
-     * numéro dans `users/{uid}.phone`. On utilise `linkWithCredential` (et NON
-     * `signInWithCredential`) pour rester sur le même compte Google au lieu de basculer sur
-     * un compte téléphone distinct. Le champ `phone` est modifiable côté règles Firestore
-     * (identique au CompletePhoneScreen Flutter).
+     * Rattache un credential téléphone **vérifié** au compte connecté, puis écrit le numéro
+     * dans `users/{uid}.phone`.
+     *
+     * C'est le **seul** chemin autorisé à renseigner un numéro : `users/{uid}.phone` doit
+     * toujours refléter le provider `phone` de Firebase Auth. Sinon le compte affiche un
+     * numéro qu'Auth ne connaît pas, et une connexion par OTP sur ce numéro crée un
+     * **nouveau compte vide** au lieu de retrouver celui de l'utilisateur.
+     *
+     * On utilise `linkWithCredential` (et NON `signInWithCredential`) pour rester sur le
+     * compte courant ; si un numéro est déjà lié (changement de numéro depuis le profil),
+     * c'est `updatePhoneNumber` qui s'applique — `link` échouerait alors sur
+     * `ERROR_PROVIDER_ALREADY_LINKED`.
      */
     suspend fun linkPhoneCredential(
         credential: PhoneAuthCredential,
@@ -164,10 +180,16 @@ class AuthRepository @Inject constructor(
     ): FirebaseUser {
         val user = auth.currentUser ?: throw AuthException("Session expirée. Reconnectez-vous.")
         try {
-            user.linkWithCredential(credential).await()
+            if (user.phoneNumber.isNullOrBlank()) {
+                user.linkWithCredential(credential).await()
+            } else {
+                user.updatePhoneNumber(credential).await()
+            }
         } catch (e: FirebaseAuthException) {
-            throw AuthException(mapError(e))
+            throw AuthException(mapError(e), e.errorCode)
         }
+        // Rafraîchit `user.phoneNumber` : c'est lui qui pilote le gating « numéro obligatoire ».
+        runCatching { user.reload().await() }
         users().document(user.uid).set(
             mapOf(
                 "phone" to phoneNumber,
@@ -196,7 +218,7 @@ class AuthRepository @Inject constructor(
         try {
             auth.sendPasswordResetEmail(email.trim()).await()
         } catch (e: FirebaseAuthException) {
-            throw AuthException(mapError(e))
+            throw AuthException(mapError(e), e.errorCode)
         }
     }
 
@@ -217,7 +239,7 @@ class AuthRepository @Inject constructor(
         try {
             user.reauthenticate(GoogleAuthProvider.getCredential(idToken, null)).await()
         } catch (e: FirebaseAuthException) {
-            throw AuthException(mapError(e))
+            throw AuthException(mapError(e), e.errorCode)
         }
     }
 
@@ -228,7 +250,7 @@ class AuthRepository @Inject constructor(
         try {
             user.reauthenticate(EmailAuthProvider.getCredential(email, password)).await()
         } catch (e: FirebaseAuthException) {
-            throw AuthException(mapError(e))
+            throw AuthException(mapError(e), e.errorCode)
         }
     }
 
@@ -243,7 +265,7 @@ class AuthRepository @Inject constructor(
         try {
             user.delete().await()
         } catch (e: FirebaseAuthException) {
-            throw AuthException(mapError(e))
+            throw AuthException(mapError(e), e.errorCode)
         }
     }
 

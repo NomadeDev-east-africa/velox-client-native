@@ -51,6 +51,7 @@ import dj.velox.client.feature.orders.OrderHistoryScreen
 import dj.velox.client.feature.taxi.ConfirmRideScreen
 import dj.velox.client.feature.taxi.RideCompletedScreen
 import dj.velox.client.feature.profile.AddAddressScreen
+import dj.velox.client.feature.profile.ChangePhoneScreen
 import dj.velox.client.feature.profile.EditProfileScreen
 import dj.velox.client.feature.profile.LanguageSelectionScreen
 import dj.velox.client.feature.profile.MyAddressesScreen
@@ -96,6 +97,7 @@ object Routes {
     const val ADDRESSES = "addresses"
     const val ADD_ADDRESS = "add_address"
     const val EDIT_PROFILE = "edit_profile"
+    const val CHANGE_PHONE = "change_phone"
     const val LANGUAGE = "language"
     const val SUPPORT = "support"
 
@@ -151,9 +153,12 @@ fun RootContent(
     Box(modifier.fillMaxSize()) {
         when {
             session.isLoading -> VeloxLoader()
-            // Compte connecté sans numéro (typiquement Google) → écran bloquant de
-            // complétion : sinon le client est injoignable pour ses commandes/courses.
-            session.isAuthenticated && session.profile?.phone.isNullOrBlank() ->
+            // Compte connecté sans numéro **vérifié** → écran bloquant de complétion.
+            // On teste le provider `phone` de Firebase Auth, pas `users/{uid}.phone` :
+            // un numéro présent seulement dans Firestore n'identifie pas le compte lors
+            // d'une connexion par OTP — Firebase créerait alors un second compte, vide.
+            // Les comptes historiques dans ce cas repassent donc une fois par cet écran.
+            session.isAuthenticated && session.verifiedPhone == null ->
                 CompletePhoneScreen(
                     viewModel = authViewModel,
                     onLogout = authViewModel::signOut,
@@ -244,7 +249,17 @@ private fun MainNavGraph(session: SessionState, onLogout: () -> Unit) {
             )
         }
         composable(Routes.EDIT_PROFILE) {
-            EditProfileScreen(session = session, onBack = { navController.popBackStack() })
+            EditProfileScreen(
+                session = session,
+                onBack = { navController.popBackStack() },
+                onChangePhone = { navController.navigate(Routes.CHANGE_PHONE) },
+            )
+        }
+        composable(Routes.CHANGE_PHONE) {
+            ChangePhoneScreen(
+                currentPhone = session.verifiedPhone,
+                onBack = { navController.popBackStack() },
+            )
         }
         composable(Routes.LANGUAGE) {
             LanguageSelectionScreen(onBack = { navController.popBackStack() })

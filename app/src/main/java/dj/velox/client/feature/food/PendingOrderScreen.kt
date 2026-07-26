@@ -94,7 +94,8 @@ fun PendingOrderScreen(
             restaurantName = restaurant.name,
             restaurantImageUrl = restaurant.imageUrl,
             customerName = session.displayName,
-            customerPhone = session.profile?.phone ?: session.firebaseUser?.phoneNumber ?: "Non renseigné",
+            // Numéro vérifié (E.164) en priorité : c'est celui que le restaurant appellera.
+            customerPhone = session.verifiedPhone ?: session.profile?.phone ?: "Non renseigné",
             items = cart.items,
             deliveryFee = Constants.DELIVERY_FEE,
             status = Order.STATUS_PENDING,

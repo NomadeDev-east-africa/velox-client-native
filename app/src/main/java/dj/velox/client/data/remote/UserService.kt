@@ -24,16 +24,20 @@ class UserService @Inject constructor(
     private val firestore: FirebaseFirestore,
     private val storage: FirebaseStorage,
 ) {
+    /**
+     * NB : le champ `phone` n'est **volontairement pas** modifiable ici. Un numéro n'est
+     * écrit que par `AuthRepository.linkPhoneCredential`, après vérification SMS, pour que
+     * `users/{uid}.phone` reste toujours égal au provider `phone` de Firebase Auth
+     * (cf. `ChangePhoneScreen`).
+     */
     suspend fun updateProfile(
         name: String? = null,
-        phone: String? = null,
         photoUrl: String? = null,
         birthDateMillis: Long? = null,
     ) {
         val user = auth.currentUser ?: throw IllegalStateException("Utilisateur non connecté")
         val updates = buildMap<String, Any?> {
             if (name != null) put("name", name)
-            if (phone != null) put("phone", phone)
             if (photoUrl != null) put("photoUrl", photoUrl)
             if (birthDateMillis != null) put("birthDate", Timestamp(Date(birthDateMillis)))
         }

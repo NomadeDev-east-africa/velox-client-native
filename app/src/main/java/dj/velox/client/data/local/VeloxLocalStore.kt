@@ -64,6 +64,13 @@ class VeloxLocalStore @Inject constructor(
     val darkModeFlow: Flow<Boolean> = dataStore.data.map { it[KEY_DARK_MODE] ?: true }
     suspend fun setDarkMode(enabled: Boolean) = dataStore.edit { it[KEY_DARK_MODE] = enabled }
 
+    // ─── Thème de la carte (Apparence → Carte sombre) ───────────
+    // Réglable indépendamment de l'app : sur les tuiles, le clair reste souvent plus
+    // lisible en plein soleil même quand l'app est en sombre. Tant que l'utilisateur n'a
+    // rien choisi, la carte suit le thème de l'app.
+    val mapDarkFlow: Flow<Boolean> = dataStore.data.map { it[KEY_MAP_DARK] ?: it[KEY_DARK_MODE] ?: true }
+    suspend fun setMapDark(enabled: Boolean) = dataStore.edit { it[KEY_MAP_DARK] = enabled }
+
     // ─── Notification en attente (deep-link FCM au démarrage) ────
     suspend fun savePendingNotification(type: String, orderId: String?, rideId: String?) =
         dataStore.edit {
@@ -105,5 +112,6 @@ class VeloxLocalStore @Inject constructor(
         val KEY_PENDING_ORDER = stringPreferencesKey("pendingOrderId")
         val KEY_PENDING_RIDE = stringPreferencesKey("pendingRideId")
         val KEY_DARK_MODE = booleanPreferencesKey("darkMode")
+        val KEY_MAP_DARK = booleanPreferencesKey("mapDarkMode")
     }
 }

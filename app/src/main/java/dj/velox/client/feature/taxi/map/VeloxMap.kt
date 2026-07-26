@@ -17,9 +17,12 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.viewinterop.AndroidView
+import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import dj.velox.client.core.theme.ThemeViewModel
 import dj.velox.client.domain.model.LatLng
 import org.maplibre.android.MapLibre
 import org.maplibre.android.camera.CameraPosition
@@ -119,7 +122,10 @@ fun VeloxMap(
     onMapReady: (MapLibreMap) -> Unit = {},
     onCenterIdle: ((LatLng) -> Unit)? = null,
 ) {
-    val darkTiles = MaterialTheme.colorScheme.background.luminance() < 0.5f
+    // Thème des tuiles : préférence explicite « Carte sombre » (Profil → Apparence), qui
+    // retombe sur le thème de l'app tant que l'utilisateur n'a rien choisi.
+    val themeVm: ThemeViewModel = hiltViewModel()
+    val darkTiles by themeVm.mapDark.collectAsStateWithLifecycle()
     // Montage différé : on rend d'abord un placeholder léger (couleur de surface), puis on
     // monte la MapView (init OpenGL coûteuse) au frame SUIVANT. La composition/scroll initiale
     // n'est donc plus bloquée par l'init GL — c'est la cause des freezes ~800 ms à l'ouverture.

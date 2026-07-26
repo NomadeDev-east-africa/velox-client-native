@@ -87,7 +87,7 @@ fun SupportScreen(onBack: () -> Unit) {
             Spacer(Modifier.height(8.dp))
             ContactCard(Icons.Filled.Phone, stringResource(R.string.platform_manager), "77 45 38 17", c) { launch("tel:77453817") }
             Spacer(Modifier.height(12.dp))
-            ContactCard(Icons.Filled.Email, stringResource(R.string.email_manager), "Ouzeurb@gmail.com", c) { launch("mailto:Ouzeurb@gmail.com") }
+            ContactCard(Icons.Filled.Email, stringResource(R.string.email_manager), "Veloxon253@gmail.com", c) { launch("mailto:Veloxon253@gmail.com") }
         }
     }
 }

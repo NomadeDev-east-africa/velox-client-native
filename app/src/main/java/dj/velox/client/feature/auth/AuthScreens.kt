@@ -70,7 +70,6 @@ import kotlinx.coroutines.launch
 private val AuthGreen = Color(0xFF22A82E)      // bouton vert plein (Sign In)
 private val VeloxGreen = Color(0xFF22C55E)     // vert plus vif (logo + chooser Sign Up)
 private val PhoneBlue = Color(0xFF5B9BD5)
-private val FacebookBlue = Color(0xFF3B5998)
 private val GoogleBlue = Color(0xFF4285F4)
 
 // ════════════════════════════════════════════════════════════════
@@ -89,7 +88,6 @@ fun SignInScreen(
     var email by rememberSaveable { mutableStateOf("") }
     var password by rememberSaveable { mutableStateOf("") }
     val context = LocalContext.current
-    val fbSoon = stringResource(R.string.auth_facebook_soon)
 
     AuthScaffold(
         topBarTitle = stringResource(R.string.auth_signin),
@@ -145,15 +143,6 @@ fun SignInScreen(
             container = PhoneBlue,
             onClick = onNavigateToPhone,
         ) { Icon(Icons.Filled.PhoneAndroid, null, tint = Color.White, modifier = Modifier.size(20.dp)) }
-        Spacer(Modifier.height(12.dp))
-
-        SocialButton(
-            text = stringResource(R.string.auth_facebook),
-            container = FacebookBlue,
-            onClick = {
-                android.widget.Toast.makeText(context, fbSoon, android.widget.Toast.LENGTH_SHORT).show()
-            },
-        ) { BrandBadge("f", FacebookBlue) }
         Spacer(Modifier.height(12.dp))
 
         GoogleConnectButton(onIdToken = viewModel::signInWithGoogleIdToken)
@@ -285,7 +274,6 @@ fun EmailSignUpScreen(
     val form by viewModel.form.collectAsStateWithLifecycle()
     var name by rememberSaveable { mutableStateOf("") }
     var email by rememberSaveable { mutableStateOf("") }
-    var phone by rememberSaveable { mutableStateOf("") }
     var password by rememberSaveable { mutableStateOf("") }
 
     AuthScaffold(
@@ -297,8 +285,8 @@ fun EmailSignUpScreen(
         Spacer(Modifier.height(14.dp))
         AuthTextField(email, { email = it }, stringResource(R.string.email_address), KeyboardType.Email)
         Spacer(Modifier.height(14.dp))
-        AuthTextField(phone, { phone = it }, stringResource(R.string.auth_phone), KeyboardType.Phone)
-        Spacer(Modifier.height(14.dp))
+        // Pas de champ téléphone ici : le numéro est demandé juste après l'inscription, via
+        // OTP (CompletePhoneScreen), pour qu'il soit réellement lié au compte Firebase Auth.
         AuthTextField(password, { password = it }, stringResource(R.string.password), isPassword = true)
 
         form.error?.let { ErrorText(it) }
@@ -308,7 +296,7 @@ fun EmailSignUpScreen(
             text = stringResource(R.string.signup),
             loading = form.isSubmitting,
             enabled = name.isNotBlank() && email.isNotBlank() && password.length >= 6,
-            onClick = { viewModel.signUp(name.trim(), email.trim(), password, phone.trim().ifEmpty { null }) },
+            onClick = { viewModel.signUp(name.trim(), email.trim(), password) },
         )
 
         Spacer(Modifier.height(18.dp))
@@ -465,7 +453,7 @@ private fun SocialButton(
     }
 }
 
-/** Pastille blanche avec l'initiale de marque (Facebook « f », Google « G »). */
+/** Pastille blanche avec l'initiale de marque (Google « G »). */
 @Composable
 private fun BrandBadge(letter: String, color: Color) {
     Box(

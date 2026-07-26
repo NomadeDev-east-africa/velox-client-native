@@ -83,6 +83,12 @@
     <string name="email">البريد الإلكتروني</string>
     <string name="phone">الهاتف</string>
     <string name="phone_number">رقم الهاتف</string>
+    <string name="phone_not_set">غير محدد</string>
+    <string name="phone_taken_help">هذا الرقم مرتبط بحساب آخر. أدخل رقماً مختلفاً، أو سجّل الخروج واستخدم «المتابعة برقم الهاتف» لتسجيل الدخول إلى الحساب الذي يملك هذا الرقم.</string>
+    <string name="change_phone_action">تغيير</string>
+    <string name="change_phone_title">تغيير الرقم</string>
+    <string name="change_phone_message">سيتم التحقق من رقمك الجديد عبر رسالة نصية قبل حفظه.</string>
+    <string name="change_phone_current">الرقم الحالي: %1$s</string>
     <string name="addresses">العناوين</string>
     <string name="my_addresses">عناويني</string>
     <string name="add_address">أضف عنوان</string>
@@ -129,6 +135,9 @@
     <string name="enter_location">الرجاء إدخال موقعك</string>
     <string name="appearance_personalization">المظهر والتخصيص</string>
     <string name="dark_mode">الوضع الداكن</string>
+    <string name="map_theme">مظهر الخريطة</string>
+    <string name="map_theme_dark">داكن</string>
+    <string name="map_theme_light">فاتح</string>
     <string name="enabled">مُفعّل</string>
     <string name="disabled">مُعطّل</string>
     <string name="edit_profile">تعديل ملفي الشخصي</string>
@@ -267,7 +276,7 @@
     <string name="auth_forgot_subtitle">أدخل بريدك الإلكتروني لتلقّي رابط إعادة التعيين.</string>
     <string name="auth_send_reset">إرسال الرابط</string>
     <string name="auth_phone_title">تسجيل الدخول بالهاتف</string>
-    <string name="auth_phone_hint">الرقم (مثال +25377xxxxxx)</string>
+    <string name="auth_phone_hint">الرقم — يُضاف 253+ تلقائياً (مثال 77 12 34 56)</string>
     <string name="auth_send_code">إرسال الرمز</string>
     <string name="auth_otp_title">التحقق</string>
     <string name="auth_otp_subtitle">أدخل الرمز المُستلم عبر الرسائل القصيرة.</string>
@@ -280,8 +289,6 @@
     <string name="auth_no_account_q">ليس لديك حساب؟ </string>
     <string name="auth_create_account_link">إنشاء حساب جديد.</string>
     <string name="auth_signin_with_phone">تسجيل الدخول بالهاتف</string>
-    <string name="auth_facebook">المتابعة عبر فيسبوك</string>
-    <string name="auth_facebook_soon">فيسبوك: قريبًا</string>
     <string name="auth_brand_subtitle">توصيل وسيارات أجرة في جيبوتي</string>
     <string name="auth_create_your_account">أنشئ حسابك</string>
     <string name="auth_join_thousands">انضم إلى آلاف المستخدمين في جيبوتي</string>

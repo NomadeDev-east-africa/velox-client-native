@@ -47,7 +47,7 @@
 
     <!-- Téléphone / OTP -->
     <string name="auth_phone_title">Connexion par téléphone</string>
-    <string name="auth_phone_hint">Numéro (ex. +25377xxxxxx)</string>
+    <string name="auth_phone_hint">Numéro — +253 automatique (ex. 77 12 34 56)</string>
     <string name="auth_send_code">Envoyer le code</string>
     <string name="auth_otp_title">Vérification</string>
     <string name="auth_otp_subtitle">Saisissez le code reçu par SMS.</string>
@@ -62,8 +62,6 @@
     <string name="auth_no_account_q">Pas de compte ? </string>
     <string name="auth_create_account_link">Créer un compte.</string>
     <string name="auth_signin_with_phone">Se connecter avec téléphone</string>
-    <string name="auth_facebook">Continuer avec Facebook</string>
-    <string name="auth_facebook_soon">Facebook : bientôt disponible</string>
     <string name="auth_brand_subtitle">Livraison &amp; taxi à Djibouti</string>
     <string name="auth_create_your_account">Créer votre compte</string>
     <string name="auth_join_thousands">Rejoignez des milliers d\'utilisateurs à Djibouti</string>
@@ -147,6 +145,12 @@
     <string name="email">Email</string>
     <string name="phone">Téléphone</string>
     <string name="phone_number">Numéro de téléphone</string>
+    <string name="phone_not_set">Non renseigné</string>
+    <string name="phone_taken_help">Ce numéro est déjà rattaché à un autre compte. Saisissez un autre numéro, ou déconnectez-vous et utilisez « Continuer avec le téléphone » pour vous connecter au compte qui possède ce numéro.</string>
+    <string name="change_phone_action">Modifier</string>
+    <string name="change_phone_title">Changer de numéro</string>
+    <string name="change_phone_message">Votre nouveau numéro sera vérifié par SMS avant d\'être enregistré.</string>
+    <string name="change_phone_current">Numéro actuel : %1$s</string>
     <string name="addresses">Adresses</string>
     <string name="my_addresses">Mes adresses</string>
     <string name="add_address">Ajouter une adresse</string>
@@ -193,6 +197,9 @@
     <string name="enter_location">Veuillez entrer votre localisation</string>
     <string name="appearance_personalization">Apparence &amp; Personnalisation</string>
     <string name="dark_mode">Mode sombre</string>
+    <string name="map_theme">Thème de la carte</string>
+    <string name="map_theme_dark">Sombre</string>
+    <string name="map_theme_light">Claire</string>
     <string name="enabled">Activé</string>
     <string name="disabled">Désactivé</string>
     <string name="edit_profile">Modifier mon profil</string>

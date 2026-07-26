@@ -23,6 +23,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.AccessTime
+import androidx.compose.material.icons.filled.AccountBalance
 import androidx.compose.material.icons.filled.AccountBalanceWallet
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.DirectionsCar
@@ -75,11 +76,15 @@ import kotlinx.coroutines.launch
 import kotlin.math.roundToInt
 
 private data class PayMethod(val value: String, val label: String, val icon: ImageVector)
+/** Mêmes moyens de paiement que le panier food (`CartScreen.PAYMENT_METHODS`). */
 private val PAY_METHODS = listOf(
     PayMethod("cash", "Espèces", Icons.Filled.Payments),
     PayMethod("waafi", "Waafi", Icons.Filled.AccountBalanceWallet),
     PayMethod("d_money", "D-Money", Icons.Filled.AccountBalanceWallet),
     PayMethod("cac_pay", "CAC Pay", Icons.Filled.AccountBalanceWallet),
+    PayMethod("bci_pay", "BCI Pay", Icons.Filled.AccountBalance),
+    PayMethod("exim_bank", "Exim Bank", Icons.Filled.AccountBalance),
+    PayMethod("dahab_plus", "Dahab+", Icons.Filled.AccountBalanceWallet),
 )
 
 private fun carModel(rc: RideChoice): String {
@@ -236,7 +241,8 @@ fun ConfirmRideScreen(
                             runCatching {
                                 rideVm.createRide(
                                     userId = uid, userName = session.displayName,
-                                    userPhone = session.profile?.phone ?: session.firebaseUser?.phoneNumber ?: "",
+                                    // Numéro vérifié (E.164) en priorité : c'est celui que le chauffeur appellera.
+                                    userPhone = session.verifiedPhone ?: session.profile?.phone ?: "",
                                     userPhotoUrl = session.profile?.photoUrl,
                                     pickupLatitude = pickup.latitude, pickupLongitude = pickup.longitude,
                                     pickupAddress = pickupAddress, pickupPlaceName = "Départ",
@@ -286,9 +292,8 @@ fun ConfirmRideScreen(
     }
 }
 
-private fun payLabel(method: String): String = when (method) {
-    "cash" -> "ESPÈCES"; "waafi" -> "WAAFI"; "d_money" -> "D-MONEY"; "cac_pay" -> "CAC PAY"; else -> method.uppercase()
-}
+private fun payLabel(method: String): String =
+    PAY_METHODS.firstOrNull { it.value == method }?.label?.uppercase() ?: method.uppercase()
 
 @Composable
 private fun Label(text: String, c: VeloxColors) {

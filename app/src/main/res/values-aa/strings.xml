@@ -84,6 +84,12 @@
     <string name="email">Iimayl</string>
     <string name="phone">Telefoon</string>
     <string name="phone_number">Telefoon lakme</string>
+    <string name="phone_not_set">Makutbinna</string>
+    <string name="phone_taken_help">A lakmi aka akoonuh xarrowte. Aka lakme culus, hinnay ewgita kee «Telefoonat sissik» kutub a lakme-le akoonuh cula.</string>
+    <string name="change_phone_action">Korris</string>
+    <string name="change_phone_title">Lakme korrisiya</string>
+    <string name="change_phone_message">Ku qusba lakmi SMS-teetal nummattah anuk keenimil naharsita.</string>
+    <string name="change_phone_current">Asaaku lakme: %1$s</string>
     <string name="addresses">Goobato</string>
     <string name="my_addresses">Tay goobato</string>
     <string name="add_address">Gooba wayse</string>
@@ -130,6 +136,9 @@
     <string name="enter_location">Gooba gali</string>
     <string name="appearance_personalization">Mablaqa &amp; Toorosiisa</string>
     <string name="dark_mode">Diteh caddo</string>
+    <string name="map_theme">Kaarti daynat</string>
+    <string name="map_theme_dark">Diteh</string>
+    <string name="map_theme_light">Ifah</string>
     <string name="enabled">Usugte</string>
     <string name="disabled">Mabusaane</string>
     <string name="edit_profile">Profilkayya korsa</string>
@@ -268,7 +277,7 @@
     <string name="auth_forgot_subtitle">Email cula wadir dejinih linki gettaamah.</string>
     <string name="auth_send_reset">Linki rub</string>
     <string name="auth_phone_title">Taleefonih cul</string>
-    <string name="auth_phone_hint">Lambar (ceelallo +25377xxxxxx)</string>
+    <string name="auth_phone_hint">Lambar — +253 isi (ceelallo 77 12 34 56)</string>
     <string name="auth_send_code">Koodh rub</string>
     <string name="auth_otp_title">Numma</string>
     <string name="auth_otp_subtitle">SMS-ak gettem koodh cul.</string>
@@ -281,8 +290,6 @@
     <string name="auth_no_account_q">Akoon mantu? </string>
     <string name="auth_create_account_link">Akoon barri abal.</string>
     <string name="auth_signin_with_phone">Taleefonih cul</string>
-    <string name="auth_facebook">Facebook luk wad</string>
-    <string name="auth_facebook_soon">Facebook: sissi</string>
     <string name="auth_brand_subtitle">Buusa &amp; taksi Gabuutih</string>
     <string name="auth_create_your_account">Ku akoon abal</string>
     <string name="auth_join_thousands">Gabuutih kumaaray numuk luk xer</string>
