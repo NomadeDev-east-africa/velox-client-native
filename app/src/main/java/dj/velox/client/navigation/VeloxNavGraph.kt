@@ -27,6 +27,7 @@ import dj.velox.client.feature.auth.EmailSignUpScreen
 import dj.velox.client.feature.auth.ForgotPasswordScreen
 import dj.velox.client.feature.auth.OtpScreen
 import dj.velox.client.feature.auth.PhoneLoginScreen
+import dj.velox.client.feature.auth.SetPasswordScreen
 import dj.velox.client.feature.auth.SessionState
 import dj.velox.client.feature.auth.SignInScreen
 import dj.velox.client.feature.auth.SignUpScreen
@@ -98,6 +99,7 @@ object Routes {
     const val ADD_ADDRESS = "add_address"
     const val EDIT_PROFILE = "edit_profile"
     const val CHANGE_PHONE = "change_phone"
+    const val SET_PASSWORD = "set_password"
     const val LANGUAGE = "language"
     const val SUPPORT = "support"
 
@@ -183,6 +185,9 @@ private fun MainNavGraph(session: SessionState, onLogout: () -> Unit) {
     val addressViewModel: dj.velox.client.feature.profile.AddressViewModel = hiltViewModel()
     // Favoris restaurants hissés → cœur cohérent entre détail / recherche. Réactif à l'uid.
     val favoritesViewModel: dj.velox.client.feature.food.FavoritesViewModel = hiltViewModel()
+    // Résolu hors du NavHost → même instance (portée activité) que celle de RootContent,
+    // donc l'écran « nouveau mot de passe » voit bien la session en cours.
+    val authViewModel: AuthViewModel = hiltViewModel()
     val favoriteIds by favoritesViewModel.favorites.collectAsStateWithLifecycle()
 
     // Évite une double navigation entre le deep-link (notif tapée) et la restauration
@@ -242,6 +247,7 @@ private fun MainNavGraph(session: SessionState, onLogout: () -> Unit) {
                 onManageAddresses = { navController.navigate(Routes.ADDRESSES) },
                 onAddAddress = { navController.navigate(Routes.addAddress()) },
                 onEditProfile = { navController.navigate(Routes.EDIT_PROFILE) },
+                onSetPassword = { navController.navigate(Routes.SET_PASSWORD) },
                 onSelectLanguage = { navController.navigate(Routes.LANGUAGE) },
                 onOpenSupport = { navController.navigate(Routes.SUPPORT) },
                 favoriteCount = favoriteIds.size,
@@ -259,6 +265,12 @@ private fun MainNavGraph(session: SessionState, onLogout: () -> Unit) {
             ChangePhoneScreen(
                 currentPhone = session.verifiedPhone,
                 onBack = { navController.popBackStack() },
+            )
+        }
+        composable(Routes.SET_PASSWORD) {
+            SetPasswordScreen(
+                viewModel = authViewModel,
+                onDone = { navController.popBackStack() },
             )
         }
         composable(Routes.LANGUAGE) {

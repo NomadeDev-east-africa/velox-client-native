@@ -6,9 +6,20 @@
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
 
-    <!-- Localisation (taxi / livraison) -->
+    <!-- Localisation (taxi / livraison) — premier plan uniquement -->
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
+    <!--
+      Pas de ACCESS_BACKGROUND_LOCATION : l'app client ne lit la position que pendant
+      qu'un écran est au premier plan (départ de course, suivi carte). Aucun service
+      de localisation, aucun suivi app fermée. tools:node="remove" garantit qu'aucune
+      dépendance (Play Services, MapLibre…) ne la réintroduise via le manifest merger —
+      sa seule présence déclenche le contrôle « Prominent Disclosure » de Google Play,
+      motif de rejet de l'app Velox Livreur.
+    -->
+    <uses-permission
+        android:name="android.permission.ACCESS_BACKGROUND_LOCATION"
+        tools:node="remove" />
 
     <!-- Notifications push (FCM) — requis à partir d'Android 13 -->
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
@@ -35,7 +46,7 @@
             android:resource="@color/velox_green" />
         <meta-data
             android:name="com.google.firebase.messaging.default_notification_channel_id"
-            android:value="velox_default" />
+            android:value="velox_default_v2" />
 
         <activity
             android:name=".MainActivity"

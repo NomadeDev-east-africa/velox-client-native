@@ -77,7 +77,18 @@ fun OtpScreen(
     onBack: () -> Unit,
 ) {
     val phone by viewModel.phone.collectAsStateWithLifecycle()
+    val context = LocalContext.current
     var code by rememberSaveable { mutableStateOf("") }
+
+    // Code auto-lu par Firebase (instant verification) → on remplit le champ.
+    LaunchedEffect(phone.autoCode) {
+        phone.autoCode?.let { if (it.isNotBlank()) code = it }
+    }
+    // Un renvoi invalide le code précédent : on vide le champ pour éviter que l'utilisateur
+    // resoumette l'ancien code et retombe sur « code expiré ».
+    LaunchedEffect(phone.codeResent) {
+        if (phone.codeResent) code = ""
+    }
 
     AuthScaffold(title = stringResource(R.string.auth_otp_title)) {
         Text(
@@ -95,13 +106,18 @@ fun OtpScreen(
             keyboardType = KeyboardType.Number,
         )
         phone.error?.let { ErrorText(it) }
+        if (phone.codeResent && phone.error == null) InfoText(stringResource(R.string.auth_code_resent))
 
         Spacer(Modifier.height(8.dp))
         SubmitButton(
             text = stringResource(R.string.auth_verify),
-            loading = phone.isVerifying,
+            loading = phone.isVerifying || phone.isSending,
             enabled = code.length == 6,
         ) { viewModel.verifyOtp(code.trim()) }
+
+        ResendCodeRow(secondsLeft = phone.resendIn, enabled = phone.canResend) {
+            (context as? Activity)?.let { viewModel.resendCode(it) }
+        }
 
         TextButton(
             onClick = { viewModel.resetPhoneFlow(); onBack() },

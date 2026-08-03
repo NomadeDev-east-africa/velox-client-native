@@ -175,7 +175,8 @@ fun TrackDriverScreen(
                 }
                 Spacer(Modifier.size(12.dp))
                 Column(Modifier.weight(1f)) {
-                    Text(state.driverName ?: stringResource(R.string.driver), color = c.onSurface, fontFamily = Poppins, fontSize = 15.sp, fontWeight = FontWeight.Bold)
+                    // `driver` = « Livreur » (food) : sur un écran VTC c'est `taxi_driver`.
+                    Text(state.driverName ?: stringResource(R.string.taxi_driver), color = c.onSurface, fontFamily = Poppins, fontSize = 15.sp, fontWeight = FontWeight.Bold)
                     Spacer(Modifier.size(2.dp))
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Box(Modifier.size(7.dp).clip(CircleShape).background(c.primary))

@@ -49,6 +49,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -61,6 +62,7 @@ import dj.velox.client.domain.model.GeoUtils
 import dj.velox.client.domain.model.LatLng
 import dj.velox.client.domain.model.RideChoice
 import dj.velox.client.domain.model.TaxiCatalog
+import dj.velox.client.feature.location.LocationDisclosureDialog
 import dj.velox.client.feature.location.RouteViewModel
 import dj.velox.client.feature.taxi.map.MapMarkerStyle
 import dj.velox.client.feature.taxi.map.VeloxMap
@@ -118,10 +120,29 @@ fun TaxiHomeScreen(
         ActivityResultContracts.RequestMultiplePermissions(),
     ) { result -> if (result.values.any { it }) locationVm.refresh() else locationVm.onPermissionDenied() }
 
-    LaunchedEffect(Unit) {
+    // Divulgation proéminente (Google Play — User Data policy) : la boîte de dialogue
+    // système ne doit JAMAIS apparaître avant que l'utilisateur ait lu et accepté
+    // l'explication. Tant que `disclosureAccepted` vaut null (DataStore pas encore lu)
+    // ou false, aucune permission n'est demandée.
+    var showDisclosure by rememberSaveable { mutableStateOf(false) }
+
+    LaunchedEffect(loc.disclosureAccepted) {
+        val accepted = loc.disclosureAccepted ?: return@LaunchedEffect
         val granted = ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED
-        if (granted) locationVm.refresh()
-        else permissionLauncher.launch(arrayOf(Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION))
+        when {
+            granted -> locationVm.refresh()
+            accepted -> permissionLauncher.launch(arrayOf(Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION))
+            else -> showDisclosure = true
+        }
+    }
+
+    if (showDisclosure) {
+        LocationDisclosureDialog(
+            // L'acceptation persiste le consentement : le flux repasse dans le
+            // LaunchedEffect ci-dessus, qui déclenche alors la demande système.
+            onAccept = { showDisclosure = false; locationVm.onDisclosureAccepted() },
+            onDecline = { showDisclosure = false; locationVm.onDisclosureDeclined() },
+        )
     }
 
     val pickup = pickupOverride ?: loc.position
@@ -139,6 +160,9 @@ fun TaxiHomeScreen(
         ?: if (pickup != null && dest != null) GeoUtils.distanceKm(pickup, dest) else 0.0
     val durationMin = activeRoute?.durationMin ?: GeoUtils.estimatedDurationMin(distance.coerceAtLeast(0.1))
     val selected = TaxiCatalog.byId(selectedRideId)
+    // Résolus hors du lambda du bouton : stringResource est @Composable.
+    val currentPositionLabel = stringResource(R.string.taxi_current_position)
+    val selectedDestinationLabel = stringResource(R.string.taxi_selected_destination)
 
     Box(Modifier.fillMaxSize().background(c.bg)) {
         Column(Modifier.fillMaxSize()) {
@@ -148,7 +172,7 @@ fun TaxiHomeScreen(
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Box(Modifier.size(40.dp).clip(CircleShape).clickable(onClick = onBack), contentAlignment = Alignment.Center) {
-                    Icon(Icons.AutoMirrored.Filled.ArrowBack, "Retour", tint = c.onSurface)
+                    Icon(Icons.AutoMirrored.Filled.ArrowBack, stringResource(R.string.back), tint = c.onSurface)
                 }
                 Spacer(Modifier.size(4.dp))
                 Image(androidx.compose.ui.res.painterResource(R.drawable.logo_velox_home), "Velox", contentScale = ContentScale.Fit, modifier = Modifier.height(30.dp))
@@ -163,15 +187,16 @@ fun TaxiHomeScreen(
             Column(Modifier.weight(1f).verticalScroll(rememberScrollState()).padding(horizontal = 20.dp)) {
                 Spacer(Modifier.height(8.dp))
                 Text(
-                    "Où allons-nous aujourd'hui ? 🌍",
+                    stringResource(R.string.taxi_where_to),
                     color = c.primary,
                     fontFamily = Poppins, fontSize = 24.sp, fontWeight = FontWeight.Bold, letterSpacing = (-0.5).sp,
                 )
                 Spacer(Modifier.height(20.dp))
 
                 TripCard(
-                    departure = departureAddress ?: if (loc.permissionDenied) "Localisation désactivée" else "Localisation en cours…",
-                    destinationLabel = destAddress ?: "Destination — Où allez-vous ?",
+                    departure = departureAddress
+                        ?: stringResource(if (loc.permissionDenied) R.string.taxi_location_disabled else R.string.taxi_locating),
+                    destinationLabel = destAddress ?: stringResource(R.string.taxi_destination_prompt),
                     hasDestination = dest != null,
                     c = c,
                     onPickDeparture = { pickingDeparture = true; onPickDeparture() },
@@ -183,10 +208,10 @@ fun TaxiHomeScreen(
                 MapPreview(pickup, dest, activeRoute?.points, distance, durationMin, c, onRecenter = { locationVm.refresh() })
                 Spacer(Modifier.height(20.dp))
 
-                Text("Choisissez votre véhicule", color = c.onSurface, fontFamily = Poppins, fontSize = 18.sp, fontWeight = FontWeight.Bold)
+                Text(stringResource(R.string.taxi_choose_vehicle), color = c.onSurface, fontFamily = Poppins, fontSize = 18.sp, fontWeight = FontWeight.Bold)
                 Spacer(Modifier.height(4.dp))
                 Text(
-                    if (dest != null) "Prix estimé pour votre course" else "Prix de base — choisissez une destination pour l'estimation",
+                    stringResource(if (dest != null) R.string.taxi_price_estimated else R.string.taxi_price_base),
                     color = c.onSurfaceVariant, fontFamily = Inter, fontSize = 12.sp,
                 )
                 Spacer(Modifier.height(12.dp))
@@ -211,8 +236,8 @@ fun TaxiHomeScreen(
                             } else {
                                 onConfirmRide(
                                     pickup!!, dest,
-                                    departureAddress ?: "Position actuelle",
-                                    destAddress ?: "Destination sélectionnée",
+                                    departureAddress ?: currentPositionLabel,
+                                    destAddress ?: selectedDestinationLabel,
                                     distance, selectedRideId,
                                 )
                             }
@@ -223,15 +248,15 @@ fun TaxiHomeScreen(
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Icon(Icons.Filled.Search, null, tint = c.onPrimary, modifier = Modifier.size(22.dp))
                             Spacer(Modifier.size(10.dp))
-                            Text("Choisir une destination", color = c.onPrimary, fontFamily = Inter, fontSize = 17.sp, fontWeight = FontWeight.Bold)
+                            Text(stringResource(R.string.taxi_pick_destination), color = c.onPrimary, fontFamily = Inter, fontSize = 17.sp, fontWeight = FontWeight.Bold)
                         }
                     } else {
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Icon(Icons.Filled.LocalTaxi, null, tint = c.onPrimary, modifier = Modifier.size(22.dp))
                             Spacer(Modifier.size(10.dp))
                             Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                Text("Confirmer la course", color = c.onPrimary, fontFamily = Inter, fontSize = 17.sp, fontWeight = FontWeight.Bold)
-                                Text("${selected.calculatePrice(distance).roundToInt()} FDJ · ${selected.name}", color = c.onPrimary.copy(alpha = 0.9f), fontFamily = Inter, fontSize = 12.sp)
+                                Text(stringResource(R.string.taxi_confirm_ride), color = c.onPrimary, fontFamily = Inter, fontSize = 17.sp, fontWeight = FontWeight.Bold)
+                                Text(stringResource(R.string.taxi_price_vehicle, selected.calculatePrice(distance).roundToInt(), stringResource(selected.nameRes)), color = c.onPrimary.copy(alpha = 0.9f), fontFamily = Inter, fontSize = 12.sp)
                             }
                             Spacer(Modifier.size(10.dp))
                             Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, null, tint = c.onPrimary, modifier = Modifier.size(24.dp))
@@ -254,12 +279,12 @@ private fun TripCard(departure: String, destinationLabel: String, hasDestination
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Icon(Icons.Filled.Place, null, tint = c.error, modifier = Modifier.size(13.dp))
                     Spacer(Modifier.size(4.dp))
-                    Text("Point de départ", color = c.onSurfaceVariant, fontFamily = Inter, fontSize = 12.sp)
+                    Text(stringResource(R.string.taxi_pickup_point), color = c.onSurfaceVariant, fontFamily = Inter, fontSize = 12.sp)
                 }
                 Text(departure, color = c.onSurface, fontFamily = Poppins, fontSize = 16.sp, fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis)
             }
             Box(Modifier.size(32.dp).clip(CircleShape).background(c.surfaceHigh).clickable(onClick = onPickDeparture), contentAlignment = Alignment.Center) {
-                Icon(Icons.Filled.EditLocation, "Modifier le départ", tint = c.primary, modifier = Modifier.size(16.dp))
+                Icon(Icons.Filled.EditLocation, stringResource(R.string.taxi_edit_pickup), tint = c.primary, modifier = Modifier.size(16.dp))
             }
         }
         Box(Modifier.padding(start = 6.dp, top = 4.dp, bottom = 4.dp).width(2.dp).height(18.dp).background(c.outlineVariant))
@@ -271,7 +296,7 @@ private fun TripCard(departure: String, destinationLabel: String, hasDestination
             Spacer(Modifier.size(12.dp))
             Text(destinationLabel, color = if (hasDestination) c.onSurface else c.onSurfaceVariant, fontFamily = Inter, fontSize = 15.sp, fontWeight = if (hasDestination) FontWeight.W600 else FontWeight.Normal, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
             if (hasDestination) {
-                Icon(Icons.Filled.Close, "Effacer", tint = c.onSurfaceVariant, modifier = Modifier.size(20.dp).clip(CircleShape).clickable(onClick = onClearDestination))
+                Icon(Icons.Filled.Close, stringResource(R.string.taxi_clear), tint = c.onSurfaceVariant, modifier = Modifier.size(20.dp).clip(CircleShape).clickable(onClick = onClearDestination))
             } else {
                 Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, null, tint = c.primary, modifier = Modifier.size(22.dp))
             }
@@ -291,15 +316,15 @@ private fun MapPreview(pickup: LatLng?, destination: LatLng?, routePoints: List<
                 Modifier.align(Alignment.BottomStart).padding(12.dp).clip(RoundedCornerShape(50)).background(c.bg.copy(alpha = 0.85f)).padding(horizontal = 12.dp, vertical = 6.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                Text("%.1f km".format(distance), color = c.onSurface, fontFamily = Inter, fontSize = 13.sp, fontWeight = FontWeight.Bold)
-                Text("  ·  $durationMin min", color = c.onSurfaceVariant, fontFamily = Inter, fontSize = 13.sp)
+                Text(stringResource(R.string.taxi_km, "%.1f".format(distance)), color = c.onSurface, fontFamily = Inter, fontSize = 13.sp, fontWeight = FontWeight.Bold)
+                Text(stringResource(R.string.taxi_duration_inline, durationMin), color = c.onSurfaceVariant, fontFamily = Inter, fontSize = 13.sp)
             }
         }
         Box(
             Modifier.align(Alignment.BottomEnd).padding(12.dp).size(44.dp).clip(CircleShape).background(c.bg).clickable(onClick = onRecenter),
             contentAlignment = Alignment.Center,
         ) {
-            Icon(Icons.Filled.MyLocation, "Recentrer", tint = c.primary, modifier = Modifier.size(22.dp))
+            Icon(Icons.Filled.MyLocation, stringResource(R.string.taxi_recenter), tint = c.primary, modifier = Modifier.size(22.dp))
         }
     }
 }
@@ -318,22 +343,22 @@ private fun VehicleCard(choice: RideChoice, distance: Double, selected: Boolean,
     ) {
         Image(
             androidx.compose.ui.res.painterResource(vehicleImage(choice.type)),
-            contentDescription = choice.name,
+            contentDescription = stringResource(choice.nameRes),
             contentScale = ContentScale.Fit,
             modifier = Modifier.height(62.dp).fillMaxWidth(),
         )
         Spacer(Modifier.height(10.dp))
-        Text(choice.name, color = if (selected) c.onPrimary else c.onSurface, fontFamily = Poppins, fontSize = 14.sp, fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis)
+        Text(stringResource(choice.nameRes), color = if (selected) c.onPrimary else c.onSurface, fontFamily = Poppins, fontSize = 14.sp, fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis)
         if (choice.type == dj.velox.client.domain.model.RideType.COMFORT) {
             Spacer(Modifier.height(2.dp))
-            Text("+ clim", color = if (selected) c.onPrimary else c.primary, fontFamily = Inter, fontSize = 11.sp, fontWeight = FontWeight.W600)
+            Text(stringResource(R.string.taxi_ac), color = if (selected) c.onPrimary else c.primary, fontFamily = Inter, fontSize = 11.sp, fontWeight = FontWeight.W600)
         }
         choice.estimatedArrivalTime?.let { eta ->
             Spacer(Modifier.height(2.dp))
-            Text("~ $eta", color = if (selected) c.onPrimary.copy(alpha = 0.8f) else c.onSurfaceVariant, fontFamily = Inter, fontSize = 11.sp)
+            Text(stringResource(R.string.taxi_eta, eta), color = if (selected) c.onPrimary.copy(alpha = 0.8f) else c.onSurfaceVariant, fontFamily = Inter, fontSize = 11.sp)
         }
         Spacer(Modifier.height(8.dp))
-        Text("${choice.calculatePrice(distance).roundToInt()} FDJ", color = if (selected) c.onPrimary else c.primary, fontFamily = Poppins, fontSize = 16.sp, fontWeight = FontWeight.Bold)
+        Text(stringResource(R.string.ride_price_fdj, choice.calculatePrice(distance).roundToInt()), color = if (selected) c.onPrimary else c.primary, fontFamily = Poppins, fontSize = 16.sp, fontWeight = FontWeight.Bold)
     }
 }
 

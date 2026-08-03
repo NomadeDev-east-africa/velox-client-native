@@ -1,5 +1,6 @@
 package dj.velox.client.feature.taxi
 
+import androidx.annotation.StringRes
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -54,6 +55,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -64,6 +66,7 @@ import dj.velox.client.R
 import dj.velox.client.domain.model.GeoUtils
 import dj.velox.client.domain.model.LatLng
 import dj.velox.client.domain.model.RideChoice
+import dj.velox.client.domain.model.RideType
 import dj.velox.client.domain.model.TaxiCatalog
 import dj.velox.client.feature.auth.AuthViewModel
 import dj.velox.client.feature.location.RouteViewModel
@@ -75,25 +78,23 @@ import dj.velox.client.ui.theme.VeloxTheme
 import kotlinx.coroutines.launch
 import kotlin.math.roundToInt
 
-private data class PayMethod(val value: String, val label: String, val icon: ImageVector)
+private data class PayMethod(val value: String, @param:StringRes val labelRes: Int?, val brand: String?, val icon: ImageVector)
 /** Mêmes moyens de paiement que le panier food (`CartScreen.PAYMENT_METHODS`). */
 private val PAY_METHODS = listOf(
-    PayMethod("cash", "Espèces", Icons.Filled.Payments),
-    PayMethod("waafi", "Waafi", Icons.Filled.AccountBalanceWallet),
-    PayMethod("d_money", "D-Money", Icons.Filled.AccountBalanceWallet),
-    PayMethod("cac_pay", "CAC Pay", Icons.Filled.AccountBalanceWallet),
-    PayMethod("bci_pay", "BCI Pay", Icons.Filled.AccountBalance),
-    PayMethod("exim_bank", "Exim Bank", Icons.Filled.AccountBalance),
-    PayMethod("dahab_plus", "Dahab+", Icons.Filled.AccountBalanceWallet),
+    PayMethod("cash", R.string.pay_cash, null, Icons.Filled.Payments),
+    PayMethod("waafi", null, "Waafi", Icons.Filled.AccountBalanceWallet),
+    PayMethod("d_money", null, "D-Money", Icons.Filled.AccountBalanceWallet),
+    PayMethod("cac_pay", null, "CAC Pay", Icons.Filled.AccountBalanceWallet),
+    PayMethod("bci_pay", null, "BCI Pay", Icons.Filled.AccountBalance),
+    PayMethod("exim_bank", null, "Exim Bank", Icons.Filled.AccountBalance),
+    PayMethod("dahab_plus", null, "Dahab+", Icons.Filled.AccountBalanceWallet),
 )
 
-private fun carModel(rc: RideChoice): String {
-    val n = rc.name.lowercase()
-    return when {
-        n.contains("confort") || n.contains("comfort") -> "Toyota Prius"
-        n.contains("van") || n.contains("minibus") -> "Toyota Hiace"
-        else -> "Toyota Corolla"
-    }
+/** Modèle de véhicule affiché — déduit du type, jamais du libellé traduit. */
+private fun carModel(rc: RideChoice): String = when (rc.type) {
+    RideType.COMFORT -> "Toyota Prius"
+    RideType.VAN -> "Toyota Hiace"
+    else -> "Toyota Corolla"
 }
 
 /**
@@ -139,9 +140,9 @@ fun ConfirmRideScreen(
                 Modifier.fillMaxWidth().statusBarsPadding().padding(horizontal = 20.dp, vertical = 16.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                Icon(Icons.AutoMirrored.Filled.ArrowBack, "Retour", tint = c.primary, modifier = Modifier.size(24.dp).clickable(onClick = onBack))
+                Icon(Icons.AutoMirrored.Filled.ArrowBack, stringResource(R.string.back), tint = c.primary, modifier = Modifier.size(24.dp).clickable(onClick = onBack))
                 Spacer(Modifier.size(16.dp))
-                Text("CONFIRMER VOTRE COURSE", color = c.primary, fontFamily = Poppins, fontSize = 16.sp, fontWeight = FontWeight.Black, letterSpacing = (-0.5).sp, modifier = Modifier.weight(1f))
+                Text(stringResource(R.string.taxi_confirm_title), color = c.primary, fontFamily = Poppins, fontSize = 16.sp, fontWeight = FontWeight.Black, letterSpacing = (-0.5).sp, modifier = Modifier.weight(1f))
                 Icon(Icons.Filled.Settings, null, tint = c.onSurfaceVariant, modifier = Modifier.size(22.dp))
             }
 
@@ -168,21 +169,21 @@ fun ConfirmRideScreen(
                 // Détails
                 Column(Modifier.padding(horizontal = 16.dp).fillMaxWidth().background(c.surfaceLow).padding(24.dp)) {
                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                        Label("DÉTAILS DE LA COURSE", c)
+                        Label(stringResource(R.string.taxi_ride_details), c)
                         Text("v1.0_ID", color = c.primary, fontFamily = Inter, fontSize = 10.sp, letterSpacing = 1.sp)
                     }
                     Spacer(Modifier.height(20.dp))
                     Column(Modifier.padding(start = 16.dp)) {
-                        LocationRow(Icons.Filled.RadioButtonChecked, "ORIGINE", pickupAddress, c)
+                        LocationRow(Icons.Filled.RadioButtonChecked, stringResource(R.string.taxi_origin), pickupAddress, c)
                         Spacer(Modifier.height(16.dp))
-                        LocationRow(Icons.Filled.LocationOn, "DESTINATION", destinationAddress, c)
+                        LocationRow(Icons.Filled.LocationOn, stringResource(R.string.taxi_destination_upper), destinationAddress, c)
                     }
                     Spacer(Modifier.height(20.dp))
                     Box(Modifier.fillMaxWidth().height(1.dp).background(c.outlineVariant.copy(alpha = 0.2f)))
                     Spacer(Modifier.height(20.dp))
                     Row(Modifier.fillMaxWidth()) {
-                        MetricRow(Icons.Filled.AccessTime, "ESTIMATION", "$duration MIN", c, Modifier.weight(1f))
-                        MetricRow(Icons.Filled.Route, "DISTANCE", "%.1f KM".format(distance), c, Modifier.weight(1f))
+                        MetricRow(Icons.Filled.AccessTime, stringResource(R.string.taxi_estimation), stringResource(R.string.taxi_min_upper, duration), c, Modifier.weight(1f))
+                        MetricRow(Icons.Filled.Route, stringResource(R.string.taxi_distance_upper), stringResource(R.string.taxi_km_upper, "%.1f".format(distance)), c, Modifier.weight(1f))
                     }
                 }
                 Spacer(Modifier.height(12.dp))
@@ -198,7 +199,7 @@ fun ConfirmRideScreen(
                     }
                     Spacer(Modifier.size(20.dp))
                     Column(Modifier.weight(1f)) {
-                        Label("PILOTE ASSIGNÉ", c)
+                        Label(stringResource(R.string.taxi_assigned_driver), c)
                         Spacer(Modifier.size(4.dp))
                         Text(carModel(choice).uppercase(), color = c.onSurface, fontFamily = Poppins, fontSize = 18.sp, fontWeight = FontWeight.W800, letterSpacing = (-0.5).sp)
                     }
@@ -210,7 +211,7 @@ fun ConfirmRideScreen(
                 Row(Modifier.padding(horizontal = 16.dp).fillMaxWidth().background(c.surface)) {
                     Box(Modifier.width(4.dp).height(150.dp).background(c.primary))
                     Column(Modifier.padding(24.dp)) {
-                        Label("COÛT", c)
+                        Label(stringResource(R.string.taxi_cost), c)
                         Spacer(Modifier.height(8.dp))
                         Row(verticalAlignment = Alignment.Bottom) {
                             Text("$price", color = c.primary, fontFamily = Poppins, fontSize = 52.sp, fontWeight = FontWeight.Black, letterSpacing = (-2).sp)
@@ -221,7 +222,7 @@ fun ConfirmRideScreen(
                         Row(Modifier.clip(RoundedCornerShape(8.dp)).clickable { showSheet = true }.padding(4.dp), verticalAlignment = Alignment.CenterVertically) {
                             Box(Modifier.size(8.dp).clip(androidx.compose.foundation.shape.CircleShape).background(c.primary))
                             Spacer(Modifier.size(8.dp))
-                            Text(payLabel(payment), color = c.primary, fontFamily = Inter, fontSize = 10.sp, fontWeight = FontWeight.W700, letterSpacing = 1.5.sp)
+                            Text(payLabel(payment).uppercase(), color = c.primary, fontFamily = Inter, fontSize = 10.sp, fontWeight = FontWeight.W700, letterSpacing = 1.5.sp)
                             Spacer(Modifier.size(6.dp))
                             Icon(Icons.Filled.KeyboardArrowDown, null, tint = c.primary, modifier = Modifier.size(16.dp))
                         }
@@ -261,7 +262,7 @@ fun ConfirmRideScreen(
                     CircularProgressIndicator(Modifier.size(24.dp), color = c.onPrimary, strokeWidth = 2.dp)
                 } else {
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text("CONFIRMER", color = c.onPrimary, fontFamily = Poppins, fontSize = 20.sp, fontWeight = FontWeight.Black, letterSpacing = 3.sp)
+                        Text(stringResource(R.string.taxi_confirm_upper), color = c.onPrimary, fontFamily = Poppins, fontSize = 20.sp, fontWeight = FontWeight.Black, letterSpacing = 3.sp)
                         Spacer(Modifier.size(12.dp))
                         Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, null, tint = c.onPrimary, modifier = Modifier.size(26.dp))
                     }
@@ -273,7 +274,7 @@ fun ConfirmRideScreen(
     if (showSheet) {
         ModalBottomSheet(onDismissRequest = { showSheet = false }, containerColor = c.surfaceLow) {
             Column(Modifier.fillMaxWidth().padding(bottom = 32.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-                Text("MÉTHODE DE PAIEMENT", color = c.onSurfaceVariant, fontFamily = Inter, fontSize = 12.sp, fontWeight = FontWeight.W700, letterSpacing = 2.sp)
+                Text(stringResource(R.string.taxi_payment_method_upper), color = c.onSurfaceVariant, fontFamily = Inter, fontSize = 12.sp, fontWeight = FontWeight.W700, letterSpacing = 2.sp)
                 Spacer(Modifier.height(12.dp))
                 PAY_METHODS.forEach { m ->
                     val sel = payment == m.value
@@ -283,7 +284,7 @@ fun ConfirmRideScreen(
                     ) {
                         Icon(m.icon, null, tint = if (sel) c.primary else c.onSurfaceVariant, modifier = Modifier.size(20.dp))
                         Spacer(Modifier.size(16.dp))
-                        Text(m.label, color = if (sel) c.primary else c.onSurface, fontFamily = Inter, fontSize = 15.sp, fontWeight = FontWeight.W500, modifier = Modifier.weight(1f))
+                        Text(payLabel(m.value), color = if (sel) c.primary else c.onSurface, fontFamily = Inter, fontSize = 15.sp, fontWeight = FontWeight.W500, modifier = Modifier.weight(1f))
                         if (sel) Icon(Icons.Filled.Check, null, tint = c.primary, modifier = Modifier.size(18.dp))
                     }
                 }
@@ -292,8 +293,12 @@ fun ConfirmRideScreen(
     }
 }
 
-private fun payLabel(method: String): String =
-    PAY_METHODS.firstOrNull { it.value == method }?.label?.uppercase() ?: method.uppercase()
+/** Libellé d'un moyen de paiement : ressource traduite, ou nom de marque tel quel. */
+@Composable
+private fun payLabel(method: String): String {
+    val m = PAY_METHODS.firstOrNull { it.value == method } ?: return method
+    return m.labelRes?.let { stringResource(it) } ?: m.brand ?: method
+}
 
 @Composable
 private fun Label(text: String, c: VeloxColors) {

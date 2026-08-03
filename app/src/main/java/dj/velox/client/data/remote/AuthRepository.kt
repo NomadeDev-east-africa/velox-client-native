@@ -1,6 +1,13 @@
 package dj.velox.client.data.remote
 
 import android.app.Activity
+import android.content.Context
+import android.content.res.Configuration
+import android.content.res.Resources
+import androidx.annotation.StringRes
+import androidx.appcompat.app.AppCompatDelegate
+import com.google.firebase.FirebaseException
+import com.google.firebase.FirebaseTooManyRequestsException
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.FirebaseAuthException
 import com.google.firebase.auth.EmailAuthProvider
@@ -13,6 +20,8 @@ import com.google.firebase.auth.UserProfileChangeRequest
 import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.SetOptions
+import dagger.hilt.android.qualifiers.ApplicationContext
+import dj.velox.client.R
 import dj.velox.client.domain.model.VeloxUser
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
@@ -46,6 +55,7 @@ class AuthException(message: String, val code: String? = null) : Exception(messa
 class AuthRepository @Inject constructor(
     private val auth: FirebaseAuth,
     private val firestore: FirebaseFirestore,
+    @param:ApplicationContext private val context: Context,
 ) {
     val currentUser: FirebaseUser? get() = auth.currentUser
 
@@ -63,7 +73,7 @@ class AuthRepository @Inject constructor(
     suspend fun signInWithEmailPassword(email: String, password: String): FirebaseUser {
         try {
             val user = auth.signInWithEmailAndPassword(email.trim(), password).await().user
-                ?: throw AuthException("Échec de la connexion.")
+                ?: throw AuthException(string(R.string.err_signin_failed))
             users().document(user.uid).set(
                 mapOf(
                     "lastActiveAt" to FieldValue.serverTimestamp(),
@@ -89,7 +99,7 @@ class AuthRepository @Inject constructor(
     ): FirebaseUser {
         try {
             val user = auth.createUserWithEmailAndPassword(email.trim(), password).await().user
-                ?: throw AuthException("Échec de la création du compte.")
+                ?: throw AuthException(string(R.string.err_signup_failed))
 
             user.updateProfile(
                 UserProfileChangeRequest.Builder().setDisplayName(name).build()
@@ -110,7 +120,7 @@ class AuthRepository @Inject constructor(
         try {
             val credential = GoogleAuthProvider.getCredential(idToken, null)
             val user = auth.signInWithCredential(credential).await().user
-                ?: throw AuthException("Échec de la connexion Google.")
+                ?: throw AuthException(string(R.string.err_google_failed))
             createOrUpdateUserDocument(user)
             return user
         } catch (e: FirebaseAuthException) {
@@ -150,8 +160,11 @@ class AuthRepository @Inject constructor(
 
     /** Connexion directe (cas verificationCompleted automatique). */
     suspend fun signInWithPhoneCredential(credential: PhoneAuthCredential): FirebaseUser {
-        val user = auth.signInWithCredential(credential).await().user
-            ?: throw AuthException("Échec de la vérification du téléphone.")
+        val user = try {
+            auth.signInWithCredential(credential).await().user
+        } catch (e: FirebaseAuthException) {
+            throw AuthException(mapError(e), e.errorCode)
+        } ?: throw AuthException(string(R.string.err_phone_failed))
         createOrUpdateUserDocument(user)
         return user
     }
@@ -178,7 +191,7 @@ class AuthRepository @Inject constructor(
         credential: PhoneAuthCredential,
         phoneNumber: String,
     ): FirebaseUser {
-        val user = auth.currentUser ?: throw AuthException("Session expirée. Reconnectez-vous.")
+        val user = auth.currentUser ?: throw AuthException(string(R.string.err_requires_recent_login))
         try {
             if (user.phoneNumber.isNullOrBlank()) {
                 user.linkWithCredential(credential).await()
@@ -222,6 +235,39 @@ class AuthRepository @Inject constructor(
         }
     }
 
+    /**
+     * Définit un mot de passe sur le compte **déjà connecté** — utilisé après une récupération
+     * par SMS, où l'utilisateur vient de prouver son identité par OTP.
+     *
+     * Deux cas selon les providers du compte : si `password` est déjà rattaché on met à jour le
+     * mot de passe existant ; sinon (compte créé par téléphone ou par Google) on **rattache** un
+     * provider email/mot de passe, ce qui exige une adresse — celle du compte si elle existe,
+     * sinon celle saisie par l'utilisateur.
+     */
+    suspend fun setPassword(newPassword: String, emailIfMissing: String? = null) {
+        val user = auth.currentUser ?: throw AuthException(string(R.string.err_requires_recent_login))
+        try {
+            if (hasPasswordProvider) {
+                user.updatePassword(newPassword).await()
+            } else {
+                val email = user.email?.takeIf { it.isNotBlank() }
+                    ?: emailIfMissing?.trim()?.takeIf { it.isNotBlank() }
+                    ?: throw AuthException(string(R.string.err_email_not_found))
+                user.linkWithCredential(EmailAuthProvider.getCredential(email, newPassword)).await()
+                users().document(user.uid).set(
+                    mapOf("email" to email, "updatedAt" to FieldValue.serverTimestamp()),
+                    SetOptions.merge(),
+                ).await()
+            }
+        } catch (e: FirebaseAuthException) {
+            throw AuthException(mapError(e), e.errorCode)
+        }
+    }
+
+    /** Le compte possède-t-il un provider email/mot de passe (donc un mot de passe à réinitialiser) ? */
+    val hasPasswordProvider: Boolean
+        get() = auth.currentUser?.providerData?.any { it.providerId == "password" } == true
+
     fun signOut() = auth.signOut()
 
     // ════════════════════════════════════════════════════════════
@@ -235,7 +281,7 @@ class AuthRepository @Inject constructor(
 
     /** Ré-authentifie avec un idToken Google frais. */
     suspend fun reauthenticateWithGoogle(idToken: String) {
-        val user = auth.currentUser ?: throw AuthException("Session expirée. Reconnectez-vous.")
+        val user = auth.currentUser ?: throw AuthException(string(R.string.err_requires_recent_login))
         try {
             user.reauthenticate(GoogleAuthProvider.getCredential(idToken, null)).await()
         } catch (e: FirebaseAuthException) {
@@ -245,8 +291,8 @@ class AuthRepository @Inject constructor(
 
     /** Ré-authentifie avec l'email du compte + mot de passe saisi. */
     suspend fun reauthenticateWithPassword(password: String) {
-        val user = auth.currentUser ?: throw AuthException("Session expirée. Reconnectez-vous.")
-        val email = user.email ?: throw AuthException("Email introuvable pour ce compte.")
+        val user = auth.currentUser ?: throw AuthException(string(R.string.err_requires_recent_login))
+        val email = user.email ?: throw AuthException(string(R.string.err_email_not_found))
         try {
             user.reauthenticate(EmailAuthProvider.getCredential(email, password)).await()
         } catch (e: FirebaseAuthException) {
@@ -260,7 +306,7 @@ class AuthRepository @Inject constructor(
      * ré-authentification récente, sinon Firebase lève `ERROR_REQUIRES_RECENT_LOGIN`.
      */
     suspend fun deleteAccount() {
-        val user = auth.currentUser ?: throw AuthException("Session expirée. Reconnectez-vous.")
+        val user = auth.currentUser ?: throw AuthException(string(R.string.err_requires_recent_login))
         runCatching { users().document(user.uid).delete().await() }
         try {
             user.delete().await()
@@ -350,23 +396,68 @@ class AuthRepository @Inject constructor(
 
     private fun users() = firestore.collection("users")
 
-    /** Traduction des codes d'erreur Firebase (miroir _handleAuthException). */
-    private fun mapError(e: FirebaseAuthException): String = when (e.errorCode) {
-        "ERROR_USER_NOT_FOUND" -> "Aucun compte trouvé avec cet email."
-        "ERROR_WRONG_PASSWORD" -> "Mot de passe incorrect."
-        "ERROR_INVALID_EMAIL" -> "Email invalide."
-        "ERROR_USER_DISABLED" -> "Ce compte a été désactivé."
-        "ERROR_EMAIL_ALREADY_IN_USE" -> "Cet email est déjà utilisé."
-        "ERROR_WEAK_PASSWORD" -> "Le mot de passe doit contenir au moins 6 caractères."
-        "ERROR_INVALID_VERIFICATION_CODE" -> "Code de vérification invalide."
-        "ERROR_INVALID_VERIFICATION_ID" -> "Session expirée. Renvoyez le code."
-        "ERROR_TOO_MANY_REQUESTS" -> "Trop de tentatives. Réessayez plus tard."
-        "ERROR_OPERATION_NOT_ALLOWED" -> "Cette méthode de connexion n'est pas activée."
-        "ERROR_NETWORK_REQUEST_FAILED" -> "Erreur réseau. Vérifiez votre connexion."
-        "ERROR_REQUIRES_RECENT_LOGIN" -> "Session expirée. Reconnectez-vous."
-        "ERROR_CREDENTIAL_ALREADY_IN_USE" -> "Ce numéro est déjà utilisé par un autre compte."
-        "ERROR_PROVIDER_ALREADY_LINKED" -> "Un numéro est déjà associé à ce compte."
-        "ERROR_INVALID_CREDENTIAL" -> "Identifiants invalides. Vérifiez vos informations."
-        else -> e.message ?: e.errorCode
+    // ─── Localisation des messages ───────────────────────────────
+
+    /**
+     * Résout une chaîne dans la langue **choisie dans l'app** (LanguageSelectionScreen), et non
+     * dans celle du système. Les per-app locales d'AppCompat ne se propagent pas au contexte
+     * applicatif sur toutes les versions d'Android : on reconstruit donc la configuration à la
+     * volée, sinon les messages d'erreur repartiraient en français pour un utilisateur en
+     * arabe ou en somali.
+     */
+    internal fun string(@StringRes id: Int, vararg args: Any): String = localizedResources()
+        .let { if (args.isEmpty()) it.getString(id) else it.getString(id, *args) }
+
+    private fun localizedResources(): Resources {
+        val locales = AppCompatDelegate.getApplicationLocales()
+        if (locales.isEmpty) return context.resources
+        val config = Configuration(context.resources.configuration)
+        config.setLocale(locales[0])
+        return context.createConfigurationContext(config).resources
+    }
+
+    /**
+     * Traduction des codes d'erreur Firebase (miroir _handleAuthException).
+     *
+     * Le `else` ne doit **jamais** renvoyer `e.message` : ce message est en anglais brut et
+     * l'utilisateur se retrouve avec « The sms code has expired… » au milieu d'une interface
+     * en français.
+     */
+    fun mapError(e: FirebaseException): String {
+        val code = (e as? FirebaseAuthException)?.errorCode
+        return when {
+            code != null -> string(errorRes(code))
+            // verifyPhoneNumber remonte ce type hors FirebaseAuthException (quota SMS projet).
+            e is FirebaseTooManyRequestsException -> string(R.string.err_quota_exceeded)
+            else -> string(R.string.err_generic)
+        }
+    }
+
+    @StringRes
+    private fun errorRes(code: String): Int = when (code) {
+        "ERROR_USER_NOT_FOUND" -> R.string.err_user_not_found
+        "ERROR_WRONG_PASSWORD" -> R.string.err_wrong_password
+        "ERROR_INVALID_EMAIL" -> R.string.err_invalid_email
+        "ERROR_USER_DISABLED" -> R.string.err_user_disabled
+        "ERROR_EMAIL_ALREADY_IN_USE" -> R.string.err_email_in_use
+        "ERROR_WEAK_PASSWORD" -> R.string.err_weak_password
+        "ERROR_INVALID_VERIFICATION_CODE" -> R.string.err_invalid_code
+        "ERROR_INVALID_VERIFICATION_ID" -> R.string.err_invalid_verification_id
+        // Code SMS périmé — le cas le plus fréquent en conditions réseau dégradées.
+        "ERROR_SESSION_EXPIRED" -> R.string.err_session_expired
+        "ERROR_MISSING_VERIFICATION_CODE" -> R.string.err_missing_code
+        "ERROR_INVALID_PHONE_NUMBER" -> R.string.err_invalid_phone
+        "ERROR_MISSING_PHONE_NUMBER" -> R.string.err_missing_phone
+        "ERROR_QUOTA_EXCEEDED" -> R.string.err_quota_exceeded
+        "ERROR_TOO_MANY_REQUESTS" -> R.string.err_too_many_requests
+        "ERROR_OPERATION_NOT_ALLOWED" -> R.string.err_operation_not_allowed
+        "ERROR_NETWORK_REQUEST_FAILED" -> R.string.err_network
+        "ERROR_REQUIRES_RECENT_LOGIN" -> R.string.err_requires_recent_login
+        "ERROR_CREDENTIAL_ALREADY_IN_USE" -> R.string.err_credential_in_use
+        "ERROR_ACCOUNT_EXISTS_WITH_DIFFERENT_CREDENTIAL" -> R.string.err_credential_in_use
+        "ERROR_PROVIDER_ALREADY_LINKED" -> R.string.err_provider_already_linked
+        "ERROR_INVALID_CREDENTIAL" -> R.string.err_invalid_credential
+        "ERROR_APP_NOT_AUTHORIZED" -> R.string.err_app_not_authorized
+        else -> R.string.err_generic
     }
 }

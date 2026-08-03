@@ -36,6 +36,7 @@ import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Language
 import androidx.compose.material.icons.filled.LocalOffer
 import androidx.compose.material.icons.filled.LocationOn
+import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.Palette
 import androidx.compose.material.icons.filled.Person
@@ -99,6 +100,7 @@ fun ProfileScreen(
     onManageAddresses: () -> Unit,
     onAddAddress: () -> Unit,
     onEditProfile: () -> Unit,
+    onSetPassword: () -> Unit,
     onSelectLanguage: () -> Unit,
     onOpenSupport: () -> Unit,
     favoriteCount: Int = 0,
@@ -313,6 +315,17 @@ fun ProfileScreen(
                 subtitle = stringResource(R.string.email_address),
                 c = c,
                 trailing = { VerifiedBadge(profile?.isVerified == true, c) },
+            )
+            RowDivider(c)
+            // Point d'arrivée de la récupération par SMS : une fois reconnecté par OTP,
+            // c'est ici qu'on redéfinit le mot de passe oublié.
+            SettingRow(
+                icon = Icons.Filled.Lock,
+                title = stringResource(R.string.auth_new_password_title),
+                subtitle = stringResource(R.string.auth_new_password_subtitle),
+                c = c,
+                onClick = onSetPassword,
+                trailing = { Chevron(c) },
             )
         }
 

@@ -82,6 +82,11 @@ fun CompletePhoneScreen(
         LaunchedEffect(link.autoCode) {
             link.autoCode?.let { if (it.isNotBlank()) code = it }
         }
+        // Un renvoi invalide le code précédent : on vide le champ pour éviter que l'utilisateur
+        // resoumette l'ancien code et retombe sur « code expiré ».
+        LaunchedEffect(link.codeResent) {
+            if (link.codeResent) code = ""
+        }
         AuthScaffold(title = stringResource(R.string.auth_otp_title)) {
             Text(
                 text = stringResource(R.string.auth_otp_subtitle),
@@ -99,14 +104,20 @@ fun CompletePhoneScreen(
             )
             link.error?.let { ErrorText(it) }
             if (link.errorCode == ERROR_NUMBER_TAKEN) PhoneTakenHelp()
+            if (link.codeResent && link.error == null) InfoText(stringResource(R.string.auth_code_resent))
             Spacer(Modifier.height(8.dp))
             SubmitButton(
                 text = stringResource(R.string.auth_verify),
                 // `linked` reste en chargement le temps que la session se rafraîchisse
                 // et que RootContent bascule sur l'app.
-                loading = link.isVerifying || link.linked,
+                loading = link.isVerifying || link.linked || link.isSending,
                 enabled = code.length == 6,
             ) { viewModel.verifyPhoneLink(code.trim()) }
+            // Sortie du cas « code SMS expiré » : sans ce bouton, l'écran est bloquant et la
+            // seule issue est de tout ressaisir depuis le numéro.
+            ResendCodeRow(secondsLeft = link.resendIn, enabled = link.canResend) {
+                (context as? Activity)?.let { viewModel.resendPhoneLinkCode(it) }
+            }
             // Revenir à la saisie du numéro (ex. numéro déjà utilisé par un autre compte).
             TextButton(
                 onClick = { viewModel.resetPhoneLink() },

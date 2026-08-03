@@ -36,6 +36,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -49,8 +50,11 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.style.TextAlign
@@ -92,6 +96,9 @@ fun SignInScreen(
     AuthScaffold(
         topBarTitle = stringResource(R.string.auth_signin),
         heading = stringResource(R.string.auth_welcome_to),
+        // Nom de marque non traduit (comme le logo "Velox" de SignUpScreen) : le heading
+        // "Bienvenue sur" restait seul jusqu'ici, sans le mot "Velox" — corrige ce manque.
+        headingAccent = "Velox",
         subtitle = stringResource(R.string.auth_signin_subtitle),
     ) {
         AuthTextField(email, { email = it }, stringResource(R.string.email_address), KeyboardType.Email)
@@ -110,6 +117,7 @@ fun SignInScreen(
             modifier = Modifier
                 .align(Alignment.CenterHorizontally)
                 .clip(RoundedCornerShape(8.dp))
+                .clickable(onClick = onNavigateToForgot)
                 .padding(4.dp),
         )
         Spacer(Modifier.height(16.dp))
@@ -328,6 +336,10 @@ internal fun AuthScaffold(
     title: String = "",
     subtitle: String? = null,
     heading: String = title,
+    // Nom de marque accolé au heading (ex. « Bienvenue sur Velox »), coloré en vert Velox.
+    // Séparé de [heading] pour rester un `String` traduisible (le mot « Velox » lui, ne l'est
+    // pas — même convention que le logo texte de SignUpScreen).
+    headingAccent: String? = null,
     topBarTitle: String = title,
     content: @Composable ColumnScope.() -> Unit,
 ) {
@@ -351,7 +363,19 @@ internal fun AuthScaffold(
                 .padding(horizontal = 24.dp),
         ) {
             Spacer(Modifier.height(28.dp))
-            Text(heading, color = c.onSurface, fontFamily = Poppins, fontSize = 32.sp, fontWeight = FontWeight.Bold, letterSpacing = (-0.5).sp)
+            if (headingAccent != null) {
+                Text(
+                    buildAnnotatedString {
+                        append(heading)
+                        append(" ")
+                        withStyle(SpanStyle(color = VeloxGreen)) { append(headingAccent) }
+                    },
+                    fontFamily = Poppins, fontSize = 32.sp, fontWeight = FontWeight.Bold, letterSpacing = (-0.5).sp,
+                    color = c.onSurface,
+                )
+            } else {
+                Text(heading, color = c.onSurface, fontFamily = Poppins, fontSize = 32.sp, fontWeight = FontWeight.Bold, letterSpacing = (-0.5).sp)
+            }
             if (subtitle != null) {
                 Spacer(Modifier.height(8.dp))
                 Text(subtitle, color = c.onSurface.copy(alpha = 0.85f), fontFamily = Inter, fontSize = 15.sp, lineHeight = 22.sp)
@@ -539,6 +563,43 @@ private fun DividerOu() {
         HorizontalDivider(Modifier.weight(1f), color = c.outlineVariant.copy(alpha = 0.5f))
         Text(stringResource(R.string.auth_or), color = c.onSurfaceVariant, fontFamily = Inter, fontSize = 14.sp, modifier = Modifier.padding(horizontal = 16.dp))
         HorizontalDivider(Modifier.weight(1f), color = c.outlineVariant.copy(alpha = 0.5f))
+    }
+}
+
+/**
+ * Ligne « Renvoyer le code » des écrans OTP. Tant que le compte à rebours tourne, le libellé
+ * indique l'attente restante et le bouton est inactif : sans cette temporisation, un
+ * utilisateur qui n'a pas reçu son SMS enchaîne les demandes et Firebase bloque le numéro
+ * sur `ERROR_TOO_MANY_REQUESTS`.
+ */
+@Composable
+internal fun ResendCodeRow(secondsLeft: Int, enabled: Boolean, onResend: () -> Unit) {
+    val c = VeloxTheme.colors
+    Spacer(Modifier.height(4.dp))
+    TextButton(onClick = onResend, enabled = enabled, modifier = Modifier.fillMaxWidth()) {
+        Text(
+            text = if (secondsLeft > 0) {
+                stringResource(R.string.auth_resend_in, secondsLeft)
+            } else {
+                stringResource(R.string.auth_resend_code)
+            },
+            color = if (enabled) AuthGreen else c.onSurfaceVariant,
+            fontFamily = Inter,
+            fontSize = 14.sp,
+            fontWeight = FontWeight.W600,
+        )
+    }
+}
+
+/** Bandeau d'information neutre (confirmation, explication) — pendant vert de [ErrorText]. */
+@Composable
+internal fun InfoText(message: String) {
+    val c = VeloxTheme.colors
+    Spacer(Modifier.height(12.dp))
+    Box(
+        Modifier.fillMaxWidth().background(AuthGreen.copy(alpha = 0.12f), RoundedCornerShape(10.dp)).padding(12.dp),
+    ) {
+        Text(message, color = c.onSurface, fontFamily = Inter, fontSize = 13.sp, textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth())
     }
 }
 

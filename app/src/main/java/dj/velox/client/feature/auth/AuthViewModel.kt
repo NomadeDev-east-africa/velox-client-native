@@ -1,19 +1,24 @@
 package dj.velox.client.feature.auth
 
 import android.app.Activity
+import androidx.annotation.StringRes
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.google.firebase.FirebaseException
+import com.google.firebase.auth.FirebaseAuthException
 import com.google.firebase.auth.FirebaseUser
 import com.google.firebase.auth.PhoneAuthCredential
 import com.google.firebase.auth.PhoneAuthProvider
 import dagger.hilt.android.lifecycle.HiltViewModel
+import dj.velox.client.R
 import dj.velox.client.core.notifications.NotificationTokenManager
 import dj.velox.client.data.local.VeloxLocalStore
 import dj.velox.client.data.remote.AuthException
 import dj.velox.client.data.remote.AuthRepository
 import dj.velox.client.domain.model.VeloxUser
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -61,7 +66,16 @@ data class PhoneAuthState(
     val autoCode: String? = null,
     /** Liaison du numéro au compte réussie (flux « numéro obligatoire »). */
     val linked: Boolean = false,
-)
+    /** Secondes restantes avant de pouvoir redemander un SMS (0 = renvoi possible). */
+    val resendIn: Int = 0,
+    /** Un nouveau code vient d'être envoyé → confirmation à afficher. */
+    val codeResent: Boolean = false,
+) {
+    val canResend: Boolean get() = codeSent && resendIn == 0 && !isSending && !isVerifying
+}
+
+/** Délai imposé entre deux envois de SMS — aligné sur le timeout Firebase (60 s). */
+private const val RESEND_DELAY_SECONDS = 60
 
 @HiltViewModel
 class AuthViewModel @Inject constructor(
@@ -101,6 +115,11 @@ class AuthViewModel @Inject constructor(
 
     private var resendToken: PhoneAuthProvider.ForceResendingToken? = null
 
+    /** Numéro du flux de connexion courant — conservé pour pouvoir renvoyer le SMS. */
+    private var pendingNumber: String = ""
+    private var countdownJob: Job? = null
+    private var linkCountdownJob: Job? = null
+
     // ─── Liaison d'un numéro au compte courant (login Google → pas de numéro) ───
     private val _phoneLink = MutableStateFlow(PhoneAuthState())
     val phoneLink: StateFlow<PhoneAuthState> = _phoneLink.asStateFlow()
@@ -109,18 +128,36 @@ class AuthViewModel @Inject constructor(
 
     fun clearError() {
         _form.value = _form.value.copy(error = null)
-        _phone.value = _phone.value.copy(error = null)
+        _phone.value = _phone.value.copy(error = null, errorCode = null)
+        _phoneLink.value = _phoneLink.value.copy(error = null, errorCode = null)
     }
 
     fun resetPhoneFlow() {
+        countdownJob?.cancel()
         _phone.value = PhoneAuthState()
         resendToken = null
+        pendingNumber = ""
     }
 
     fun resetPhoneLink() {
+        linkCountdownJob?.cancel()
         _phoneLink.value = PhoneAuthState()
         linkResendToken = null
         pendingLinkNumber = ""
+    }
+
+    /**
+     * Décompte avant réactivation du bouton « Renvoyer le code ». Sans ce garde-fou,
+     * l'utilisateur peut enchaîner les demandes et Firebase le bloque sur
+     * `ERROR_TOO_MANY_REQUESTS` — c'est-à-dire échanger une attente de 60 s contre un
+     * blocage d'une heure.
+     */
+    private fun startCountdown(state: MutableStateFlow<PhoneAuthState>): Job = viewModelScope.launch {
+        for (remaining in RESEND_DELAY_SECONDS downTo 1) {
+            state.value = state.value.copy(resendIn = remaining)
+            delay(1_000)
+        }
+        state.value = state.value.copy(resendIn = 0)
     }
 
     // ─── Flux « numéro obligatoire » ─────────────────────────────
@@ -130,12 +167,20 @@ class AuthViewModel @Inject constructor(
      * d'auto-récupération du code (instant verification), on lie directement et on
      * expose `autoCode` pour remplir le champ à l'écran.
      */
-    fun startPhoneLink(activity: Activity, phoneNumber: String) {
+    fun startPhoneLink(activity: Activity, phoneNumber: String, isResend: Boolean = false) {
         pendingLinkNumber = phoneNumber.trim()
-        _phoneLink.value = PhoneAuthState(isSending = true)
+        linkCountdownJob?.cancel()
+        // Un renvoi conserve l'étape « saisie du code » : repartir d'un PhoneAuthState() vierge
+        // renverrait l'utilisateur à l'écran du numéro et lui ferait tout ressaisir.
+        _phoneLink.value = if (isResend) {
+            _phoneLink.value.copy(isSending = true, error = null, errorCode = null, codeResent = false)
+        } else {
+            PhoneAuthState(isSending = true)
+        }
         val callbacks = object : PhoneAuthProvider.OnVerificationStateChangedCallbacks() {
             override fun onVerificationCompleted(credential: PhoneAuthCredential) {
                 _phoneLink.value = _phoneLink.value.copy(
+                    isSending = false,
                     codeSent = true,
                     autoCode = credential.smsCode,
                     isVerifying = true,
@@ -145,7 +190,16 @@ class AuthViewModel @Inject constructor(
             }
 
             override fun onVerificationFailed(e: FirebaseException) {
-                _phoneLink.value = PhoneAuthState(error = e.message ?: "Échec de l'envoi du code.")
+                linkCountdownJob?.cancel()
+                // On garde `codeSent` : si l'échec survient sur un renvoi, l'utilisateur doit
+                // rester sur l'écran du code avec son bouton « Renvoyer », pas être éjecté.
+                _phoneLink.value = _phoneLink.value.copy(
+                    isSending = false,
+                    isVerifying = false,
+                    error = repo.mapError(e),
+                    errorCode = (e as? FirebaseAuthException)?.errorCode,
+                    resendIn = 0,
+                )
             }
 
             override fun onCodeSent(
@@ -153,16 +207,30 @@ class AuthViewModel @Inject constructor(
                 token: PhoneAuthProvider.ForceResendingToken,
             ) {
                 linkResendToken = token
-                _phoneLink.value = PhoneAuthState(codeSent = true, verificationId = verificationId)
+                _phoneLink.value = _phoneLink.value.copy(
+                    isSending = false,
+                    codeSent = true,
+                    verificationId = verificationId,
+                    error = null,
+                    errorCode = null,
+                    codeResent = isResend,
+                )
+                linkCountdownJob = startCountdown(_phoneLink)
             }
         }
-        repo.verifyPhoneNumber(activity, pendingLinkNumber, callbacks, linkResendToken)
+        repo.verifyPhoneNumber(activity, pendingLinkNumber, callbacks, linkResendToken.takeIf { isResend })
+    }
+
+    /** Renvoie un SMS pour le même numéro (code expiré / jamais reçu). */
+    fun resendPhoneLinkCode(activity: Activity) {
+        if (!_phoneLink.value.canResend || pendingLinkNumber.isBlank()) return
+        startPhoneLink(activity, pendingLinkNumber, isResend = true)
     }
 
     /** Étape 2 : vérifie le code saisi manuellement puis lie le numéro au compte. */
     fun verifyPhoneLink(code: String) {
         val verificationId = _phoneLink.value.verificationId ?: return
-        _phoneLink.value = _phoneLink.value.copy(isVerifying = true, error = null)
+        _phoneLink.value = _phoneLink.value.copy(isVerifying = true, error = null, codeResent = false)
         linkWith { repo.linkPhoneWithOtp(verificationId, code.trim(), pendingLinkNumber) }
     }
 
@@ -173,11 +241,22 @@ class AuthViewModel @Inject constructor(
                 .onFailure {
                     _phoneLink.value = _phoneLink.value.copy(
                         isVerifying = false,
-                        error = (it as? AuthException)?.message ?: it.message ?: "Échec de la liaison du numéro.",
+                        error = errorMessage(it, R.string.err_link_phone_failed),
                         errorCode = (it as? AuthException)?.code,
                     )
                 }
         }
+    }
+
+    /**
+     * Message affichable pour une exception. Les `AuthException` sortent déjà traduites du
+     * repository ; pour tout le reste on retombe sur une chaîne localisée — jamais sur
+     * `throwable.message`, qui est le texte anglais brut du SDK Firebase.
+     */
+    private fun errorMessage(e: Throwable?, @StringRes fallback: Int): String = when (e) {
+        is AuthException -> e.message ?: repo.string(fallback)
+        is FirebaseException -> repo.mapError(e)
+        else -> repo.string(fallback)
     }
 
     // ─── Actions ─────────────────────────────────────────────────
@@ -242,7 +321,7 @@ class AuthViewModel @Inject constructor(
     private inline fun deleteFlow(crossinline onResult: (String?) -> Unit, crossinline action: suspend () -> Unit) {
         viewModelScope.launch {
             val err = runCatching { action() }.exceptionOrNull()
-            onResult((err as? AuthException)?.message ?: err?.message)
+            onResult(err?.let { errorMessage(it, R.string.err_generic) })
         }
     }
 
@@ -250,26 +329,60 @@ class AuthViewModel @Inject constructor(
     fun resetPassword(email: String, onDone: (String?) -> Unit) {
         viewModelScope.launch {
             val result = runCatching { repo.resetPassword(email) }
-            onDone(result.exceptionOrNull()?.let { (it as? AuthException)?.message ?: it.message })
+            onDone(result.exceptionOrNull()?.let { errorMessage(it, R.string.err_generic) })
+        }
+    }
+
+    /** Le compte connecté a-t-il un mot de passe (donc quelque chose à réinitialiser) ? */
+    val hasPassword: Boolean get() = repo.hasPasswordProvider
+
+    /**
+     * Définit un mot de passe sur le compte courant, après récupération par SMS. L'OTP qui
+     * vient d'être validé fait office de reconnexion récente, donc `updatePassword` passe sans
+     * redemander l'ancien mot de passe — que l'utilisateur a justement oublié.
+     */
+    fun setNewPassword(password: String, emailIfMissing: String? = null, onDone: (String?) -> Unit) {
+        viewModelScope.launch {
+            val result = runCatching { repo.setPassword(password, emailIfMissing) }
+            onDone(result.exceptionOrNull()?.let { errorMessage(it, R.string.err_generic) })
         }
     }
 
     // ─── OTP téléphone ───────────────────────────────────────────
 
     /** Lance l'envoi du SMS. L'Activity courante est requise par Firebase. */
-    fun startPhoneVerification(activity: Activity, phoneNumber: String) {
-        _phone.value = PhoneAuthState(isSending = true)
+    fun startPhoneVerification(activity: Activity, phoneNumber: String, isResend: Boolean = false) {
+        pendingNumber = phoneNumber.trim()
+        countdownJob?.cancel()
+        _phone.value = if (isResend) {
+            _phone.value.copy(isSending = true, error = null, errorCode = null, codeResent = false)
+        } else {
+            PhoneAuthState(isSending = true)
+        }
         val callbacks = object : PhoneAuthProvider.OnVerificationStateChangedCallbacks() {
             override fun onVerificationCompleted(credential: PhoneAuthCredential) {
                 // Auto-récupération du code → connexion directe (session bascule seule)
                 viewModelScope.launch {
+                    _phone.value = _phone.value.copy(isSending = false, isVerifying = true)
                     runCatching { repo.signInWithPhoneCredential(credential) }
-                        .onFailure { _phone.value = _phone.value.copy(error = it.message) }
+                        .onFailure {
+                            _phone.value = _phone.value.copy(
+                                isVerifying = false,
+                                error = errorMessage(it, R.string.err_phone_failed),
+                            )
+                        }
                 }
             }
 
             override fun onVerificationFailed(e: FirebaseException) {
-                _phone.value = PhoneAuthState(error = e.message ?: "Échec de l'envoi du code.")
+                countdownJob?.cancel()
+                _phone.value = _phone.value.copy(
+                    isSending = false,
+                    isVerifying = false,
+                    error = repo.mapError(e),
+                    errorCode = (e as? FirebaseAuthException)?.errorCode,
+                    resendIn = 0,
+                )
             }
 
             override fun onCodeSent(
@@ -277,22 +390,36 @@ class AuthViewModel @Inject constructor(
                 token: PhoneAuthProvider.ForceResendingToken,
             ) {
                 resendToken = token
-                _phone.value = PhoneAuthState(codeSent = true, verificationId = verificationId)
+                _phone.value = _phone.value.copy(
+                    isSending = false,
+                    codeSent = true,
+                    verificationId = verificationId,
+                    error = null,
+                    errorCode = null,
+                    codeResent = isResend,
+                )
+                countdownJob = startCountdown(_phone)
             }
         }
-        repo.verifyPhoneNumber(activity, phoneNumber, callbacks, resendToken)
+        repo.verifyPhoneNumber(activity, pendingNumber, callbacks, resendToken.takeIf { isResend })
+    }
+
+    /** Renvoie un SMS pour le même numéro (code expiré / jamais reçu). */
+    fun resendCode(activity: Activity) {
+        if (!_phone.value.canResend || pendingNumber.isBlank()) return
+        startPhoneVerification(activity, pendingNumber, isResend = true)
     }
 
     /** Vérifie le code OTP saisi. */
     fun verifyOtp(code: String) {
         val verificationId = _phone.value.verificationId ?: return
         viewModelScope.launch {
-            _phone.value = _phone.value.copy(isVerifying = true, error = null)
+            _phone.value = _phone.value.copy(isVerifying = true, error = null, codeResent = false)
             runCatching { repo.verifyOtp(verificationId, code) }
                 .onFailure {
                     _phone.value = _phone.value.copy(
                         isVerifying = false,
-                        error = (it as? AuthException)?.message ?: it.message ?: "Code invalide.",
+                        error = errorMessage(it, R.string.err_invalid_code),
                     )
                 }
             // Succès : la session bascule via le flux authState ; pas d'autre action.
@@ -311,7 +438,7 @@ class AuthViewModel @Inject constructor(
                 val e = result.exceptionOrNull()
                 AuthFormState(
                     isSubmitting = false,
-                    error = (e as? AuthException)?.message ?: e?.message ?: "Une erreur est survenue.",
+                    error = errorMessage(e, R.string.err_generic),
                 )
             }
         }
