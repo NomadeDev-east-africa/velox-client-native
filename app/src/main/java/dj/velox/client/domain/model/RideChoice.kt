@@ -1,18 +1,27 @@
 package dj.velox.client.domain.model
 
+import androidx.annotation.StringRes
+import dj.velox.client.R
+
 /** Type de véhicule (miroir ride_choice.dart). */
 enum class RideType { STANDARD, COMFORT, VAN, PREMIUM }
 
-/** Choix de véhicule pour une course. */
+/**
+ * Choix de véhicule pour une course.
+ *
+ * Le libellé et la description sont des **références de ressources** ([nameRes],
+ * [descriptionRes]) et non des chaînes : le catalogue est un `object` statique, un texte en dur
+ * ici resterait en français dans les quatre autres langues de l'app.
+ */
 data class RideChoice(
     val id: String,
-    val name: String,
+    @param:StringRes val nameRes: Int,
     val type: RideType,
     val seats: Int,
     val basePrice: Double,
     val pricePerKm: Double,
     val estimatedArrivalTime: String? = null,
-    val description: String? = null,
+    @param:StringRes val descriptionRes: Int? = null,
     val features: List<String> = emptyList(),
 ) {
     /** Prix total estimé selon la distance (FDJ). */
@@ -31,23 +40,23 @@ object TaxiCatalog {
         // 2 véhicules seulement (demande client) : prix de base 500 / 650 FDJ.
         RideChoice(
             id = "standard",
-            name = "Taxi Standard",
+            nameRes = R.string.taxi_vehicle_standard,
             type = RideType.STANDARD,
             seats = 4,
             basePrice = 500.0,
-            pricePerKm = 200.0,
+            pricePerKm = 145.0,
             estimatedArrivalTime = "5 min",
-            description = "Économique et rapide",
+            descriptionRes = R.string.taxi_vehicle_standard_desc,
         ),
         RideChoice(
             id = "comfort",
-            name = "Taxi Confort",
+            nameRes = R.string.taxi_vehicle_comfort,
             type = RideType.COMFORT,
             seats = 4,
             basePrice = 650.0,
-            pricePerKm = 200.0,
+            pricePerKm = 145.0,
             estimatedArrivalTime = "7 min",
-            description = "Plus de confort",
+            descriptionRes = R.string.taxi_vehicle_comfort_desc,
             features = listOf("Climatisation"),
         ),
     )

@@ -7,6 +7,7 @@ import dj.velox.client.core.Constants
 import dj.velox.client.core.analytics.VeloxAnalytics
 import dj.velox.client.data.local.VeloxLocalStore
 import dj.velox.client.data.remote.OrderService
+import dj.velox.client.data.remote.RestaurantService
 import dj.velox.client.domain.model.LatLng
 import dj.velox.client.domain.model.Order
 import dj.velox.client.domain.model.OrderItem
@@ -66,6 +67,7 @@ data class PendingCheckout(
 @HiltViewModel
 class CartViewModel @Inject constructor(
     private val orderService: OrderService,
+    private val restaurantService: RestaurantService,
     private val store: VeloxLocalStore,
     private val json: Json,
     private val authRepository: dj.velox.client.data.remote.AuthRepository,
@@ -209,6 +211,16 @@ class CartViewModel @Inject constructor(
         if (s.isEmpty) return null
 
         _state.value = s.copy(isCreatingOrder = true, error = null)
+
+        // Défense en profondeur : le restaurant a pu fermer entre l'ajout au panier et l'envoi
+        // (PendingOrderScreen envoie automatiquement après 60s). La règle Firestore bloque déjà
+        // la création côté serveur (restaurantCanReceiveOrders), mais on évite ici l'écriture
+        // inutile et on donne un message clair à l'utilisateur.
+        val freshRestaurant = runCatching { restaurantService.getRestaurantById(restaurant.id) }.getOrNull()
+        if (freshRestaurant?.isOpen != true) {
+            _state.value = _state.value.copy(isCreatingOrder = false, error = "Ce restaurant est fermé pour le moment.")
+            return null
+        }
 
         // Réduction fidélité : plafonnée aux frais de livraison (le subtotal reste intact)
         val maxByDelivery = Constants.DELIVERY_FEE / Constants.POINT_VALUE

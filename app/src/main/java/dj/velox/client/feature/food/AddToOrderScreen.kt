@@ -154,6 +154,7 @@ private fun AddToOrderContent(
     }
 
     fun proceed() {
+        if (!restaurant.isOpen) return
         if (dataDriven) {
             val missing = groups.indices.firstOrNull { groups[it].required && selections[it].isEmpty() }
             if (missing != null) {
@@ -205,16 +206,25 @@ private fun AddToOrderContent(
             Spacer(Modifier.height(24.dp))
         }
 
-        // Bouton ajouter
-        Box(Modifier.background(c.bg).navigationBarsPadding().padding(16.dp)) {
+        // Bouton ajouter (désactivé + bandeau si le restaurant est fermé)
+        Column(Modifier.background(c.bg).navigationBarsPadding().padding(16.dp)) {
+            if (!restaurant.isOpen) {
+                RestaurantClosedBanner(restaurant, c, Modifier.padding(bottom = 12.dp))
+            }
             Row(
-                Modifier.fillMaxWidth().height(56.dp).clip(RoundedCornerShape(4.dp)).background(c.primary).clickable { proceed() },
+                Modifier.fillMaxWidth().height(56.dp).clip(RoundedCornerShape(4.dp))
+                    .background(if (restaurant.isOpen) c.primary else c.surfaceTop)
+                    .clickable(enabled = restaurant.isOpen) { proceed() },
                 horizontalArrangement = Arrangement.Center,
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                Text("${stringResource(R.string.add_to_cart).uppercase()} ($totalPrice FDJ)", color = c.onPrimary, fontFamily = Poppins, fontSize = 14.sp, fontWeight = FontWeight.Black, letterSpacing = 1.2.sp)
-                Spacer(Modifier.size(10.dp))
-                Icon(Icons.Filled.Bolt, null, tint = c.onPrimary, modifier = Modifier.size(20.dp))
+                if (restaurant.isOpen) {
+                    Text("${stringResource(R.string.add_to_cart).uppercase()} ($totalPrice FDJ)", color = c.onPrimary, fontFamily = Poppins, fontSize = 14.sp, fontWeight = FontWeight.Black, letterSpacing = 1.2.sp)
+                    Spacer(Modifier.size(10.dp))
+                    Icon(Icons.Filled.Bolt, null, tint = c.onPrimary, modifier = Modifier.size(20.dp))
+                } else {
+                    Text(stringResource(R.string.restaurant_closed_title).uppercase(), color = c.onSurfaceVariant, fontFamily = Poppins, fontSize = 14.sp, fontWeight = FontWeight.Black, letterSpacing = 1.2.sp)
+                }
             }
         }
     }

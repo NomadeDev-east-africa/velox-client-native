@@ -83,14 +83,11 @@ class MenuViewModel @Inject constructor(
         .catch { emit(emptyList()) }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
-    private val _restaurant = MutableStateFlow<Restaurant?>(null)
-    val restaurant: StateFlow<Restaurant?> = _restaurant.asStateFlow()
-
-    init {
-        viewModelScope.launch {
-            _restaurant.value = restaurantService.getRestaurantById(restaurantId)
-        }
-    }
+    // Stream (pas un simple get) : si le client reste sur la fiche restaurant au moment
+    // où celui-ci ferme (planning ou fermeture manuelle), le statut se met à jour en direct.
+    val restaurant: StateFlow<Restaurant?> = restaurantService.streamRestaurant(restaurantId)
+        .catch { emit(null) }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
 }
 
 /** Suivi de la position du livreur (port de `track_delivery_screen`). */
@@ -172,13 +169,14 @@ class AddToOrderViewModel @Inject constructor(
     private val _item = MutableStateFlow<MenuItem?>(null)
     val item: StateFlow<MenuItem?> = _item.asStateFlow()
 
-    private val _restaurant = MutableStateFlow<Restaurant?>(null)
-    val restaurant: StateFlow<Restaurant?> = _restaurant.asStateFlow()
+    // Stream : couvre le cas où le restaurant ferme pendant que l'utilisateur configure son plat.
+    val restaurant: StateFlow<Restaurant?> = restaurantService.streamRestaurant(restaurantId)
+        .catch { emit(null) }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
 
     init {
         viewModelScope.launch {
             _item.value = menuService.getMenuById(menuId)
-            _restaurant.value = restaurantService.getRestaurantById(restaurantId)
         }
     }
 }

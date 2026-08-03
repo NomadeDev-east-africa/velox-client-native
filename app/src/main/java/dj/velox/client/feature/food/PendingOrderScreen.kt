@@ -130,7 +130,9 @@ fun PendingOrderScreen(
                 deliveryLocation = previewOrder.deliveryLocation,
                 pointsUsed = checkout.pointsUsed,
             )
-            if (orderId != null) onOrderCreated(orderId) else creating = false
+            // Échec (ex. restaurant fermé entre-temps) → retour au panier, où le message
+            // d'erreur de CartViewModel.createOrder() est déjà affiché (cart.error).
+            if (orderId != null) onOrderCreated(orderId) else { creating = false; onCancel() }
         }
     }
 

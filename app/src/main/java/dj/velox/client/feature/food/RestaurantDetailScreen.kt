@@ -93,9 +93,15 @@ fun RestaurantDetailScreen(
     val restaurantId = menuVm.restaurantId
     val allLabel = stringResource(R.string.all_category)
     val featured = remember(menu) { menu.filter { !it.imageUrl.isNullOrEmpty() }.take(10) }
-    // "" = catégorie « Tous » (clé stable, indépendante de la langue affichée).
-    val categories = remember(menu) { listOf("") + menu.map { it.category }.distinct() }
-    var selectedCategory by rememberSaveable { mutableStateOf("") }
+    // "" = catégorie « Tous » (clé stable, indépendante de la langue affichée). Elle est
+    // placée en DERNIER et n'est plus la vue par défaut : ouvrir la fiche sur la liste
+    // complète, toutes catégories confondues, était la principale source de confusion
+    // signalée par les clients. On entre donc sur la première vraie catégorie du menu.
+    val categories = remember(menu) { menu.map { it.category }.distinct() + "" }
+    // null = l'utilisateur n'a pas encore touché aux onglets → première catégorie réelle.
+    // Le menu arrive de Firestore après le premier rendu, d'où la résolution différée.
+    var pickedCategory by rememberSaveable { mutableStateOf<String?>(null) }
+    val selectedCategory = pickedCategory ?: categories.firstOrNull().orEmpty()
     val filtered = remember(menu, selectedCategory) {
         if (selectedCategory.isEmpty()) menu else menu.filter { it.category == selectedCategory }
     }
@@ -120,6 +126,13 @@ fun RestaurantDetailScreen(
 
             LazyColumn(Modifier.fillMaxSize()) {
                 item { restaurant?.let { RestaurantHeader(it, avgTime, isFavorite, c, onToggleFavorite, soon) } }
+                item {
+                    restaurant?.let {
+                        if (!it.isOpen) {
+                            RestaurantClosedBanner(it, c, Modifier.padding(horizontal = 20.dp, vertical = 6.dp))
+                        }
+                    }
+                }
 
                 if (featured.isNotEmpty()) {
                     item { Spacer(Modifier.height(20.dp)) }
@@ -146,7 +159,7 @@ fun RestaurantDetailScreen(
                 item {
                     LazyRow(contentPadding = PaddingValues(horizontal = 20.dp)) {
                         items(categories, key = { it }) { cat ->
-                            CategoryTab(if (cat.isEmpty()) allLabel else cat, cat == selectedCategory, c) { selectedCategory = cat }
+                            CategoryTab(if (cat.isEmpty()) allLabel else cat, cat == selectedCategory, c) { pickedCategory = cat }
                             Spacer(Modifier.width(20.dp))
                         }
                     }

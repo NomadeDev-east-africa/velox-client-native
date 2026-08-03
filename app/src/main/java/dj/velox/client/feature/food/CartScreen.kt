@@ -131,6 +131,8 @@ fun CartScreen(
     val discount = pointsClamped * Constants.POINT_VALUE
     val total = (cart.total - discount).coerceAtLeast(0)
     val hasAddress = !addressName.isNullOrBlank()
+    val restaurantClosed = cart.restaurant?.isOpen == false
+    val canOrder = hasAddress && !restaurantClosed
 
     if (cart.isEmpty) {
         EmptyCart(c, onBack)
@@ -156,6 +158,11 @@ fun CartScreen(
 
         Column(Modifier.weight(1f).verticalScroll(rememberScrollState()).padding(horizontal = 20.dp)) {
             Spacer(Modifier.height(8.dp))
+            cart.restaurant?.let { r ->
+                if (!r.isOpen) {
+                    RestaurantClosedBanner(r, c, Modifier.padding(bottom = 16.dp))
+                }
+            }
             DeliverySection(addressName, c, onChange = onPickAddress)
             Spacer(Modifier.height(24.dp))
 
@@ -197,8 +204,8 @@ fun CartScreen(
             Row(
                 Modifier
                     .fillMaxWidth().height(56.dp).clip(RoundedCornerShape(28.dp))
-                    .background(if (hasAddress) c.primary else c.surfaceTop)
-                    .clickable(enabled = hasAddress) {
+                    .background(if (canOrder) c.primary else c.surfaceTop)
+                    .clickable(enabled = canOrder) {
                         cartViewModel.prepareCheckout(
                             PendingCheckout(
                                 paymentMethod = selectedPayment,
@@ -214,11 +221,15 @@ fun CartScreen(
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Text(
-                    if (hasAddress) stringResource(R.string.place_order) else stringResource(R.string.choose_an_address),
-                    color = if (hasAddress) c.onPrimary else c.onSurfaceVariant,
+                    when {
+                        restaurantClosed -> stringResource(R.string.restaurant_closed_title)
+                        hasAddress -> stringResource(R.string.place_order)
+                        else -> stringResource(R.string.choose_an_address)
+                    },
+                    color = if (canOrder) c.onPrimary else c.onSurfaceVariant,
                     fontFamily = Inter, fontSize = 16.sp, fontWeight = FontWeight.Bold,
                 )
-                if (hasAddress) {
+                if (canOrder) {
                     Spacer(Modifier.size(8.dp))
                     Icon(Icons.AutoMirrored.Filled.ArrowForward, null, tint = c.onPrimary, modifier = Modifier.size(18.dp))
                 }
