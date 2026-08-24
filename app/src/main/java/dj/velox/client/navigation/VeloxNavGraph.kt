@@ -2,6 +2,7 @@ package dj.velox.client.navigation
 
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.padding
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.res.stringResource
@@ -10,7 +11,9 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavHostController
@@ -36,6 +39,7 @@ import dj.velox.client.feature.food.CartScreen
 import dj.velox.client.feature.food.CartViewModel
 import dj.velox.client.feature.food.CategoryItemsScreen
 import dj.velox.client.feature.food.FavoriteRestaurantsScreen
+import dj.velox.client.feature.food.FloatingOrderStatusWidget
 import dj.velox.client.feature.food.FoodHomeScreen
 import dj.velox.client.feature.food.FoodSearchScreen
 import dj.velox.client.feature.food.RestaurantMenuSearchScreen
@@ -190,6 +194,12 @@ private fun MainNavGraph(session: SessionState, onLogout: () -> Unit) {
     val authViewModel: AuthViewModel = hiltViewModel()
     val favoriteIds by favoritesViewModel.favorites.collectAsStateWithLifecycle()
 
+    // Widget flottant de suivi de commande (Accueil / Fiche resto / Panier / Profil).
+    // Réactif à l'uid, se masque seul peu après livraison — voir ActiveOrderViewModel.
+    val activeOrderVm: ActiveOrderViewModel = hiltViewModel()
+    val activeOrder by activeOrderVm.visibleOrder.collectAsStateWithLifecycle()
+    val cartState by cartViewModel.state.collectAsStateWithLifecycle()
+
     // Évite une double navigation entre le deep-link (notif tapée) et la restauration
     // au lancement : le premier des deux qui s'exécute pose ce drapeau, l'autre s'abstient.
     var activeNavHandled by remember { mutableStateOf(false) }
@@ -226,6 +236,7 @@ private fun MainNavGraph(session: SessionState, onLogout: () -> Unit) {
         activeSessionVm.consume()
     }
 
+    Box(Modifier.fillMaxSize()) {
     NavHost(navController = navController, startDestination = Routes.HOME) {
         composable(Routes.HOME) {
             HomeScreen(
@@ -280,7 +291,10 @@ private fun MainNavGraph(session: SessionState, onLogout: () -> Unit) {
             SupportScreen(onBack = { navController.popBackStack() })
         }
         composable(Routes.ORDERS) {
-            OrderHistoryScreen(onBack = { navController.popBackStack() })
+            OrderHistoryScreen(
+                onBack = { navController.popBackStack() },
+                onOpenOrder = { id -> navController.navigate(Routes.orderTracking(id)) },
+            )
         }
         composable(Routes.FAVORITE_RESTAURANTS) {
             FavoriteRestaurantsScreen(
@@ -474,6 +488,7 @@ private fun MainNavGraph(session: SessionState, onLogout: () -> Unit) {
         composable(Routes.CART) { entry ->
             val pickedRaw by entry.savedStateHandle.getStateFlow<String?>(PickedPlace.KEY, null).collectAsStateWithLifecycle()
             val pickAddrTitle = stringResource(R.string.confirm_address_action)
+            val savedAddresses by addressViewModel.state.collectAsStateWithLifecycle()
             CartScreen(
                 cartViewModel = cartViewModel,
                 session = session,
@@ -482,6 +497,7 @@ private fun MainNavGraph(session: SessionState, onLogout: () -> Unit) {
                 onPickAddress = { navController.navigate(Routes.pickAddress(pickAddrTitle)) },
                 pickedAddress = PickedPlace.decode(pickedRaw),
                 onConsumePicked = { entry.savedStateHandle[PickedPlace.KEY] = null },
+                savedAddresses = savedAddresses.addresses,
             )
         }
         composable(Routes.PENDING_ORDER) {
@@ -513,6 +529,7 @@ private fun MainNavGraph(session: SessionState, onLogout: () -> Unit) {
                     }
                 },
                 onTrackDriver = { navController.navigate(Routes.trackDelivery(orderId)) },
+                onBack = { navController.popBackStack() },
             )
         }
         composable(
@@ -531,6 +548,31 @@ private fun MainNavGraph(session: SessionState, onLogout: () -> Unit) {
                 },
             )
         }
+    }
+
+        // Visible seulement sur Accueil / Fiche resto / Panier / Profil — jamais sur le
+        // suivi lui-même. Décalé au-dessus de la bottom-nav (Home) ou de la CartBar
+        // (Food home / fiche resto) quand elles occupent déjà le bas de l'écran.
+        val currentRoute = navController.currentBackStackEntryAsState().value?.destination?.route
+        val onRestaurantDetail = currentRoute?.startsWith(Routes.RESTAURANT_DETAIL) == true
+        val widgetAllowedHere = currentRoute == Routes.HOME ||
+            currentRoute == Routes.FOOD_HOME ||
+            currentRoute == Routes.CART ||
+            currentRoute == Routes.PROFILE ||
+            onRestaurantDetail
+        val cartBarVisible = (currentRoute == Routes.FOOD_HOME || onRestaurantDetail) && cartState.itemCount > 0
+        val bottomOffset = when {
+            currentRoute == Routes.HOME -> 78.dp
+            cartBarVisible -> 88.dp
+            else -> 0.dp
+        }
+        FloatingOrderStatusWidget(
+            order = if (widgetAllowedHere) activeOrder else null,
+            onClick = { activeOrder?.let { navController.navigate(Routes.orderTracking(it.id)) } },
+            modifier = Modifier
+                .align(Alignment.BottomEnd)
+                .padding(end = 16.dp, bottom = 20.dp + bottomOffset),
+        )
     }
 }
 

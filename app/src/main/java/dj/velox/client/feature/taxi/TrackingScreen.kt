@@ -175,6 +175,8 @@ private fun bannerText(ride: Ride): Pair<String, String> = when (ride.status) {
     RideStatus.STARTED -> stringResource(R.string.banner_started_title) to
         stringResource(R.string.banner_started_sub, ride.destination.address)
     RideStatus.REQUESTED -> stringResource(R.string.banner_searching_title) to stringResource(R.string.banner_searching_sub)
+    RideStatus.NO_DRIVER_AVAILABLE -> stringResource(statusInfo(ride.status).title) to
+        if (ride.vehicleType.equals("comfort", ignoreCase = true)) stringResource(R.string.banner_no_driver_comfort_sub) else ""
     else -> stringResource(statusInfo(ride.status).title) to ""
 }
 

@@ -114,13 +114,15 @@ fun ConfirmRideScreen(
     onBack: () -> Unit,
     rideVm: RideViewModel = hiltViewModel(),
     authVm: AuthViewModel = hiltViewModel(),
+    pricingVm: TaxiPricingViewModel = hiltViewModel(),
 ) {
     val c = VeloxTheme.colors
     val scope = rememberCoroutineScope()
     val session by authVm.session.collectAsStateWithLifecycle()
     val ride by rideVm.state.collectAsStateWithLifecycle()
 
-    val choice = TaxiCatalog.byId(vehicleId)
+    val vehicleChoices by pricingVm.choices.collectAsStateWithLifecycle()
+    val choice = vehicleChoices.firstOrNull { it.id == vehicleId } ?: TaxiCatalog.byId(vehicleId)
     val price = choice.calculatePrice(distance).roundToInt()
 
     // Tracé routier réel (ORS) pour la carte + durée estimée sur la route.

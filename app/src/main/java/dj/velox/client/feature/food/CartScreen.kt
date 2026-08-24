@@ -3,6 +3,7 @@ package dj.velox.client.feature.food
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -15,6 +16,7 @@ import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -27,6 +29,8 @@ import androidx.compose.material.icons.filled.AccountBalance
 import androidx.compose.material.icons.filled.AccountBalanceWallet
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Fastfood
+import androidx.compose.material.icons.filled.Home
+import androidx.compose.material.icons.filled.LocalOffer
 import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material.icons.filled.Map
 import androidx.compose.material.icons.filled.Payments
@@ -34,6 +38,7 @@ import androidx.compose.material.icons.filled.Remove
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.ShoppingCart
 import androidx.compose.material.icons.filled.Star
+import androidx.compose.material.icons.filled.Work
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Icon
 import androidx.compose.material3.OutlinedTextField
@@ -56,12 +61,14 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil.compose.AsyncImage
 import dj.velox.client.R
 import dj.velox.client.core.Constants
+import dj.velox.client.domain.model.Address
 import dj.velox.client.domain.model.OrderItem
 import dj.velox.client.feature.auth.SessionState
 import dj.velox.client.ui.theme.Inter
@@ -95,6 +102,7 @@ fun CartScreen(
     onPickAddress: () -> Unit,
     pickedAddress: dj.velox.client.feature.location.PickedPlace?,
     onConsumePicked: () -> Unit,
+    savedAddresses: List<Address> = emptyList(),
 ) {
     val c = VeloxTheme.colors
     val cart by cartViewModel.state.collectAsStateWithLifecycle()
@@ -105,6 +113,7 @@ fun CartScreen(
     var addressName by rememberSaveable { mutableStateOf<String?>(null) }
     var pickedLat by rememberSaveable { mutableStateOf<Double?>(null) }
     var pickedLng by rememberSaveable { mutableStateOf<Double?>(null) }
+    var showAddressPicker by rememberSaveable { mutableStateOf(false) }
 
     // Adresse choisie via le picker carte → applique puis consomme.
     androidx.compose.runtime.LaunchedEffect(pickedAddress) {
@@ -139,6 +148,7 @@ fun CartScreen(
         return
     }
 
+    Box(Modifier.fillMaxSize()) {
     Column(Modifier.fillMaxSize().background(c.bg)) {
         // ── Header ────────────────────────────────────────────────
         Column(Modifier.statusBarsPadding().padding(start = 20.dp, top = 12.dp, end = 20.dp, bottom = 8.dp)) {
@@ -163,7 +173,7 @@ fun CartScreen(
                     RestaurantClosedBanner(r, c, Modifier.padding(bottom = 16.dp))
                 }
             }
-            DeliverySection(addressName, c, onChange = onPickAddress)
+            DeliverySection(addressName, c, onChange = { showAddressPicker = true })
             Spacer(Modifier.height(24.dp))
 
             SectionLabel(stringResource(R.string.your_selection), c)
@@ -188,9 +198,12 @@ fun CartScreen(
             Spacer(Modifier.height(14.dp))
 
             PointsCard(available, maxUsable, pointsClamped, c, onApply = { pointsApplied = maxUsable }, onRemove = { pointsApplied = 0 })
+            Spacer(Modifier.height(14.dp))
+
+            PromoCodeCard(cart, c, onApply = { cartViewModel.applyPromoCode(it) }, onRemove = { cartViewModel.removePromoCode() })
             Spacer(Modifier.height(24.dp))
 
-            SummaryCard(cart.subtotal, cart.deliveryFee, discount, pointsClamped, total, c)
+            SummaryCard(cart.subtotal, cart.deliveryFee, discount, pointsClamped, cart.appliedPromoCode, cart.promoDiscountAmount, total, c)
 
             cart.error?.let {
                 Spacer(Modifier.height(12.dp))
@@ -236,6 +249,132 @@ fun CartScreen(
             }
         }
     }
+
+        if (showAddressPicker) {
+            AddressPickerSheet(
+                savedAddresses = savedAddresses,
+                c = c,
+                onDismiss = { showAddressPicker = false },
+                onPickSaved = { addr ->
+                    addressName = addr.address
+                    pickedLat = addr.latitude
+                    pickedLng = addr.longitude
+                    showAddressPicker = false
+                },
+                onPickOnMap = {
+                    showAddressPicker = false
+                    onPickAddress()
+                },
+            )
+        }
+    }
+}
+
+// ── SÉLECTEUR D'ADRESSE (carnet d'adresses + carte) ───────────────────────────
+
+@Composable
+private fun AddressPickerSheet(
+    savedAddresses: List<Address>,
+    c: VeloxColors,
+    onDismiss: () -> Unit,
+    onPickSaved: (Address) -> Unit,
+    onPickOnMap: () -> Unit,
+) {
+    Box(
+        Modifier
+            .fillMaxSize()
+            .background(Color.Black.copy(alpha = 0.55f))
+            .clickable(indication = null, interactionSource = remember { MutableInteractionSource() }, onClick = onDismiss),
+    ) {
+        Column(
+            Modifier
+                .align(Alignment.BottomCenter)
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(topStart = 22.dp, topEnd = 22.dp))
+                .background(c.surfaceLow)
+                .clickable(indication = null, interactionSource = remember { MutableInteractionSource() }, onClick = {})
+                .navigationBarsPadding()
+                .padding(bottom = 12.dp),
+        ) {
+            Box(
+                Modifier
+                    .padding(top = 10.dp)
+                    .align(Alignment.CenterHorizontally)
+                    .width(40.dp).height(4.dp)
+                    .clip(RoundedCornerShape(2.dp))
+                    .background(c.outlineVariant.copy(alpha = 0.5f)),
+            )
+            Text(
+                stringResource(R.string.choose_an_address),
+                color = c.onSurface, fontFamily = Poppins, fontSize = 17.sp, fontWeight = FontWeight.Bold,
+                modifier = Modifier.padding(horizontal = 20.dp, vertical = 16.dp),
+            )
+
+            if (savedAddresses.isNotEmpty()) {
+                Text(
+                    stringResource(R.string.my_addresses).uppercase(),
+                    color = c.onSurfaceVariant, fontFamily = Inter, fontSize = 11.sp, fontWeight = FontWeight.Bold, letterSpacing = 0.8.sp,
+                    modifier = Modifier.padding(start = 20.dp, end = 20.dp, bottom = 8.dp),
+                )
+                Column(Modifier.padding(horizontal = 20.dp)) {
+                    savedAddresses.forEach { addr ->
+                        SavedAddressRow(addr, c) { onPickSaved(addr) }
+                        Spacer(Modifier.height(10.dp))
+                    }
+                }
+                Spacer(Modifier.height(6.dp))
+                Box(Modifier.fillMaxWidth().padding(horizontal = 20.dp).height(1.dp).background(c.outlineVariant.copy(alpha = 0.3f)))
+                Spacer(Modifier.height(6.dp))
+            }
+
+            Row(
+                Modifier
+                    .fillMaxWidth()
+                    .clickable(onClick = onPickOnMap)
+                    .padding(horizontal = 20.dp, vertical = 16.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Box(Modifier.size(40.dp).clip(RoundedCornerShape(10.dp)).background(c.primary.copy(alpha = 0.12f)), contentAlignment = Alignment.Center) {
+                    Icon(Icons.Filled.Map, null, tint = c.primary, modifier = Modifier.size(20.dp))
+                }
+                Spacer(Modifier.size(12.dp))
+                Text(stringResource(R.string.tap_to_pick_map), color = c.onSurface, fontFamily = Inter, fontSize = 14.sp, fontWeight = FontWeight.W600)
+            }
+        }
+    }
+}
+
+@Composable
+private fun SavedAddressRow(addr: Address, c: VeloxColors, onClick: () -> Unit) {
+    Row(
+        Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(14.dp))
+            .background(c.surface)
+            .clickable(onClick = onClick)
+            .padding(14.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Box(Modifier.size(40.dp).clip(RoundedCornerShape(10.dp)).background(c.primary.copy(alpha = 0.12f)), contentAlignment = Alignment.Center) {
+            Icon(addressTypeIcon(addr.type), null, tint = c.primary, modifier = Modifier.size(18.dp))
+        }
+        Spacer(Modifier.size(12.dp))
+        Column(Modifier.weight(1f)) {
+            Text(addr.name, color = c.onSurface, fontFamily = Inter, fontSize = 14.sp, fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            Spacer(Modifier.height(2.dp))
+            Text(addr.address, color = c.onSurfaceVariant, fontFamily = Inter, fontSize = 12.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+        }
+        if (addr.isDefault) {
+            Spacer(Modifier.size(8.dp))
+            Icon(Icons.Filled.Star, null, tint = c.primary, modifier = Modifier.size(16.dp))
+        }
+    }
+}
+
+private fun addressTypeIcon(type: String): ImageVector = when (type) {
+    "home" -> Icons.Filled.Home
+    "work" -> Icons.Filled.Work
+    else -> Icons.Filled.LocationOn
 }
 
 // ── SECTIONS ─────────────────────────────────────────────────────────────────
@@ -378,7 +517,69 @@ private fun PointsCard(available: Int, maxUsable: Int, applied: Int, c: VeloxCol
 }
 
 @Composable
-private fun SummaryCard(subtotal: Int, deliveryFee: Int, discount: Int, points: Int, total: Int, c: VeloxColors) {
+private fun PromoCodeCard(cart: CartUiState, c: VeloxColors, onApply: (String) -> Unit, onRemove: () -> Unit) {
+    var codeText by rememberSaveable { mutableStateOf("") }
+    Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp)).background(c.surface).padding(16.dp)) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Icon(Icons.Filled.LocalOffer, null, tint = c.primary, modifier = Modifier.size(20.dp))
+            Spacer(Modifier.size(8.dp))
+            Text(stringResource(R.string.promo_code_title), color = c.onSurface, fontFamily = Poppins, fontSize = 15.sp, fontWeight = FontWeight.Bold)
+        }
+        Spacer(Modifier.height(14.dp))
+        if (cart.appliedPromoCode != null) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    "${stringResource(R.string.promo_code_applied, cart.appliedPromoCode)} · −${cart.promoDiscountAmount} FDJ",
+                    color = c.primary, fontFamily = Inter, fontSize = 13.sp, fontWeight = FontWeight.W600,
+                    modifier = Modifier.weight(1f),
+                )
+                Text(stringResource(R.string.remove), color = c.error, fontFamily = Inter, fontSize = 12.sp, modifier = Modifier.clickable(onClick = onRemove))
+            }
+        } else {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                OutlinedTextField(
+                    value = codeText,
+                    onValueChange = { codeText = it.uppercase() },
+                    placeholder = { Text(stringResource(R.string.promo_code_hint), color = c.onSurfaceVariant, fontFamily = Inter, fontSize = 13.sp) },
+                    singleLine = true,
+                    shape = RoundedCornerShape(10.dp),
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedContainerColor = c.surfaceLow,
+                        unfocusedContainerColor = c.surfaceLow,
+                        focusedBorderColor = c.primary,
+                        unfocusedBorderColor = c.outlineVariant.copy(alpha = 0.4f),
+                        focusedTextColor = c.onSurface,
+                        unfocusedTextColor = c.onSurface,
+                        cursorColor = c.primary,
+                    ),
+                    modifier = Modifier.weight(1f),
+                )
+                Spacer(Modifier.size(10.dp))
+                val canApply = codeText.isNotBlank() && !cart.isValidatingPromo
+                Box(
+                    Modifier.height(50.dp).clip(RoundedCornerShape(10.dp))
+                        .background(if (canApply) c.primary else c.surfaceTop)
+                        .clickable(enabled = canApply) { onApply(codeText) }
+                        .padding(horizontal = 16.dp),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Text(
+                        stringResource(R.string.apply_label),
+                        color = if (canApply) c.onPrimary else c.onSurfaceVariant,
+                        fontFamily = Inter, fontSize = 14.sp, fontWeight = FontWeight.Bold,
+                    )
+                }
+            }
+            cart.promoError?.let {
+                Spacer(Modifier.height(8.dp))
+                Text(it, color = c.error, fontFamily = Inter, fontSize = 12.sp)
+            }
+        }
+    }
+}
+
+@Composable
+private fun SummaryCard(subtotal: Int, deliveryFee: Int, discount: Int, points: Int, promoCode: String?, promoDiscount: Int, total: Int, c: VeloxColors) {
     Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)).background(c.surface).padding(16.dp)) {
         SummaryRow(stringResource(R.string.subtotal), "$subtotal FDJ", c)
         Spacer(Modifier.height(10.dp))
@@ -386,6 +587,10 @@ private fun SummaryCard(subtotal: Int, deliveryFee: Int, discount: Int, points: 
         if (discount > 0) {
             Spacer(Modifier.height(10.dp))
             SummaryRow("${stringResource(R.string.delivery_discount)} ($points ${stringResource(R.string.points_short)})", "−$discount FDJ", c)
+        }
+        if (promoCode != null && promoDiscount > 0) {
+            Spacer(Modifier.height(10.dp))
+            SummaryRow("${stringResource(R.string.promo_code_title)} ($promoCode)", "−$promoDiscount FDJ", c)
         }
         Spacer(Modifier.height(14.dp))
         Box(Modifier.fillMaxWidth().height(1.dp).background(c.outlineVariant.copy(alpha = 0.3f)))

@@ -42,13 +42,8 @@ fun PhoneLoginScreen(
         if (phone.codeSent) onCodeSent()
     }
 
-    AuthScaffold(title = stringResource(R.string.auth_phone_title)) {
-        AuthTextField(
-            value = number,
-            onValueChange = { number = it },
-            label = stringResource(R.string.auth_phone_hint),
-            keyboardType = KeyboardType.Phone,
-        )
+    AuthScaffold(title = stringResource(R.string.auth_phone_title), logo = true) {
+        PhoneNumberField(value = number, onValueChange = { number = it })
         phone.error?.let { ErrorText(it) }
 
         Spacer(Modifier.height(8.dp))

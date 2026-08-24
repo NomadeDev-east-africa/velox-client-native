@@ -276,7 +276,7 @@
     <string name="auth_forgot_subtitle">Geli emailkaaga si aad u hesho linki dib-u-dejin.</string>
     <string name="auth_send_reset">Dir linkiga</string>
     <string name="auth_phone_title">Ku gal taleefan</string>
-    <string name="auth_phone_hint">Lambar — +253 si toos ah (tusaale 77 12 34 56)</string>
+    <string name="auth_phone_hint">77 80 35 33</string>
     <string name="auth_send_code">Dir koodhka</string>
     <string name="auth_otp_title">Xaqiijin</string>
     <string name="auth_otp_subtitle">Geli koodhka SMS-ka lagugu soo diray.</string>
@@ -307,6 +307,14 @@
     <string name="view_cart">Arag dambiisha</string>
     <string name="promo_title">⏱️ App laguu sameeyay</string>
     <string name="promo_subtitle">Khidmad qarsoon ma jirto. Sugitaan ma jiro. Kaliya Heer sare.</string>
+    <string name="promo2_title">🇩🇯 Loogu talagalay Jabuuti, laguu sameeyay</string>
+    <string name="promo2_subtitle">Qiimo jaban, adeeg na muujiya.</string>
+    <string name="promo3_title">📲 Makhaayad ka maqan Vélox?</string>
+    <string name="promo3_subtitle">Dhib ma leh! Nagala soo xiriir WhatsApp: 77 45 38 17</string>
+    <string name="promo_code_title">Koodh dallacsiin</string>
+    <string name="promo_code_hint">Geli koodh</string>
+    <string name="apply_label">Isticmaal</string>
+    <string name="promo_code_applied">Koodhka %1$s waa la isticmaalay</string>
     <string name="open_label">Furan</string>
     <string name="closed_label">Xidhan</string>
     <string name="orders_abbrev">DLB</string>
@@ -485,6 +493,10 @@
     <string name="auth_recover_google_note">Akoonka ma waxaad ku abuurtay Google? Furaha sirta ma laha: dib u noqo oo isticmaal “Ku sii wad Google”.</string>
     <string name="auth_new_password_title">Furaha sirta cusub</string>
     <string name="auth_new_password_subtitle">Deji furaha sirta si aad markale iimaylka ugu gasho.</string>
+    <string name="auth_change_password_title">Beddel furaha sirta</string>
+    <string name="auth_change_password_subtitle">Cusbooneysii furaha sirta akoonkaaga.</string>
+    <string name="profile_set_password_sub">Ku dar furaha sirta si aad iimaylka ugu gasho.</string>
+    <string name="profile_change_password_sub">Cusbooneysii furahaaga sirta ah ee hadda.</string>
     <string name="auth_new_password_hint">Furaha sirta cusub (ugu yaraan 6 xaraf)</string>
     <string name="auth_new_password_confirm">Xaqiiji furaha sirta</string>
     <string name="auth_passwords_differ">Labada furaha sirta isku mid ma aha.</string>
@@ -493,6 +505,9 @@
     <string name="auth_skip">Goor dambe</string>
 
     <!-- Shaashadaha taksiga -->
+    <string name="map_zoom_in">Sudufi</string>
+    <string name="map_zoom_out">Fidi</string>
+
     <string name="taxi_where_to">Xagee aynu maanta aadaynaa? 🌍</string>
     <string name="taxi_location_disabled">Goobaynta waa la damiyay</string>
     <string name="taxi_locating">Goobta waa la raadinayaa…</string>
@@ -583,6 +598,7 @@
     <string name="banner_started_sub">Waxaa loo socdaa %1$s</string>
     <string name="banner_searching_title">🔎 Raadin socota</string>
     <string name="banner_searching_sub">Waxaan kuu raadinaynaa dareewal</string>
+    <string name="banner_no_driver_comfort_sub">Hadda dareewal Comfort ah lama helin. Isku day taxi Standard ah.</string>
     <string name="status_now">· hadda</string>
     <string name="ride_captain">Dareewal</string>
     <string name="ride_estimated_fare">Qiimaha lagu qiyaasay</string>

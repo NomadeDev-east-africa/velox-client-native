@@ -50,12 +50,15 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import dj.velox.client.R
 import dj.velox.client.domain.model.LatLng
+import dj.velox.client.feature.taxi.map.MapRecenterButton
+import dj.velox.client.feature.taxi.map.MapZoomControls
 import dj.velox.client.feature.taxi.map.VeloxMap
 import dj.velox.client.ui.theme.Inter
 import dj.velox.client.ui.theme.Poppins
 import dj.velox.client.ui.theme.VeloxColors
 import dj.velox.client.ui.theme.VeloxTheme
 import kotlinx.coroutines.delay
+import org.maplibre.android.maps.MapLibreMap
 
 private val DJIBOUTI = LatLng(11.5880, 43.1450)
 
@@ -82,6 +85,9 @@ fun AddressPickerScreen(
     // Centre courant de la carte (déplacements manuels).
     var liveCenter by remember { mutableStateOf<LatLng?>(null) }
     var address by remember { mutableStateOf<String?>(null) }
+    // Piloté directement par les boutons zoom +/- (pas de state Compose : la caméra
+    // n'a pas besoin de recomposition, juste d'un appel one-shot sur la carte).
+    var mlMap by remember { mutableStateOf<MapLibreMap?>(null) }
 
     LaunchedEffect(vmCenter) { vmCenter?.let { camCenter = it; liveCenter = it } }
 
@@ -96,11 +102,22 @@ fun AddressPickerScreen(
         VeloxMap(
             center = camCenter ?: DJIBOUTI,
             onCenterIdle = { liveCenter = it },
+            onMapReady = { mlMap = it },
             modifier = Modifier.fillMaxSize(),
         )
 
         // Pin central
         Icon(Icons.Filled.Place, null, tint = c.primary, modifier = Modifier.align(Alignment.Center).size(52.dp))
+
+        // ── Zoom +/- et recentrage (disponibles dès la 1ʳᵉ apparition de la carte) ──
+        Column(
+            Modifier.align(Alignment.CenterEnd).padding(end = 16.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+        ) {
+            MapRecenterButton(c, onClick = { vm.recenter() })
+            Spacer(Modifier.height(16.dp))
+            MapZoomControls(mlMap, c)
+        }
 
         // ── Barre de recherche (haut) ──
         Column(Modifier.statusBarsPadding().padding(12.dp)) {

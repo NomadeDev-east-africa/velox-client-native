@@ -276,7 +276,7 @@
     <string name="auth_forgot_subtitle">Enter your email to receive a reset link.</string>
     <string name="auth_send_reset">Send link</string>
     <string name="auth_phone_title">Phone sign in</string>
-    <string name="auth_phone_hint">Number — +253 added automatically (e.g. 77 12 34 56)</string>
+    <string name="auth_phone_hint">77 80 35 33</string>
     <string name="auth_send_code">Send code</string>
     <string name="auth_otp_title">Verification</string>
     <string name="auth_otp_subtitle">Enter the code received by SMS.</string>
@@ -307,6 +307,14 @@
     <string name="view_cart">View cart</string>
     <string name="promo_title">⏱️ An app made for you</string>
     <string name="promo_subtitle">Zero hidden fees. Zero waiting. Just Excellent.</string>
+    <string name="promo2_title">🇩🇯 Thought for Djibouti, made for you</string>
+    <string name="promo2_subtitle">Low prices, a service that reflects who we are.</string>
+    <string name="promo3_title">📲 Missing a restaurant on Vélox?</string>
+    <string name="promo3_subtitle">No problem! Contact us on WhatsApp: 77 45 38 17</string>
+    <string name="promo_code_title">Promo code</string>
+    <string name="promo_code_hint">Enter a code</string>
+    <string name="apply_label">Apply</string>
+    <string name="promo_code_applied">Code %1$s applied</string>
     <string name="open_label">Open</string>
     <string name="closed_label">Closed</string>
     <string name="orders_abbrev">ORD</string>
@@ -485,6 +493,10 @@
     <string name="auth_recover_google_note">Account created with Google? It has no password: go back and use “Continue with Google”.</string>
     <string name="auth_new_password_title">New password</string>
     <string name="auth_new_password_subtitle">Set a password so you can sign in with your email next time.</string>
+    <string name="auth_change_password_title">Change password</string>
+    <string name="auth_change_password_subtitle">Update your account password.</string>
+    <string name="profile_set_password_sub">Add a password to sign in with your email.</string>
+    <string name="profile_change_password_sub">Update your current password.</string>
     <string name="auth_new_password_hint">New password (min. 6 characters)</string>
     <string name="auth_new_password_confirm">Confirm password</string>
     <string name="auth_passwords_differ">The two passwords do not match.</string>
@@ -493,6 +505,9 @@
     <string name="auth_skip">Later</string>
 
     <!-- Ride-hailing — taxi screens -->
+    <string name="map_zoom_in">Zoom in</string>
+    <string name="map_zoom_out">Zoom out</string>
+
     <string name="taxi_where_to">Where are we going today? 🌍</string>
     <string name="taxi_location_disabled">Location turned off</string>
     <string name="taxi_locating">Locating…</string>
@@ -583,6 +598,7 @@
     <string name="banner_started_sub">Heading to %1$s</string>
     <string name="banner_searching_title">🔎 Searching</string>
     <string name="banner_searching_sub">We are finding a driver for you</string>
+    <string name="banner_no_driver_comfort_sub">No Comfort driver available right now. Try a Standard taxi.</string>
     <string name="status_now">· now</string>
     <string name="ride_captain">Driver</string>
     <string name="ride_estimated_fare">Estimated fare</string>

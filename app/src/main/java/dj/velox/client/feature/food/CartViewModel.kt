@@ -37,12 +37,17 @@ data class CartUiState(
     val restaurant: Restaurant? = null,
     val isCreatingOrder: Boolean = false,
     val error: String? = null,
+    // Code promo
+    val appliedPromoCode: String? = null,
+    val promoDiscountAmount: Int = 0,
+    val promoError: String? = null,
+    val isValidatingPromo: Boolean = false,
 ) {
     val deliveryFee: Int get() = Constants.DELIVERY_FEE
     val isEmpty: Boolean get() = items.isEmpty()
     val itemCount: Int get() = items.sumOf { it.quantity }
     val subtotal: Int get() = items.sumOf { it.totalPrice }
-    val total: Int get() = subtotal + deliveryFee
+    val total: Int get() = (subtotal + deliveryFee - promoDiscountAmount).coerceAtLeast(0)
 
     fun isDifferentRestaurant(restaurantId: String): Boolean =
         restaurant != null && restaurant.id != restaurantId
@@ -143,12 +148,12 @@ class CartViewModel @Inject constructor(
     }
 
     fun setRestaurant(restaurant: Restaurant) {
-        _state.value = _state.value.copy(restaurant = restaurant)
+        _state.value = clearPromo(_state.value).copy(restaurant = restaurant)
         persist()
     }
 
     fun addItem(item: OrderItem) {
-        _state.value = _state.value.copy(items = _state.value.items + item)
+        _state.value = clearPromo(_state.value).copy(items = _state.value.items + item)
         _state.value.restaurant?.let { VeloxAnalytics.addToCart(it.id, item.name, item.totalPrice, item.quantity) }
         persist()
     }
@@ -157,7 +162,7 @@ class CartViewModel @Inject constructor(
         val items = _state.value.items.toMutableList()
         if (index !in items.indices) return
         items[index] = items[index].copy(quantity = items[index].quantity + 1)
-        _state.value = _state.value.copy(items = items)
+        _state.value = clearPromo(_state.value).copy(items = items)
         persist()
     }
 
@@ -166,10 +171,10 @@ class CartViewModel @Inject constructor(
         if (index !in items.indices) return
         if (items[index].quantity > 1) {
             items[index] = items[index].copy(quantity = items[index].quantity - 1)
-            _state.value = _state.value.copy(items = items)
+            _state.value = clearPromo(_state.value).copy(items = items)
         } else {
             items.removeAt(index)
-            _state.value = _state.value.copy(
+            _state.value = clearPromo(_state.value).copy(
                 items = items,
                 restaurant = if (items.isEmpty()) null else _state.value.restaurant,
             )
@@ -181,7 +186,7 @@ class CartViewModel @Inject constructor(
         val items = _state.value.items.toMutableList()
         if (index !in items.indices) return
         items.removeAt(index)
-        _state.value = _state.value.copy(
+        _state.value = clearPromo(_state.value).copy(
             items = items,
             restaurant = if (items.isEmpty()) null else _state.value.restaurant,
         )
@@ -194,6 +199,47 @@ class CartViewModel @Inject constructor(
     }
 
     fun clearError() { _state.value = _state.value.copy(error = null) }
+
+    /** Efface la réduction promo appliquée — le panier a changé, elle n'est plus valide. */
+    private fun clearPromo(s: CartUiState): CartUiState =
+        s.copy(appliedPromoCode = null, promoDiscountAmount = 0, promoError = null)
+
+    /** Valide et applique un code promo (Cloud Function `validatePromoCode`), non bloquant. */
+    fun applyPromoCode(code: String) {
+        val s = _state.value
+        val restaurant = s.restaurant ?: return
+        if (code.isBlank() || s.isEmpty) return
+
+        _state.value = s.copy(isValidatingPromo = true, promoError = null)
+        viewModelScope.launch {
+            val result = orderService.validatePromoCode(
+                code = code.trim().uppercase(),
+                restaurantId = restaurant.id,
+                subtotal = s.subtotal,
+                deliveryFee = s.deliveryFee,
+            )
+            _state.value = if (result.valid) {
+                _state.value.copy(
+                    isValidatingPromo = false,
+                    appliedPromoCode = result.code ?: code.trim().uppercase(),
+                    promoDiscountAmount = result.discountAmount,
+                    promoError = null,
+                )
+            } else {
+                _state.value.copy(
+                    isValidatingPromo = false,
+                    appliedPromoCode = null,
+                    promoDiscountAmount = 0,
+                    promoError = result.message ?: "Code promo invalide",
+                )
+            }
+        }
+    }
+
+    /** Retire le code promo appliqué (choix de l'utilisateur). */
+    fun removePromoCode() {
+        _state.value = clearPromo(_state.value)
+    }
 
     /** Crée la commande Firestore. Retourne l'orderId ou null. */
     suspend fun createOrder(
@@ -222,6 +268,27 @@ class CartViewModel @Inject constructor(
             return null
         }
 
+        // Re-check du code promo juste avant l'envoi (réduit la fenêtre de course avec
+        // quelqu'un d'autre qui l'utiliserait entre-temps) — le trigger serveur `onOrderCreated`
+        // reste le filet de sécurité final, ce re-check évite juste d'afficher un total qui
+        // bouge après coup.
+        var promoCode = s.appliedPromoCode
+        var promoDiscount = s.promoDiscountAmount
+        if (promoCode != null) {
+            val revalidated = orderService.validatePromoCode(promoCode, restaurant.id, s.subtotal, Constants.DELIVERY_FEE)
+            if (revalidated.valid) {
+                promoDiscount = revalidated.discountAmount
+            } else {
+                promoCode = null
+                promoDiscount = 0
+                _state.value = _state.value.copy(
+                    appliedPromoCode = null,
+                    promoDiscountAmount = 0,
+                    promoError = revalidated.message ?: "Code promo invalide",
+                )
+            }
+        }
+
         // Réduction fidélité : plafonnée aux frais de livraison (le subtotal reste intact)
         val maxByDelivery = Constants.DELIVERY_FEE / Constants.POINT_VALUE
         val safePoints = pointsUsed.coerceIn(0, maxByDelivery)
@@ -247,6 +314,8 @@ class CartViewModel @Inject constructor(
             updatedAt = now,
             pointsUsed = safePoints,
             discount = discount,
+            promoCode = promoCode,
+            promoDiscount = promoDiscount,
         )
 
         val orderId = runCatching { orderService.createOrder(order) }.getOrNull()

@@ -31,7 +31,6 @@ import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.EditLocation
 import androidx.compose.material.icons.filled.LocalTaxi
-import androidx.compose.material.icons.filled.MyLocation
 import androidx.compose.material.icons.filled.NotificationsNone
 import androidx.compose.material.icons.filled.Place
 import androidx.compose.material.icons.filled.Search
@@ -57,6 +56,7 @@ import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import org.maplibre.android.maps.MapLibreMap
 import dj.velox.client.R
 import dj.velox.client.domain.model.GeoUtils
 import dj.velox.client.domain.model.LatLng
@@ -65,6 +65,8 @@ import dj.velox.client.domain.model.TaxiCatalog
 import dj.velox.client.feature.location.LocationDisclosureDialog
 import dj.velox.client.feature.location.RouteViewModel
 import dj.velox.client.feature.taxi.map.MapMarkerStyle
+import dj.velox.client.feature.taxi.map.MapRecenterButton
+import dj.velox.client.feature.taxi.map.MapZoomControls
 import dj.velox.client.feature.taxi.map.VeloxMap
 import dj.velox.client.ui.theme.Inter
 import dj.velox.client.ui.theme.Poppins
@@ -81,10 +83,12 @@ fun TaxiHomeScreen(
     onConsumePicked: () -> Unit,
     onConfirmRide: (pickup: LatLng, destination: LatLng, pickupAddress: String, destinationAddress: String, distance: Double, vehicleId: String) -> Unit,
     locationVm: LocationViewModel = hiltViewModel(),
+    pricingVm: TaxiPricingViewModel = hiltViewModel(),
 ) {
     val c = VeloxTheme.colors
     val context = LocalContext.current
     val loc by locationVm.state.collectAsStateWithLifecycle()
+    val vehicleChoices by pricingVm.choices.collectAsStateWithLifecycle()
 
     // rememberSaveable : ces états doivent SURVIVRE à l'aller-retour vers le picker carte
     // (sinon `pickingDeparture` se réinitialise à false et le point choisi part en destination).
@@ -159,7 +163,7 @@ fun TaxiHomeScreen(
     val distance = activeRoute?.distanceKm
         ?: if (pickup != null && dest != null) GeoUtils.distanceKm(pickup, dest) else 0.0
     val durationMin = activeRoute?.durationMin ?: GeoUtils.estimatedDurationMin(distance.coerceAtLeast(0.1))
-    val selected = TaxiCatalog.byId(selectedRideId)
+    val selected = vehicleChoices.firstOrNull { it.id == selectedRideId } ?: TaxiCatalog.byId(selectedRideId)
     // Résolus hors du lambda du bouton : stringResource est @Composable.
     val currentPositionLabel = stringResource(R.string.taxi_current_position)
     val selectedDestinationLabel = stringResource(R.string.taxi_selected_destination)
@@ -216,9 +220,9 @@ fun TaxiHomeScreen(
                 )
                 Spacer(Modifier.height(12.dp))
                 Row {
-                    TaxiCatalog.choices.forEachIndexed { i, choice ->
+                    vehicleChoices.forEachIndexed { i, choice ->
                         VehicleCard(choice, distance, choice.id == selectedRideId, c, Modifier.weight(1f)) { selectedRideId = choice.id }
-                        if (i < TaxiCatalog.choices.lastIndex) Spacer(Modifier.size(10.dp))
+                        if (i < vehicleChoices.lastIndex) Spacer(Modifier.size(10.dp))
                     }
                 }
                 Spacer(Modifier.height(20.dp))
@@ -307,10 +311,18 @@ private fun TripCard(departure: String, destinationLabel: String, hasDestination
 // ── APERÇU CARTE ─────────────────────────────────────────────────────────────
 @Composable
 private fun MapPreview(pickup: LatLng?, destination: LatLng?, routePoints: List<LatLng>?, distance: Double, durationMin: Int, c: VeloxColors, onRecenter: () -> Unit) {
+    // Piloté directement par les boutons zoom +/- (pas de state Compose : la caméra n'a pas
+    // besoin de recomposition, juste d'un appel one-shot sur la carte). Ne déclenche donc
+    // aucun recalcul du tracé/marqueurs — c'est ce recalcul-là (pas le zoom) qui était source
+    // de lenteur sur cette carte côté iOS.
+    var mlMap by remember { mutableStateOf<MapLibreMap?>(null) }
     // Hauteur réduite : laisse la place au sélecteur « Choisissez votre véhicule » (2 cartes)
     // au-dessus du bouton, comme la maquette (avant : 380dp masquait les cartes).
     Box(Modifier.fillMaxWidth().height(240.dp).clip(RoundedCornerShape(20.dp)).background(c.surfaceHigh)) {
-        VeloxMap(center = pickup, routeStart = pickup, routeEnd = destination, routePolyline = routePoints, markerStyle = MapMarkerStyle.RIDE, modifier = Modifier.fillMaxSize())
+        VeloxMap(
+            center = pickup, routeStart = pickup, routeEnd = destination, routePolyline = routePoints,
+            markerStyle = MapMarkerStyle.RIDE, onMapReady = { mlMap = it }, modifier = Modifier.fillMaxSize(),
+        )
         if (destination != null) {
             Row(
                 Modifier.align(Alignment.BottomStart).padding(12.dp).clip(RoundedCornerShape(50)).background(c.bg.copy(alpha = 0.85f)).padding(horizontal = 12.dp, vertical = 6.dp),
@@ -320,12 +332,8 @@ private fun MapPreview(pickup: LatLng?, destination: LatLng?, routePoints: List<
                 Text(stringResource(R.string.taxi_duration_inline, durationMin), color = c.onSurfaceVariant, fontFamily = Inter, fontSize = 13.sp)
             }
         }
-        Box(
-            Modifier.align(Alignment.BottomEnd).padding(12.dp).size(44.dp).clip(CircleShape).background(c.bg).clickable(onClick = onRecenter),
-            contentAlignment = Alignment.Center,
-        ) {
-            Icon(Icons.Filled.MyLocation, stringResource(R.string.taxi_recenter), tint = c.primary, modifier = Modifier.size(22.dp))
-        }
+        MapZoomControls(mlMap, c, modifier = Modifier.align(Alignment.TopEnd).padding(12.dp))
+        MapRecenterButton(c, modifier = Modifier.align(Alignment.BottomEnd).padding(12.dp), onClick = onRecenter)
     }
 }
 

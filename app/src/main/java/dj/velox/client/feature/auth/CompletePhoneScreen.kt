@@ -57,13 +57,9 @@ fun CompletePhoneScreen(
         AuthScaffold(
             title = stringResource(R.string.complete_phone_title),
             subtitle = stringResource(R.string.complete_phone_message),
+            logo = true,
         ) {
-            AuthTextField(
-                value = number,
-                onValueChange = { number = it },
-                label = stringResource(R.string.auth_phone_hint),
-                keyboardType = KeyboardType.Phone,
-            )
+            PhoneNumberField(value = number, onValueChange = { number = it })
             link.error?.let { ErrorText(it) }
             if (link.errorCode == ERROR_NUMBER_TAKEN) PhoneTakenHelp()
             Spacer(Modifier.height(8.dp))

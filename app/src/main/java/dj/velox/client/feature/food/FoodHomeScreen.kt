@@ -1,5 +1,7 @@
 package dj.velox.client.feature.food
 
+import android.content.Intent
+import android.net.Uri
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -31,10 +33,10 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.AccessTime
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.FavoriteBorder
+import androidx.compose.material.icons.filled.LocalOffer
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.ShoppingCart
 import androidx.compose.material.icons.filled.Star
-import androidx.compose.material.icons.filled.TrackChanges
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
@@ -42,26 +44,32 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableLongStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil.compose.AsyncImage
 import dj.velox.client.R
+import dj.velox.client.domain.model.Banner
 import dj.velox.client.domain.model.Restaurant
 import dj.velox.client.ui.theme.Inter
 import dj.velox.client.ui.theme.Poppins
@@ -88,6 +96,8 @@ fun FoodHomeScreen(
     restaurantsVm: RestaurantsViewModel = hiltViewModel(),
 ) {
     val c = VeloxTheme.colors
+    val context = LocalContext.current
+    val banners by restaurantsVm.banners.collectAsStateWithLifecycle()
     val restaurants by restaurantsVm.restaurants.collectAsStateWithLifecycle()
     val popular by restaurantsVm.popular.collectAsStateWithLifecycle()
     val categories by restaurantsVm.categories.collectAsStateWithLifecycle()
@@ -132,8 +142,18 @@ fun FoodHomeScreen(
                     item { Spacer(Modifier.height(28.dp)) }
                 }
 
-                item { PromoBanner(c) }
-                item { Spacer(Modifier.height(28.dp)) }
+                if (banners.isNotEmpty()) {
+                    item {
+                        AutoScrollCarousel(items = banners, height = 150.dp, pageFraction = 1f, c = c) { banner ->
+                            if (banner.isImage) {
+                                ImageBanner(banner, c) { handleBannerAction(banner, context, onOpenRestaurant, onOpenCategory) }
+                            } else {
+                                TextBanner(banner, c) { handleBannerAction(banner, context, onOpenRestaurant, onOpenCategory) }
+                            }
+                        }
+                    }
+                    item { Spacer(Modifier.height(28.dp)) }
+                }
 
                 if (popular.isNotEmpty()) {
                     item { SectionHeader(stringResource(R.string.best_picks).uppercase(), c) }
@@ -272,29 +292,135 @@ private fun CategoryTile(cat: FoodCategory, c: VeloxColors, onClick: () -> Unit)
     }
 }
 
-// ── BANNIÈRE PROMO ───────────────────────────────────────────────────────────
+// ── BANNIÈRES PROMO (carrousel piloté par Firestore, collection `banners`) ────
+private fun handleBannerAction(
+    banner: Banner,
+    context: android.content.Context,
+    onOpenRestaurant: (String) -> Unit,
+    onOpenCategory: (String) -> Unit,
+) {
+    val value = banner.actionValue ?: return
+    when (banner.actionType) {
+        "whatsapp" -> runCatching {
+            context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("https://wa.me/$value")))
+        }
+        "url" -> runCatching {
+            context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(value)))
+        }
+        "restaurant" -> onOpenRestaurant(value)
+        "category" -> onOpenCategory(value)
+        else -> Unit
+    }
+}
+
 @Composable
-private fun PromoBanner(c: VeloxColors) {
+private fun TextBanner(banner: Banner, c: VeloxColors, onClick: () -> Unit) {
     Box(
         Modifier
             .fillMaxWidth()
-            .padding(horizontal = 20.dp)
+            .fillMaxHeight()
             .clip(RoundedCornerShape(18.dp))
             .background(c.primary)
-            .height(120.dp),
+            .then(if (banner.actionType != "none") Modifier.clickable(onClick = onClick) else Modifier),
     ) {
         Icon(
-            Icons.Filled.TrackChanges,
+            Icons.Filled.LocalOffer,
             null,
             tint = c.onPrimary.copy(alpha = 0.15f),
             modifier = Modifier.align(Alignment.BottomEnd).padding(end = 4.dp, bottom = 4.dp).size(120.dp),
         )
-        Column(Modifier.padding(24.dp)) {
-            Text(stringResource(R.string.promo_title), color = c.onPrimary, fontFamily = Poppins, fontSize = 21.sp, fontWeight = FontWeight.Black, letterSpacing = (-0.5).sp, lineHeight = 24.sp)
-            Spacer(Modifier.height(8.dp))
-            Text(stringResource(R.string.promo_subtitle), color = c.onPrimary.copy(alpha = 0.8f), fontFamily = Inter, fontSize = 13.sp, lineHeight = 18.sp)
+        // Texte admin en longueur libre → rétrécit au lieu de déborder du cadre fixe ;
+        // fillMaxWidth() pour utiliser toute la largeur de la carte, pas juste celle du texte.
+        Column(Modifier.fillMaxWidth().fillMaxHeight().padding(horizontal = 24.dp, vertical = 16.dp), verticalArrangement = Arrangement.Center) {
+            AutoSizeText(
+                text = banner.title.orEmpty(),
+                color = c.onPrimary,
+                fontFamily = Poppins,
+                fontWeight = FontWeight.Black,
+                maxFontSize = 20.sp,
+                minFontSize = 14.sp,
+                lineHeightRatio = 1.15f,
+                letterSpacing = (-0.5).sp,
+                maxLines = 2,
+            )
+            if (banner.subtitle.orEmpty().isNotBlank()) {
+                Spacer(Modifier.height(6.dp))
+                AutoSizeText(
+                    text = banner.subtitle.orEmpty(),
+                    color = c.onPrimary.copy(alpha = 0.8f),
+                    fontFamily = Inter,
+                    fontWeight = FontWeight.Normal,
+                    maxFontSize = 12.5.sp,
+                    minFontSize = 10.sp,
+                    lineHeightRatio = 1.28f,
+                    maxLines = 2,
+                )
+            }
         }
     }
+}
+
+@Composable
+private fun ImageBanner(banner: Banner, c: VeloxColors, onClick: () -> Unit) {
+    Box(
+        Modifier
+            .fillMaxWidth()
+            .fillMaxHeight()
+            .clip(RoundedCornerShape(18.dp))
+            .background(c.surfaceLow)
+            .then(if (banner.actionType != "none") Modifier.clickable(onClick = onClick) else Modifier),
+        contentAlignment = Alignment.Center,
+    ) {
+        // FillWidth : l'image occupe toute la largeur de la carte (pas de bandes vides sur les
+        // côtés comme avec Fit) ; un léger rognage vertical est accepté si le ratio diffère,
+        // contrairement à Crop qui pouvait couper une bonne partie de l'image.
+        AsyncImage(
+            model = banner.imageUrl,
+            contentDescription = banner.title,
+            contentScale = ContentScale.FillWidth,
+            modifier = Modifier.fillMaxWidth(),
+        )
+    }
+}
+
+/**
+ * Texte qui rétrécit (au lieu de déborder / d'être coupé) tant qu'il dépasse son cadre,
+ * jusqu'à `minFontSize`. Nécessaire pour les bannières admin (texte libre, longueur inconnue).
+ */
+@Composable
+private fun AutoSizeText(
+    text: String,
+    color: Color,
+    fontFamily: FontFamily,
+    fontWeight: FontWeight,
+    maxFontSize: TextUnit,
+    minFontSize: TextUnit,
+    lineHeightRatio: Float,
+    maxLines: Int,
+    letterSpacing: TextUnit = 0.sp,
+) {
+    var fontSize by remember(text) { mutableStateOf(maxFontSize) }
+    var readyToDraw by remember(text) { mutableStateOf(false) }
+    Text(
+        text = text,
+        color = color,
+        fontFamily = fontFamily,
+        fontWeight = fontWeight,
+        fontSize = fontSize,
+        lineHeight = fontSize * lineHeightRatio,
+        letterSpacing = letterSpacing,
+        maxLines = maxLines,
+        overflow = TextOverflow.Ellipsis,
+        softWrap = true,
+        modifier = Modifier.fillMaxWidth().drawWithContent { if (readyToDraw) drawContent() },
+        onTextLayout = { result ->
+            if (result.hasVisualOverflow && fontSize > minFontSize) {
+                fontSize = (fontSize.value - 1).sp
+            } else {
+                readyToDraw = true
+            }
+        },
+    )
 }
 
 // ── CARTE « MEILLEUR CHOIX » (compacte, horizontale) ─────────────────────────

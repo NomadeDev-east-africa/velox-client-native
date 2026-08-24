@@ -47,7 +47,7 @@
 
     <!-- Téléphone / OTP -->
     <string name="auth_phone_title">Connexion par téléphone</string>
-    <string name="auth_phone_hint">Numéro — +253 automatique (ex. 77 12 34 56)</string>
+    <string name="auth_phone_hint">77 80 35 33</string>
     <string name="auth_send_code">Envoyer le code</string>
     <string name="auth_otp_title">Vérification</string>
     <string name="auth_otp_subtitle">Saisissez le code reçu par SMS.</string>
@@ -322,6 +322,14 @@
     <string name="view_cart">Voir le panier</string>
     <string name="promo_title">⏱️ Une appli faite pour vous</string>
     <string name="promo_subtitle">Zéro frais caché. Zéro attente. Juste Excellent.</string>
+    <string name="promo2_title">🇩🇯 Pensé pour Djibouti, fait pour vous</string>
+    <string name="promo2_subtitle">Des prix bas, un service qui nous ressemble.</string>
+    <string name="promo3_title">📲 Un restaurant manque sur Vélox ?</string>
+    <string name="promo3_subtitle">Pas de problème ! Contactez-nous sur WhatsApp : 77 45 38 17</string>
+    <string name="promo_code_title">Code promo</string>
+    <string name="promo_code_hint">Entrez un code</string>
+    <string name="apply_label">Appliquer</string>
+    <string name="promo_code_applied">Code %1$s appliqué</string>
     <string name="open_label">Ouvert</string>
     <string name="closed_label">Fermé</string>
     <string name="orders_abbrev">CMDS</string>
@@ -502,12 +510,20 @@
     <string name="auth_recover_google_note">Compte créé avec Google ? Il n\'a pas de mot de passe : revenez en arrière et utilisez « Continuer avec Google ».</string>
     <string name="auth_new_password_title">Nouveau mot de passe</string>
     <string name="auth_new_password_subtitle">Définissez un mot de passe pour vous connecter par email la prochaine fois.</string>
+    <string name="auth_change_password_title">Modifier le mot de passe</string>
+    <string name="auth_change_password_subtitle">Mettez à jour le mot de passe de votre compte.</string>
+    <string name="profile_set_password_sub">Ajoutez un mot de passe pour vous connecter par email.</string>
+    <string name="profile_change_password_sub">Mettez à jour votre mot de passe actuel.</string>
     <string name="auth_new_password_hint">Nouveau mot de passe (6 caractères min.)</string>
     <string name="auth_new_password_confirm">Confirmez le mot de passe</string>
     <string name="auth_passwords_differ">Les deux mots de passe ne correspondent pas.</string>
     <string name="auth_password_updated">Mot de passe mis à jour.</string>
     <string name="auth_save_password">Enregistrer le mot de passe</string>
     <string name="auth_skip">Plus tard</string>
+
+    <!-- Contrôles carte (zoom, recentrage) -->
+    <string name="map_zoom_in">Zoom avant</string>
+    <string name="map_zoom_out">Zoom arrière</string>
 
     <!-- VTC — écrans taxi (accueil, confirmation, suivi, fin de course) -->
     <string name="taxi_where_to">Où allons-nous aujourd\'hui ? 🌍</string>
@@ -600,6 +616,7 @@
     <string name="banner_started_sub">Direction %1$s</string>
     <string name="banner_searching_title">🔎 Recherche en cours</string>
     <string name="banner_searching_sub">On cherche un chauffeur pour vous</string>
+    <string name="banner_no_driver_comfort_sub">Aucun chauffeur Confort disponible pour le moment. Essayez un taxi Standard.</string>
     <string name="status_now">· maintenant</string>
     <string name="ride_captain">Chauffeur</string>
     <string name="ride_estimated_fare">Tarif estimé</string>

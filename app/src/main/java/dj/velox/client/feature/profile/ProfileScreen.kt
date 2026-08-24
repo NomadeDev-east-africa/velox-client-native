@@ -318,11 +318,12 @@ fun ProfileScreen(
             )
             RowDivider(c)
             // Point d'arrivée de la récupération par SMS : une fois reconnecté par OTP,
-            // c'est ici qu'on redéfinit le mot de passe oublié.
+            // c'est ici qu'on redéfinit le mot de passe oublié. Libellé conditionnel :
+            // le compte peut n'avoir aucun mot de passe (créé par téléphone ou Google).
             SettingRow(
                 icon = Icons.Filled.Lock,
-                title = stringResource(R.string.auth_new_password_title),
-                subtitle = stringResource(R.string.auth_new_password_subtitle),
+                title = stringResource(if (authVm.hasPassword) R.string.auth_change_password_title else R.string.auth_new_password_title),
+                subtitle = stringResource(if (authVm.hasPassword) R.string.profile_change_password_sub else R.string.profile_set_password_sub),
                 c = c,
                 onClick = onSetPassword,
                 trailing = { Chevron(c) },

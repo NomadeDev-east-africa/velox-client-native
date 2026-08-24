@@ -277,7 +277,7 @@ private fun CategoryTab(label: String, selected: Boolean, c: VeloxColors, onClic
     Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.clickable(onClick = onClick)) {
         Text(
             label,
-            color = if (selected) c.onSurface else c.onSurfaceVariant.copy(alpha = 0.6f),
+            color = if (selected) c.primary else c.onSurfaceVariant.copy(alpha = 0.6f),
             fontFamily = Poppins,
             fontSize = 20.sp,
             fontWeight = if (selected) FontWeight.Bold else FontWeight.W600,

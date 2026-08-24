@@ -40,11 +40,14 @@ data class Order(
     // Fidélité
     val pointsUsed: Int = 0,
     val discount: Int = 0,
+    // Code promo
+    val promoCode: String? = null,
+    val promoDiscount: Int = 0,
 ) {
     // ─── Getters calculés ────────────────────────────────────────
     val itemCount: Int get() = items.sumOf { it.quantity }
     val subtotal: Int get() = items.sumOf { it.totalPrice }
-    val total: Int get() = subtotal + deliveryFee - discount
+    val total: Int get() = (subtotal + deliveryFee - discount - promoDiscount).coerceAtLeast(0)
 
     // Les règles Firestore n'autorisent l'annulation client que depuis
     // `pending` ou `accepted` — au-delà (preparing/ready), le restaurant a
@@ -67,6 +70,8 @@ data class Order(
         put("deliveryFee", deliveryFee)
         put("pointsUsed", pointsUsed)
         put("discount", discount)
+        promoCode?.let { put("promoCode", it) }
+        put("promoDiscount", promoDiscount)
         put("total", total)
         put("status", status)
         put("paymentMethod", paymentMethod)
@@ -119,6 +124,8 @@ data class Order(
                 deliveryFee = (data["deliveryFee"] as? Number)?.toInt() ?: 500,
                 pointsUsed = (data["pointsUsed"] as? Number)?.toInt() ?: 0,
                 discount = (data["discount"] as? Number)?.toInt() ?: 0,
+                promoCode = data["promoCode"] as? String,
+                promoDiscount = (data["promoDiscount"] as? Number)?.toInt() ?: 0,
                 status = data["status"] as? String ?: STATUS_PENDING,
                 paymentMethod = data["paymentMethod"] as? String ?: "cash",
                 deliveryAddress = data["deliveryAddress"] as? String ?: "",

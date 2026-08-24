@@ -4,8 +4,10 @@ import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
+import dj.velox.client.data.remote.BannerService
 import dj.velox.client.data.remote.MenuService
 import dj.velox.client.data.remote.RestaurantService
+import dj.velox.client.domain.model.Banner
 import dj.velox.client.domain.model.MenuItem
 import dj.velox.client.domain.model.Restaurant
 import kotlinx.coroutines.FlowPreview
@@ -32,8 +34,13 @@ data class FoodCategory(val name: String, val imageUrl: String, val restaurantId
 class RestaurantsViewModel @Inject constructor(
     service: RestaurantService,
     private val menuService: MenuService,
+    bannerService: BannerService,
 ) : ViewModel() {
     val restaurants: StateFlow<List<Restaurant>> = service.streamRestaurants()
+        .catch { emit(emptyList()) }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+
+    val banners: StateFlow<List<Banner>> = bannerService.streamActiveBanners()
         .catch { emit(emptyList()) }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 

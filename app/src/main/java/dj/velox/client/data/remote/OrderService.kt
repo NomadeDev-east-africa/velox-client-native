@@ -72,6 +72,41 @@ class OrderService @Inject constructor(
         }
     }
 
+    /**
+     * Valide un code promo via la Cloud Function callable `validatePromoCode`
+     * (même mécanique que `sendRestaurantNotification` ci-dessus). Le serveur
+     * calcule et plafonne `discountAmount` — c'est le seul nombre à afficher,
+     * ne jamais le recalculer côté client.
+     */
+    suspend fun validatePromoCode(
+        code: String,
+        restaurantId: String,
+        subtotal: Int,
+        deliveryFee: Int,
+    ): PromoValidationResult = runCatching {
+        val result = functions.getHttpsCallable("validatePromoCode").call(
+            mapOf(
+                "code" to code,
+                "restaurantId" to restaurantId,
+                "subtotal" to subtotal,
+                "deliveryFee" to deliveryFee,
+            ),
+        ).await()
+        @Suppress("UNCHECKED_CAST")
+        val data = result.getData() as? Map<String, Any?> ?: emptyMap()
+        PromoValidationResult(
+            valid = data["valid"] as? Boolean ?: false,
+            message = data["message"] as? String,
+            code = data["code"] as? String,
+            discountAmount = (data["discountAmount"] as? Number)?.toInt() ?: 0,
+            discountType = data["discountType"] as? String,
+            discountValue = (data["discountValue"] as? Number)?.toInt() ?: 0,
+        )
+    }.getOrElse {
+        Log.e(TAG, "❌ validatePromoCode échec de l'appel callable", it)
+        PromoValidationResult(valid = false, message = "Erreur réseau, réessayez")
+    }
+
     suspend fun getOrderById(orderId: String): Order? = runCatching {
         val doc = collection.document(orderId).get().await()
         if (doc.exists()) Order.fromFirestore(doc) else null
@@ -96,6 +131,23 @@ class OrderService @Inject constructor(
                     ?.take(20)
                     ?: emptyList()
                 trySend(orders)
+            }
+        awaitClose { registration.remove() }
+    }
+
+    /**
+     * Stream de la commande la plus récente de l'utilisateur (tri client), tous statuts
+     * confondus — alimente le widget flottant de suivi (Home/Restaurant/Panier/Profil).
+     * La visibilité (active vs terminée vs annulée) est décidée côté ViewModel.
+     */
+    fun streamLatestOrder(userId: String): Flow<Order?> = callbackFlow {
+        val registration = collection.whereEqualTo("userId", userId)
+            .addSnapshotListener { snapshot, error ->
+                if (error != null) { close(error); return@addSnapshotListener }
+                val latest = snapshot?.documents
+                    ?.mapNotNull { runCatching { Order.fromFirestore(it) }.getOrNull() }
+                    ?.maxByOrNull { it.createdAt }
+                trySend(latest)
             }
         awaitClose { registration.remove() }
     }
@@ -222,3 +274,13 @@ data class DriverLocation(val latitude: Double, val longitude: Double, val updat
  * `completedCount` = commandes livrées ; points gagnés = completedCount × 10.
  */
 data class OrderStats(val completedCount: Int = 0, val totalSpent: Double = 0.0)
+
+/** Résultat de la Cloud Function callable `validatePromoCode`. */
+data class PromoValidationResult(
+    val valid: Boolean,
+    val message: String? = null,
+    val code: String? = null,
+    val discountAmount: Int = 0,
+    val discountType: String? = null,
+    val discountValue: Int = 0,
+)

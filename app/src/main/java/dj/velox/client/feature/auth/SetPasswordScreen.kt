@@ -44,10 +44,12 @@ fun SetPasswordScreen(viewModel: AuthViewModel, onDone: () -> Unit) {
     var isError by remember { mutableStateOf(false) }
     val mismatchMsg = stringResource(R.string.auth_passwords_differ)
     val updatedMsg = stringResource(R.string.auth_password_updated)
+    // Compte déjà rattaché à un provider email/mot de passe → on le modifie, sinon on le définit.
+    val hasPassword = viewModel.hasPassword
 
     AuthScaffold(
-        title = stringResource(R.string.auth_new_password_title),
-        subtitle = stringResource(R.string.auth_new_password_subtitle),
+        title = stringResource(if (hasPassword) R.string.auth_change_password_title else R.string.auth_new_password_title),
+        subtitle = stringResource(if (hasPassword) R.string.auth_change_password_subtitle else R.string.auth_new_password_subtitle),
     ) {
         // Rattacher un provider mot de passe impose une adresse : on la demande uniquement
         // quand le compte n'en a pas (inscription par téléphone).
@@ -108,7 +110,7 @@ fun SetPasswordScreen(viewModel: AuthViewModel, onDone: () -> Unit) {
         }
 
         TextButton(onClick = onDone, modifier = Modifier.fillMaxWidth()) {
-            Text(stringResource(R.string.auth_skip))
+            Text(stringResource(if (hasPassword) R.string.cancel else R.string.auth_skip))
         }
     }
 }

@@ -27,6 +27,7 @@ import dj.velox.client.core.util.toE164
 import dj.velox.client.feature.auth.AuthScaffold
 import dj.velox.client.feature.auth.AuthTextField
 import dj.velox.client.feature.auth.ErrorText
+import dj.velox.client.feature.auth.PhoneNumberField
 import dj.velox.client.feature.auth.SubmitButton
 
 /**
@@ -56,6 +57,7 @@ fun ChangePhoneScreen(
         AuthScaffold(
             title = stringResource(R.string.change_phone_title),
             subtitle = stringResource(R.string.change_phone_message),
+            logo = true,
         ) {
             if (!currentPhone.isNullOrBlank()) {
                 Text(
@@ -65,12 +67,7 @@ fun ChangePhoneScreen(
                 )
                 Spacer(Modifier.height(16.dp))
             }
-            AuthTextField(
-                value = number,
-                onValueChange = { number = it },
-                label = stringResource(R.string.auth_phone_hint),
-                keyboardType = KeyboardType.Phone,
-            )
+            PhoneNumberField(value = number, onValueChange = { number = it })
             ui.error?.let { ErrorText(it) }
             if (ui.errorCode == "ERROR_CREDENTIAL_ALREADY_IN_USE") {
                 Spacer(Modifier.height(12.dp))

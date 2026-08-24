@@ -1,5 +1,6 @@
 package dj.velox.client.feature.auth
 
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -16,13 +17,13 @@ import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
-import androidx.compose.material.icons.filled.DeliveryDining
 import androidx.compose.material.icons.filled.MailOutline
 import androidx.compose.material.icons.filled.PhoneAndroid
 import androidx.compose.material.icons.filled.Visibility
@@ -49,6 +50,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
@@ -181,16 +183,8 @@ fun SignUpScreen(
     ) {
         Spacer(Modifier.height(56.dp))
 
-        // Logo (icône scooter dans un carré arrondi teinté vert)
-        Box(
-            Modifier
-                .size(88.dp)
-                .clip(RoundedCornerShape(24.dp))
-                .background(VeloxGreen.copy(alpha = 0.12f)),
-            contentAlignment = Alignment.Center,
-        ) {
-            Icon(Icons.Filled.DeliveryDining, null, tint = VeloxGreen, modifier = Modifier.size(44.dp))
-        }
+        // Logo de l'app (remplace l'ancienne icône scooter générique).
+        Image(painterResource(R.drawable.logo_velox_home), null, modifier = Modifier.size(88.dp))
         Spacer(Modifier.height(20.dp))
         Text("Velox", color = VeloxGreen, fontFamily = Poppins, fontSize = 30.sp, fontWeight = FontWeight.Bold, letterSpacing = (-0.5).sp)
         Spacer(Modifier.height(6.dp))
@@ -341,6 +335,10 @@ internal fun AuthScaffold(
     // pas — même convention que le logo texte de SignUpScreen).
     headingAccent: String? = null,
     topBarTitle: String = title,
+    // Logo app : uniquement sur la page Sign Up et les écrans « saisie du numéro » du flux
+    // OTP (connexion par téléphone, complétion du numéro, récupération SMS, changement de
+    // numéro) — pas sur les écrans de saisie du code, ni sur Sign In / Sign Up email.
+    logo: Boolean = false,
     content: @Composable ColumnScope.() -> Unit,
 ) {
     val c = VeloxTheme.colors
@@ -362,7 +360,15 @@ internal fun AuthScaffold(
                 .verticalScroll(rememberScrollState())
                 .padding(horizontal = 24.dp),
         ) {
-            Spacer(Modifier.height(28.dp))
+            if (logo) {
+                Spacer(Modifier.height(20.dp))
+                Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
+                    Image(painterResource(R.drawable.logo_velox_home), null, modifier = Modifier.size(56.dp))
+                }
+                Spacer(Modifier.height(16.dp))
+            } else {
+                Spacer(Modifier.height(28.dp))
+            }
             if (headingAccent != null) {
                 Text(
                     buildAnnotatedString {
@@ -419,6 +425,52 @@ internal fun AuthTextField(
         colors = OutlinedTextFieldDefaults.colors(
             focusedContainerColor = Color.Transparent,
             unfocusedContainerColor = Color.Transparent,
+            focusedBorderColor = AuthGreen,
+            unfocusedBorderColor = c.outlineVariant,
+            focusedTextColor = c.onSurface,
+            unfocusedTextColor = c.onSurface,
+            cursorColor = AuthGreen,
+        ),
+        modifier = Modifier.fillMaxWidth().height(58.dp),
+    )
+}
+
+/** Regroupe les chiffres saisis par paires ("77 80 35 33"), 8 chiffres max (numéro local DJ). */
+private fun formatDjiboutiDigits(raw: String): String =
+    raw.filter(Char::isDigit).take(8).chunked(2).joinToString(" ")
+
+/**
+ * Champ numéro dédié aux écrans « saisie du numéro → OTP » : préfixe visuel 🇩🇯 +253 fixe
+ * (Djibouti uniquement, comme le reste de l'app) et fond opaque — contrairement à
+ * [AuthTextField], transparent. [onValueChange] reçoit les chiffres déjà groupés ; l'appelant
+ * n'a rien à reformater, [dj.velox.client.core.util.toE164] retire les espaces au besoin.
+ * Le +253 n'est **pas** à taper : [toE164] le préfixe automatiquement au numéro local.
+ */
+@Composable
+internal fun PhoneNumberField(value: String, onValueChange: (String) -> Unit) {
+    val c = VeloxTheme.colors
+    OutlinedTextField(
+        value = value,
+        onValueChange = { onValueChange(formatDjiboutiDigits(it)) },
+        placeholder = { Text(stringResource(R.string.auth_phone_hint), color = c.onSurfaceVariant, fontFamily = Inter, fontSize = 16.sp) },
+        singleLine = true,
+        shape = RoundedCornerShape(12.dp),
+        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
+        leadingIcon = {
+            Row(
+                Modifier.padding(start = 4.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text("🇩🇯", fontSize = 20.sp)
+                Spacer(Modifier.size(8.dp))
+                Text("+253", color = c.onSurface, fontFamily = Inter, fontSize = 15.sp, fontWeight = FontWeight.Bold)
+                Spacer(Modifier.size(10.dp))
+                Box(Modifier.width(1.dp).height(22.dp).background(c.outlineVariant))
+            }
+        },
+        colors = OutlinedTextFieldDefaults.colors(
+            focusedContainerColor = c.surfaceLow,
+            unfocusedContainerColor = c.surfaceLow,
             focusedBorderColor = AuthGreen,
             unfocusedBorderColor = c.outlineVariant,
             focusedTextColor = c.onSurface,

@@ -276,7 +276,7 @@
     <string name="auth_forgot_subtitle">أدخل بريدك الإلكتروني لتلقّي رابط إعادة التعيين.</string>
     <string name="auth_send_reset">إرسال الرابط</string>
     <string name="auth_phone_title">تسجيل الدخول بالهاتف</string>
-    <string name="auth_phone_hint">الرقم — يُضاف 253+ تلقائياً (مثال 77 12 34 56)</string>
+    <string name="auth_phone_hint">77 80 35 33</string>
     <string name="auth_send_code">إرسال الرمز</string>
     <string name="auth_otp_title">التحقق</string>
     <string name="auth_otp_subtitle">أدخل الرمز المُستلم عبر الرسائل القصيرة.</string>
@@ -307,6 +307,14 @@
     <string name="view_cart">عرض السلة</string>
     <string name="promo_title">⏱️ تطبيق صُمِّم من أجلك</string>
     <string name="promo_subtitle">صفر رسوم خفية. صفر انتظار. ممتاز فقط.</string>
+    <string name="promo2_title">🇩🇯 صُمِّم لجيبوتي، من أجلك</string>
+    <string name="promo2_subtitle">أسعار منخفضة، وخدمة تشبهنا.</string>
+    <string name="promo3_title">📲 مطعم مفقود على فيلوكس؟</string>
+    <string name="promo3_subtitle">لا مشكلة! تواصل معنا عبر واتساب: 77 45 38 17</string>
+    <string name="promo_code_title">رمز ترويجي</string>
+    <string name="promo_code_hint">أدخل رمزاً</string>
+    <string name="apply_label">تطبيق</string>
+    <string name="promo_code_applied">تم تطبيق الرمز %1$s</string>
     <string name="open_label">مفتوح</string>
     <string name="closed_label">مغلق</string>
     <string name="orders_abbrev">طلب</string>
@@ -485,6 +493,10 @@
     <string name="auth_recover_google_note">أنشأت الحساب عبر Google؟ لا توجد له كلمة مرور: ارجع واستخدم «المتابعة عبر Google».</string>
     <string name="auth_new_password_title">كلمة مرور جديدة</string>
     <string name="auth_new_password_subtitle">عيّن كلمة مرور لتتمكن من تسجيل الدخول بالبريد الإلكتروني في المرة القادمة.</string>
+    <string name="auth_change_password_title">تغيير كلمة المرور</string>
+    <string name="auth_change_password_subtitle">حدّث كلمة مرور حسابك.</string>
+    <string name="profile_set_password_sub">أضف كلمة مرور لتسجيل الدخول بالبريد الإلكتروني.</string>
+    <string name="profile_change_password_sub">حدّث كلمة المرور الحالية.</string>
     <string name="auth_new_password_hint">كلمة المرور الجديدة (6 أحرف على الأقل)</string>
     <string name="auth_new_password_confirm">أكّد كلمة المرور</string>
     <string name="auth_passwords_differ">كلمتا المرور غير متطابقتين.</string>
@@ -493,6 +505,9 @@
     <string name="auth_skip">لاحقًا</string>
 
     <!-- شاشات التاكسي -->
+    <string name="map_zoom_in">تكبير</string>
+    <string name="map_zoom_out">تصغير</string>
+
     <string name="taxi_where_to">إلى أين نذهب اليوم؟ 🌍</string>
     <string name="taxi_location_disabled">خدمة الموقع معطّلة</string>
     <string name="taxi_locating">جارٍ تحديد الموقع…</string>
@@ -583,6 +598,7 @@
     <string name="banner_started_sub">باتجاه %1$s</string>
     <string name="banner_searching_title">🔎 جارٍ البحث</string>
     <string name="banner_searching_sub">نبحث لك عن سائق</string>
+    <string name="banner_no_driver_comfort_sub">لا يوجد سائق كومفورت متاح حاليًا. جرّب سيارة أجرة عادية.</string>
     <string name="status_now">· الآن</string>
     <string name="ride_captain">السائق</string>
     <string name="ride_estimated_fare">الأجرة التقديرية</string>

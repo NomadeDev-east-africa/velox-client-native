@@ -62,6 +62,7 @@ fun ForgotPasswordScreen(viewModel: AuthViewModel, onBack: () -> Unit) {
     AuthScaffold(
         title = stringResource(R.string.auth_recover_title),
         subtitle = stringResource(R.string.auth_recover_subtitle),
+        logo = true,
     ) {
         MethodSwitch(
             bySms = bySms,
@@ -161,12 +162,7 @@ private fun SmsRecovery(viewModel: AuthViewModel) {
 
     if (!phone.codeSent) {
         var number by rememberSaveable { mutableStateOf("") }
-        AuthTextField(
-            value = number,
-            onValueChange = { number = it },
-            label = stringResource(R.string.auth_phone_hint),
-            keyboardType = KeyboardType.Phone,
-        )
+        PhoneNumberField(value = number, onValueChange = { number = it })
         phone.error?.let { ErrorText(it) }
         Spacer(Modifier.height(12.dp))
         SubmitButton(
