@@ -52,12 +52,15 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.withStyle
+import androidx.compose.ui.text.input.OffsetMapping
 import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.text.input.TransformedText
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -435,9 +438,37 @@ internal fun AuthTextField(
     )
 }
 
-/** Regroupe les chiffres saisis par paires ("77 80 35 33"), 8 chiffres max (numéro local DJ). */
-private fun formatDjiboutiDigits(raw: String): String =
-    raw.filter(Char::isDigit).take(8).chunked(2).joinToString(" ")
+/** Ne garde que les chiffres, 8 max (numéro local DJ). Le groupement visuel ("77 80 35 33")
+ *  est fait par [DjiboutiPhoneVisualTransformation], PAS ici : reformater la valeur brute du
+ *  champ (insérer des espaces dans le String affiché) casse le suivi du curseur par Compose
+ *  et fait apparaître les chiffres tapés dans le désordre (ex. "43" affiché "34"). */
+private fun sanitizeDjiboutiDigits(raw: String): String =
+    raw.filter(Char::isDigit).take(8)
+
+/** Affiche les chiffres bruts groupés par paires sans jamais toucher à la valeur réelle du
+ *  champ, pour que le curseur reste correctement positionné pendant la saisie. */
+private object DjiboutiPhoneVisualTransformation : VisualTransformation {
+    override fun filter(text: AnnotatedString): TransformedText {
+        val digits = text.text
+        val formatted = digits.chunked(2).joinToString(" ")
+
+        val offsetMapping = object : OffsetMapping {
+            override fun originalToTransformed(offset: Int): Int {
+                if (offset <= 0) return 0
+                val spacesBefore = (offset - 1) / 2
+                return (offset + spacesBefore).coerceAtMost(formatted.length)
+            }
+
+            override fun transformedToOriginal(offset: Int): Int {
+                if (offset <= 0) return 0
+                val spacesBefore = offset / 3
+                return (offset - spacesBefore).coerceAtMost(digits.length)
+            }
+        }
+
+        return TransformedText(AnnotatedString(formatted), offsetMapping)
+    }
+}
 
 /**
  * Champ numéro dédié aux écrans « saisie du numéro → OTP » : préfixe visuel 🇩🇯 +253 fixe
@@ -451,7 +482,8 @@ internal fun PhoneNumberField(value: String, onValueChange: (String) -> Unit) {
     val c = VeloxTheme.colors
     OutlinedTextField(
         value = value,
-        onValueChange = { onValueChange(formatDjiboutiDigits(it)) },
+        onValueChange = { onValueChange(sanitizeDjiboutiDigits(it)) },
+        visualTransformation = DjiboutiPhoneVisualTransformation,
         placeholder = { Text(stringResource(R.string.auth_phone_hint), color = c.onSurfaceVariant, fontFamily = Inter, fontSize = 16.sp) },
         singleLine = true,
         shape = RoundedCornerShape(12.dp),
