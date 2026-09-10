@@ -232,6 +232,19 @@ fun Manifest(order: Order, c: VeloxColors) {
     Spacer(Modifier.height(12.dp))
     order.items.forEach { item ->
         ManifestRow("${item.quantity}x  ${item.name.uppercase()}", "${item.totalPrice} FDJ", c)
+        // Extras/accompagnements/milkshake/suppléments (tous stockés dans `extras`, les groupes
+        // « sauce » à part dans `sauces` — voir OptionSelection.toCart) : le client doit
+        // retrouver EXACTEMENT ce qu'il a choisi, pas juste le nom du plat.
+        val addons = item.selectedExtras.map { it.name to it.price } + item.selectedSauces.map { it.name to it.price }
+        if (addons.isNotEmpty()) {
+            Text(
+                addons.joinToString("  •  ") { (name, price) -> "$name${if (price > 0) " (+$price FDJ)" else ""}" },
+                color = c.onSurfaceVariant,
+                fontFamily = Inter,
+                fontSize = 12.sp,
+                modifier = Modifier.padding(bottom = 6.dp),
+            )
+        }
     }
     ManifestRow(stringResource(R.string.delivery).uppercase(), "${order.deliveryFee} FDJ", c, muted = true)
     if (order.discount > 0) ManifestRow(stringResource(R.string.loyalty_discount).uppercase(), "−${order.discount} FDJ", c, muted = true)

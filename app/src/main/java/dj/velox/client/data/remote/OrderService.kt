@@ -107,6 +107,18 @@ class OrderService @Inject constructor(
         PromoValidationResult(valid = false, message = "Erreur réseau, réessayez")
     }
 
+    /**
+     * Commande active de l'utilisateur (ni completed ni cancelled) — sert à bloquer une
+     * deuxième commande tant que la précédente n'est pas terminée. Même pattern que
+     * [getUserOrders] : un seul filtre `userId` (index simple auto), le statut est filtré
+     * en mémoire pour ne pas dépendre d'un index composite `orders(userId, status)`.
+     */
+    suspend fun getActiveOrder(userId: String): Order? = runCatching {
+        collection.whereEqualTo("userId", userId).get().await()
+            .documents.mapNotNull { runCatching { Order.fromFirestore(it) }.getOrNull() }
+            .firstOrNull { it.isActive }
+    }.getOrNull()
+
     suspend fun getOrderById(orderId: String): Order? = runCatching {
         val doc = collection.document(orderId).get().await()
         if (doc.exists()) Order.fromFirestore(doc) else null

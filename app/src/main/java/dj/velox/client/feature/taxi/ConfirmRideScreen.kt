@@ -235,7 +235,10 @@ fun ConfirmRideScreen(
         }
 
         // Bouton Confirmer
-        Box(Modifier.align(Alignment.BottomCenter).fillMaxWidth().background(c.bg).navigationBarsPadding().padding(horizontal = 24.dp, vertical = 16.dp)) {
+        Column(Modifier.align(Alignment.BottomCenter).fillMaxWidth().background(c.bg).navigationBarsPadding().padding(horizontal = 24.dp, vertical = 16.dp)) {
+            ride.error?.let {
+                Text(it, color = c.error, fontFamily = Inter, fontSize = 13.sp, modifier = Modifier.padding(bottom = 10.dp))
+            }
             Box(
                 Modifier.fillMaxWidth().height(64.dp).background(c.primary)
                     .clickable(enabled = !ride.isCreating) {

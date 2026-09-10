@@ -28,7 +28,11 @@ class RideService @Inject constructor(
     // CRÉATION
     // ─────────────────────────────────────────────────────────────
 
+    /** Génère un ID de course côté client, sans écriture — permet un `set()` idempotent au retry. */
+    fun newRideId(): String = collection.document().id
+
     suspend fun createRide(
+        rideId: String,
         userId: String,
         userName: String,
         userPhone: String,
@@ -46,7 +50,7 @@ class RideService @Inject constructor(
         estimatedFare: Double,
         vehicleType: String,
         paymentMethod: String,
-    ): String {
+    ) {
         val data = hashMapOf(
             "userId" to userId,
             "userName" to userName,
@@ -91,8 +95,10 @@ class RideService @Inject constructor(
             "cancellationReason" to null,
             "cancelledBy" to null,
         )
-        val docRef = collection.add(data).await()
-        return docRef.id
+        // set() sur un ID généré côté client est idempotent : un retry après échec de
+        // l'accusé de réception réécrit le même document au lieu d'en créer un second
+        // (add() générait un nouvel ID à chaque tentative → doublons de course).
+        collection.document(rideId).set(data).await()
     }
 
     // ─────────────────────────────────────────────────────────────
@@ -131,16 +137,17 @@ class RideService @Inject constructor(
         return runCatching { Ride.fromFirestore(doc) }.getOrNull()
     }
 
-    /** Course active d'un utilisateur (reprise après kill). */
+    /**
+     * Course active d'un utilisateur (reprise après kill, et garde-fou anti-doublon avant
+     * `createRide`). Un seul filtre `userId` (index simple auto) puis filtre du statut EN
+     * MÉMOIRE — même pattern que [getUserRideHistory] — pour ne pas dépendre d'un index
+     * composite `taxiRides(userId, status)` qui n'est pas déployé côté projet.
+     */
     suspend fun getActiveRide(userId: String): Ride? {
-        val snapshot = collection
-            .whereEqualTo("userId", userId)
-            .whereIn("status", listOf("requested", "accepted", "arriving", "arrived", "started"))
-            .limit(1)
-            .get()
-            .await()
-        return snapshot.documents.firstOrNull()
-            ?.let { runCatching { Ride.fromFirestore(it) }.getOrNull() }
+        val snapshot = collection.whereEqualTo("userId", userId).get().await()
+        return snapshot.documents
+            .mapNotNull { runCatching { Ride.fromFirestore(it) }.getOrNull() }
+            .firstOrNull { it.isActive }
     }
 
     // ─────────────────────────────────────────────────────────────

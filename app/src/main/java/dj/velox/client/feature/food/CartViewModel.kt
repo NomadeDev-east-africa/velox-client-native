@@ -253,10 +253,25 @@ class CartViewModel @Inject constructor(
         pointsUsed: Int = 0,
     ): String? {
         val s = _state.value
+        // Garde de ré-entrance : sans ça, deux appels concurrents (double-tap, countdown
+        // PendingOrderScreen qui se déclenche pendant un appel déjà en cours après une
+        // recomposition) passent tous les deux et créent deux commandes distinctes.
+        if (s.isCreatingOrder) return null
         val restaurant = s.restaurant ?: return null
         if (s.isEmpty) return null
 
         _state.value = s.copy(isCreatingOrder = true, error = null)
+
+        // Une seule commande active à la fois : le client doit attendre la livraison (ou
+        // l'annulation) de la précédente avant d'en passer une nouvelle.
+        val activeOrder = orderService.getActiveOrder(userId)
+        if (activeOrder != null) {
+            _state.value = _state.value.copy(
+                isCreatingOrder = false,
+                error = "Vous avez déjà une commande en cours (${activeOrder.restaurantName}). Attendez qu'elle soit livrée avant d'en passer une nouvelle.",
+            )
+            return null
+        }
 
         // Défense en profondeur : le restaurant a pu fermer entre l'ajout au panier et l'envoi
         // (PendingOrderScreen envoie automatiquement après 60s). La règle Firestore bloque déjà

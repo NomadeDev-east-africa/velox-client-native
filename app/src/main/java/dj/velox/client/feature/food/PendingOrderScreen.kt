@@ -29,7 +29,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
@@ -113,13 +112,18 @@ fun PendingOrderScreen(
         )
     }
 
-    var creating by remember { mutableStateOf(false) }
+    // Dérivé du ViewModel (survit à la recomposition/recréation de l'écran), pas un
+    // remember local : un remember local retombe à false si l'écran est recomposé
+    // pendant qu'une création est déjà en cours côté VM, ce qui laissait passer un
+    // second appel (countdown ou double-tap) et créait deux commandes.
+    val creating = cart.isCreatingOrder
     var secondsLeft by remember { mutableIntStateOf(CONFIRM_WINDOW_SECONDS) }
 
     // Crée la commande en base et notifie le restaurant (idempotent : un seul envoi).
+    // Lit l'état live du VM (pas la valeur `creating` capturée à la composition) car ce
+    // lambda est aussi capturé une seule fois par le LaunchedEffect(Unit) du countdown.
     val confirm: () -> Unit = confirm@{
-        if (creating) return@confirm
-        creating = true
+        if (cartViewModel.state.value.isCreatingOrder) return@confirm
         scope.launch {
             val orderId = cartViewModel.createOrder(
                 userId = uid,
@@ -132,7 +136,8 @@ fun PendingOrderScreen(
             )
             // Échec (ex. restaurant fermé entre-temps) → retour au panier, où le message
             // d'erreur de CartViewModel.createOrder() est déjà affiché (cart.error).
-            if (orderId != null) onOrderCreated(orderId) else { creating = false; onCancel() }
+            // isCreatingOrder est déjà repassé à false par CartViewModel sur chaque échec.
+            if (orderId != null) onOrderCreated(orderId) else onCancel()
         }
     }
 
