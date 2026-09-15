@@ -150,6 +150,8 @@
     <string name="new_address">New address</string>
     <string name="history_favorites">History &amp; Favorites</string>
     <string name="my_orders">My orders</string>
+    <string name="my_notifications">My notifications</string>
+    <string name="notifications_history_sub">Orders, rides, promos</string>
     <string name="full_history">Full history</string>
     <string name="favorite_restaurants">Favorite restaurants</string>
     <string name="support_legal">Support &amp; Legal</string>
@@ -230,6 +232,8 @@
     <string name="no_past_orders">No past orders</string>
     <string name="active_orders_hint">Your active orders will appear here</string>
     <string name="history_hint">Your order history will appear here</string>
+    <string name="no_notifications">No notifications</string>
+    <string name="notifications_hint">Your notifications (orders, rides, promos) will appear here</string>
     <string name="track">Track</string>
     <string name="ordered_items">Ordered items</string>
     <string name="address">Address</string>
@@ -476,7 +480,14 @@
     <string name="err_phone_failed">Phone verification failed.</string>
     <string name="err_send_code_failed">Could not send the code.</string>
     <string name="err_link_phone_failed">Could not link the number.</string>
+    <string name="err_link_google_failed">Could not link the Google account.</string>
     <string name="err_email_not_found">No email found for this account.</string>
+
+    <!-- Auth — Google link prompt after OTP (phone-only account) -->
+    <string name="google_link_prompt_title">Faster sign-in</string>
+    <string name="google_link_prompt_message">Add your Google account to sign in instantly next time, without waiting for an SMS.</string>
+    <string name="google_link_prompt_action">Link Google</string>
+    <string name="google_link_prompt_later">Later</string>
 
     <!-- Auth — resend SMS code -->
     <string name="auth_resend_code">Resend code</string>

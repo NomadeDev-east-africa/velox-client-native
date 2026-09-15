@@ -77,6 +77,13 @@ data class PhoneAuthState(
 /** Délai imposé entre deux envois de SMS — aligné sur le timeout Firebase (60 s). */
 private const val RESEND_DELAY_SECONDS = 60
 
+/** État du prompt « lier Google » proposé après un OTP réussi sur un compte phone-only. */
+data class GoogleLinkState(
+    val isLinking: Boolean = false,
+    val error: String? = null,
+    val linked: Boolean = false,
+)
+
 @HiltViewModel
 class AuthViewModel @Inject constructor(
     private val repo: AuthRepository,
@@ -125,6 +132,40 @@ class AuthViewModel @Inject constructor(
     val phoneLink: StateFlow<PhoneAuthState> = _phoneLink.asStateFlow()
     private var linkResendToken: PhoneAuthProvider.ForceResendingToken? = null
     private var pendingLinkNumber: String = ""
+
+    // ─── Prompt « lier Google » (après OTP réussi sur un compte phone-only) ───
+    private val _googleLinkPromptVisible = MutableStateFlow(false)
+    val googleLinkPromptVisible: StateFlow<Boolean> = _googleLinkPromptVisible.asStateFlow()
+
+    private val _googleLink = MutableStateFlow(GoogleLinkState())
+    val googleLink: StateFlow<GoogleLinkState> = _googleLink.asStateFlow()
+
+    /** À appeler juste après un sign-in réussi par téléphone : n'affiche le prompt que si le
+     *  compte n'a encore aucun autre moyen de connexion (sinon inutile, il en a déjà un). */
+    private fun maybeOfferGoogleLink() {
+        if (repo.isPhoneOnlyAccount) _googleLinkPromptVisible.value = true
+    }
+
+    fun linkGoogleAccount(idToken: String) {
+        viewModelScope.launch {
+            _googleLink.value = GoogleLinkState(isLinking = true)
+            runCatching { repo.linkGoogleCredential(idToken) }
+                .onSuccess {
+                    _googleLink.value = GoogleLinkState(linked = true)
+                    _googleLinkPromptVisible.value = false
+                }
+                .onFailure {
+                    _googleLink.value = GoogleLinkState(
+                        error = errorMessage(it, R.string.err_link_google_failed),
+                    )
+                }
+        }
+    }
+
+    fun dismissGoogleLinkPrompt() {
+        _googleLinkPromptVisible.value = false
+        _googleLink.value = GoogleLinkState()
+    }
 
     fun clearError() {
         _form.value = _form.value.copy(error = null)
@@ -365,6 +406,7 @@ class AuthViewModel @Inject constructor(
                 viewModelScope.launch {
                     _phone.value = _phone.value.copy(isSending = false, isVerifying = true)
                     runCatching { repo.signInWithPhoneCredential(credential) }
+                        .onSuccess { maybeOfferGoogleLink() }
                         .onFailure {
                             _phone.value = _phone.value.copy(
                                 isVerifying = false,
@@ -416,6 +458,7 @@ class AuthViewModel @Inject constructor(
         viewModelScope.launch {
             _phone.value = _phone.value.copy(isVerifying = true, error = null, codeResent = false)
             runCatching { repo.verifyOtp(verificationId, code) }
+                .onSuccess { maybeOfferGoogleLink() }
                 .onFailure {
                     _phone.value = _phone.value.copy(
                         isVerifying = false,

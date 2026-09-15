@@ -4,6 +4,7 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -12,6 +13,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
@@ -24,6 +26,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.LocationOn
+import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material3.Icon
@@ -43,10 +46,12 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.compose.ui.graphics.Color
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil.compose.AsyncImage
 import dj.velox.client.R
 import dj.velox.client.feature.auth.SessionState
+import dj.velox.client.feature.notifications.NotificationsViewModel
 import dj.velox.client.ui.theme.Inter
 import dj.velox.client.ui.theme.Poppins
 import dj.velox.client.ui.theme.VeloxColors
@@ -64,7 +69,9 @@ fun HomeScreen(
     onOpenFood: () -> Unit,
     onOpenProfile: () -> Unit,
     onOpenOrders: () -> Unit,
+    onOpenNotifications: () -> Unit,
     statsVm: HomeStatsViewModel = hiltViewModel(),
+    notificationsVm: NotificationsViewModel = hiltViewModel(),
 ) {
     val c = VeloxTheme.colors
     val profile = session.profile
@@ -75,6 +82,7 @@ fun HomeScreen(
     val stats by statsVm.stats.collectAsStateWithLifecycle()
     val ridesCount by statsVm.ridesCount.collectAsStateWithLifecycle()
     val completedOrders = stats.completedCount
+    val unreadNotifications by notificationsVm.unreadCount.collectAsStateWithLifecycle()
 
     // Fidélité : « 1 commande = 10 pts ». Solde dispo = gagnés − dépensés.
     val earned = completedOrders * 10
@@ -108,7 +116,7 @@ fun HomeScreen(
             }
             // Tout en live : courses terminées (taxiRides), commandes + dépenses (orders).
             Stats(ridesCount, completedOrders, stats.totalSpent, c)
-            QuickActions(onOpenOrders, c)
+            QuickActions(onOpenOrders, onOpenNotifications, unreadNotifications, c)
             Footer(c)
         }
 
@@ -393,7 +401,7 @@ private fun Divider(c: VeloxColors) {
 
 // ── ACTIONS RAPIDES ──────────────────────────────────────────────────────────
 @Composable
-private fun QuickActions(onOpenOrders: () -> Unit, c: VeloxColors) {
+private fun QuickActions(onOpenOrders: () -> Unit, onOpenNotifications: () -> Unit, unreadNotifications: Int, c: VeloxColors) {
     Column {
         Text(
             stringResource(R.string.quick_actions),
@@ -404,15 +412,23 @@ private fun QuickActions(onOpenOrders: () -> Unit, c: VeloxColors) {
             letterSpacing = (-0.5).sp,
             modifier = Modifier.padding(start = 20.dp, top = 28.dp, end = 20.dp, bottom = 16.dp),
         )
-        Row(Modifier.padding(horizontal = 20.dp)) {
-            // Portefeuille/Paiements retirés (non fonctionnels) — seul « Historique » reste.
+        Row(Modifier.padding(horizontal = 20.dp), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            // Portefeuille/Paiements retirés (non fonctionnels).
             ActionCard(Icons.Filled.History, stringResource(R.string.history), onOpenOrders, c, Modifier.weight(1f))
+            ActionCard(Icons.Filled.Notifications, stringResource(R.string.my_notifications), onOpenNotifications, c, Modifier.weight(1f), badgeCount = unreadNotifications)
         }
     }
 }
 
 @Composable
-private fun ActionCard(icon: ImageVector, label: String, onTap: () -> Unit, c: VeloxColors, modifier: Modifier = Modifier) {
+private fun ActionCard(
+    icon: ImageVector,
+    label: String,
+    onTap: () -> Unit,
+    c: VeloxColors,
+    modifier: Modifier = Modifier,
+    badgeCount: Int = 0,
+) {
     Column(
         modifier
             .clip(RoundedCornerShape(16.dp))
@@ -422,7 +438,27 @@ private fun ActionCard(icon: ImageVector, label: String, onTap: () -> Unit, c: V
             .padding(vertical = 18.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
-        Icon(icon, null, tint = c.primary, modifier = Modifier.size(26.dp))
+        Box {
+            Icon(icon, null, tint = c.primary, modifier = Modifier.size(26.dp))
+            if (badgeCount > 0) {
+                Box(
+                    Modifier
+                        .align(Alignment.TopEnd)
+                        .offset(x = 8.dp, y = (-6).dp)
+                        .clip(CircleShape)
+                        .background(c.error)
+                        .padding(horizontal = 5.dp, vertical = 1.dp),
+                ) {
+                    Text(
+                        if (badgeCount > 9) "9+" else "$badgeCount",
+                        color = Color.White,
+                        fontFamily = Inter,
+                        fontSize = 10.sp,
+                        fontWeight = FontWeight.Bold,
+                    )
+                }
+            }
+        }
         Spacer(Modifier.height(8.dp))
         Text(label, color = c.onSurface, fontFamily = Inter, fontSize = 12.sp, fontWeight = FontWeight.W600)
     }

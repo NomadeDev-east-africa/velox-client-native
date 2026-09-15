@@ -31,6 +31,7 @@ import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -78,7 +79,6 @@ import kotlinx.coroutines.launch
 // ════════════════════════════════════════════════════════════════
 private val AuthGreen = Color(0xFF22A82E)      // bouton vert plein (Sign In)
 private val VeloxGreen = Color(0xFF22C55E)     // vert plus vif (logo + chooser Sign Up)
-private val PhoneBlue = Color(0xFF5B9BD5)
 private val GoogleBlue = Color(0xFF4285F4)
 
 // ════════════════════════════════════════════════════════════════
@@ -138,6 +138,17 @@ fun SignInScreen(
         Text(stringResource(R.string.auth_or), color = c.onSurfaceVariant, fontFamily = Inter, fontSize = 14.sp, modifier = Modifier.align(Alignment.CenterHorizontally))
         Spacer(Modifier.height(14.dp))
 
+        // Google en avant : gratuit et instantané pour tout compte déjà lié (contrairement au
+        // téléphone, qui redemande un SMS à chaque connexion). Voir GoogleLinkPromptDialog,
+        // qui pousse justement les comptes phone-only à se rattacher à Google après leur OTP.
+        GoogleConnectButton(onIdToken = viewModel::signInWithGoogleIdToken)
+        Spacer(Modifier.height(14.dp))
+
+        // Téléphone relégué en lien discret : reste accessible pour qui n'a que ça, sans être
+        // le réflexe par défaut d'un compte qui a déjà Google.
+        PhoneLoginLink(onClick = onNavigateToPhone)
+
+        Spacer(Modifier.height(20.dp))
         Row(Modifier.align(Alignment.CenterHorizontally), verticalAlignment = Alignment.CenterVertically) {
             Text(stringResource(R.string.auth_no_account_q), color = c.onSurface, fontFamily = Inter, fontSize = 14.sp, fontWeight = FontWeight.W600)
             Text(
@@ -149,16 +160,6 @@ fun SignInScreen(
                 modifier = Modifier.clip(RoundedCornerShape(6.dp)).clickable(onClick = onNavigateToSignUp).padding(2.dp),
             )
         }
-        Spacer(Modifier.height(16.dp))
-
-        SocialButton(
-            text = stringResource(R.string.auth_signin_with_phone),
-            container = PhoneBlue,
-            onClick = onNavigateToPhone,
-        ) { Icon(Icons.Filled.PhoneAndroid, null, tint = Color.White, modifier = Modifier.size(20.dp)) }
-        Spacer(Modifier.height(12.dp))
-
-        GoogleConnectButton(onIdToken = viewModel::signInWithGoogleIdToken)
     }
 }
 
@@ -572,6 +573,35 @@ private fun BrandBadge(letter: String, color: Color) {
     }
 }
 
+/**
+ * Lien discret vers la connexion par téléphone — volontairement moins visible qu'un bouton
+ * plein : le numéro reste une option de secours, pas le chemin par défaut, pour ne pas
+ * détourner vers l'OTP (payant en SMS) les comptes qui ont déjà Google.
+ */
+@Composable
+private fun PhoneLoginLink(onClick: () -> Unit) {
+    val c = VeloxTheme.colors
+    Row(
+        Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(8.dp))
+            .clickable(onClick = onClick)
+            .padding(vertical = 6.dp),
+        horizontalArrangement = Arrangement.Center,
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Icon(Icons.Filled.PhoneAndroid, null, tint = c.onSurfaceVariant, modifier = Modifier.size(16.dp))
+        Spacer(Modifier.size(6.dp))
+        Text(
+            stringResource(R.string.auth_signin_with_phone),
+            color = c.onSurfaceVariant,
+            fontFamily = Inter,
+            fontSize = 13.sp,
+            fontWeight = FontWeight.W600,
+        )
+    }
+}
+
 @Composable
 private fun GoogleConnectButton(onIdToken: (String) -> Unit) {
     val context = LocalContext.current
@@ -685,6 +715,75 @@ internal fun InfoText(message: String) {
     ) {
         Text(message, color = c.onSurface, fontFamily = Inter, fontSize = 13.sp, textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth())
     }
+}
+
+// ════════════════════════════════════════════════════════════════
+// PROMPT DE LIAISON GOOGLE (post-OTP, comptes phone-only)
+// ════════════════════════════════════════════════════════════════
+
+/**
+ * Dialog non-bloquant proposé juste après une connexion par OTP réussie sur un compte qui
+ * n'a encore aucun autre moyen de connexion. Lier Google évite de repayer un SMS à chaque
+ * future session (réinstall, nouvel appareil) — cf. AuthViewModel.maybeOfferGoogleLink.
+ */
+@Composable
+fun GoogleLinkPromptDialog(viewModel: AuthViewModel) {
+    val visible by viewModel.googleLinkPromptVisible.collectAsStateWithLifecycle()
+    if (!visible) return
+
+    val link by viewModel.googleLink.collectAsStateWithLifecycle()
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    val webClientId = stringResource(R.string.default_web_client_id)
+    val c = VeloxTheme.colors
+
+    AlertDialog(
+        onDismissRequest = viewModel::dismissGoogleLinkPrompt,
+        containerColor = c.surface,
+        title = {
+            Text(
+                stringResource(R.string.google_link_prompt_title),
+                fontFamily = Poppins,
+                fontWeight = FontWeight.Bold,
+                color = c.onSurface,
+            )
+        },
+        text = {
+            Column {
+                Text(
+                    stringResource(R.string.google_link_prompt_message),
+                    fontFamily = Inter,
+                    fontSize = 14.sp,
+                    color = c.onSurfaceVariant,
+                )
+                link.error?.let { ErrorText(it) }
+            }
+        },
+        confirmButton = {
+            Button(
+                onClick = {
+                    scope.launch {
+                        runCatching { GoogleSignInHelper.getIdToken(context, webClientId) }
+                            .onSuccess(viewModel::linkGoogleAccount)
+                            .onFailure { /* annulation : silencieux */ }
+                    }
+                },
+                enabled = !link.isLinking,
+                colors = ButtonDefaults.buttonColors(containerColor = GoogleBlue, contentColor = Color.White),
+            ) {
+                if (link.isLinking) {
+                    CircularProgressIndicator(modifier = Modifier.height(18.dp), color = Color.White, strokeWidth = 2.dp)
+                } else {
+                    Text(stringResource(R.string.google_link_prompt_action), fontFamily = Inter, fontWeight = FontWeight.Bold)
+                }
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = viewModel::dismissGoogleLinkPrompt, enabled = !link.isLinking) {
+                Text(stringResource(R.string.google_link_prompt_later), fontFamily = Inter, color = c.onSurfaceVariant)
+            }
+        },
+    )
 }
 
 @Composable

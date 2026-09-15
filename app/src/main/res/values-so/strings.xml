@@ -150,6 +150,8 @@
     <string name="new_address">Cinwaan cusub</string>
     <string name="history_favorites">Taariikhda &amp; Kuwa la jecel yahay</string>
     <string name="my_orders">Dalabkayga</string>
+    <string name="my_notifications">Ogeysiisyadayda</string>
+    <string name="notifications_history_sub">Dalabyada, safarrada, dukumaadka</string>
     <string name="full_history">Taariikhda oo dhan</string>
     <string name="favorite_restaurants">Makhaayadaha la jecel yahay</string>
     <string name="support_legal">Taageero &amp; Sharci</string>
@@ -230,6 +232,8 @@
     <string name="no_past_orders">Dalab hore ma jiro</string>
     <string name="active_orders_hint">Dalabkaaga socda halkan ayuu ka muuqan doonaa</string>
     <string name="history_hint">Taariikhda dalabkaaga halkan ayay ka muuqan doontaa</string>
+    <string name="no_notifications">Wax ogeysiis ah ma jiro</string>
+    <string name="notifications_hint">Ogeysiisyadaada (dalabyada, safarrada, dukumaadka) halkan ayay ka muuqan doonaan</string>
     <string name="track">La soco</string>
     <string name="ordered_items">Alaabta la dalbaday</string>
     <string name="address">Cinwaanka</string>
@@ -476,7 +480,14 @@
     <string name="err_phone_failed">Xaqiijinta telefoonka way fashilantay.</string>
     <string name="err_send_code_failed">Koodhka lama diri karin.</string>
     <string name="err_link_phone_failed">Lambarka lama xiri karin.</string>
+    <string name="err_link_google_failed">Akoonka Google lama xiri karin.</string>
     <string name="err_email_not_found">Akoonkan iimayl lama helin.</string>
+
+    <!-- Auth — soo jeedinta xirka Google ka dib OTP (akoon telefoon oo keliya) -->
+    <string name="google_link_prompt_title">Gelitaan degdeg ah</string>
+    <string name="google_link_prompt_message">Ku dar akoonkaaga Google si aad si degdeg ah isugu galiso marka xigta, adigoo aan sugin SMS.</string>
+    <string name="google_link_prompt_action">Xir Google</string>
+    <string name="google_link_prompt_later">Wakhti dambe</string>
 
     <!-- Auth — dib u dirista koodhka -->
     <string name="auth_resend_code">Dib u dir koodhka</string>

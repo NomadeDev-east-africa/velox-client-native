@@ -151,6 +151,8 @@
     <string name="new_address">Cinwaan cusub</string>
     <string name="history_favorites">Taariix &amp; Kicinto</string>
     <string name="my_orders">Amrittekayya</string>
+    <string name="my_notifications">Fitte kayya</string>
+    <string name="notifications_history_sub">Amri, gaari, promo</string>
     <string name="full_history">Taariix inkih</string>
     <string name="favorite_restaurants">Maqaayito kicinto</string>
     <string name="support_legal">Cato &amp; Qaanuun</string>
@@ -231,6 +233,8 @@
     <string name="no_past_orders">Amri duma maba</string>
     <string name="active_orders_hint">Amri socta tah taybi</string>
     <string name="history_hint">Amri taariix tah taybi</string>
+    <string name="no_notifications">Fite mannu</string>
+    <string name="notifications_hint">Fitte kaa (amri, gaari, promo) hini ta yaybi</string>
     <string name="track">Raadis</string>
     <string name="ordered_items">Amrisima alaab</string>
     <string name="address">Cinwaan</string>
@@ -478,7 +482,14 @@
     <string name="err_phone_failed">Telefon xaqiijo mayakka.</string>
     <string name="err_send_code_failed">Kood marubsimta.</string>
     <string name="err_link_phone_failed">Loowo maxayyoysimta.</string>
+    <string name="err_link_google_failed">Google akownti maxayyoysimta.</string>
     <string name="err_email_not_found">A makbantih email magetimta.</string>
+
+    <!-- Auth — Google xayyowa OTP wadir (loowo kalih akownti) -->
+    <string name="google_link_prompt_title">Sissiko sinam</string>
+    <string name="google_link_prompt_message">Google akownti xayyow, wakti xaray SMS massacacaay sinam sissiko amaates.</string>
+    <string name="google_link_prompt_action">Google xayyow</string>
+    <string name="google_link_prompt_later">Wakti kalih</string>
 
     <!-- Auth — kood gacsah rubto -->
     <string name="auth_resend_code">Kood gacsah rub</string>

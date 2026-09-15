@@ -169,6 +169,42 @@ class AuthRepository @Inject constructor(
         return user
     }
 
+    /**
+     * Vrai si le compte connecté n'a que le téléphone comme provider (ni Google, ni
+     * email/mot de passe). Ces comptes paient un SMS à chaque nouvelle session (réinstall,
+     * nouvel appareil, cache vidé) puisque rien d'autre ne permet de les reconnecter — d'où
+     * le prompt de liaison Google proposé juste après un OTP réussi.
+     */
+    val isPhoneOnlyAccount: Boolean
+        get() = auth.currentUser?.providerData
+            ?.filter { it.providerId != "firebase" }
+            ?.takeIf { it.isNotEmpty() }
+            ?.all { it.providerId == PhoneAuthProvider.PROVIDER_ID } == true
+
+    /**
+     * Lie un compte Google au compte téléphone courant. Contrairement à [linkPhoneCredential],
+     * ceci ne touche jamais `users/{uid}.phone` : le seul but est d'ajouter un second moyen de
+     * connexion **gratuit et sans SMS** à un compte qui n'avait que le téléphone.
+     */
+    suspend fun linkGoogleCredential(idToken: String): FirebaseUser {
+        val user = auth.currentUser ?: throw AuthException(string(R.string.err_requires_recent_login))
+        try {
+            user.linkWithCredential(GoogleAuthProvider.getCredential(idToken, null)).await()
+        } catch (e: FirebaseAuthException) {
+            throw AuthException(mapError(e), e.errorCode)
+        }
+        runCatching { user.reload().await() }
+        users().document(user.uid).set(
+            mapOf(
+                "email" to user.email,
+                "photoUrl" to user.photoUrl?.toString(),
+                "updatedAt" to FieldValue.serverTimestamp(),
+            ),
+            SetOptions.merge(),
+        ).await()
+        return user
+    }
+
     // ════════════════════════════════════════════════════════════
     // LIEN D'UN NUMÉRO AU COMPTE COURANT (login Google → pas de numéro)
     // ════════════════════════════════════════════════════════════

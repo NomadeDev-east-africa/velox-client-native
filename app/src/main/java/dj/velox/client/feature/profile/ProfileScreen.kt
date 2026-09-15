@@ -80,6 +80,7 @@ import dj.velox.client.R
 import dj.velox.client.core.i18n.LocaleManager
 import dj.velox.client.core.theme.ThemeViewModel
 import dj.velox.client.feature.auth.SessionState
+import dj.velox.client.feature.notifications.NotificationsViewModel
 import dj.velox.client.ui.theme.Inter
 import dj.velox.client.ui.theme.Poppins
 import dj.velox.client.ui.theme.VeloxColors
@@ -95,6 +96,7 @@ import dj.velox.client.ui.theme.VeloxTheme
 fun ProfileScreen(
     session: SessionState,
     onOpenOrders: () -> Unit,
+    onOpenNotifications: () -> Unit,
     onLogout: () -> Unit,
     onBack: () -> Unit,
     onManageAddresses: () -> Unit,
@@ -152,6 +154,9 @@ fun ProfileScreen(
             }
         }
     }
+
+    val notificationsVm: NotificationsViewModel = hiltViewModel()
+    val unreadNotifications by notificationsVm.unreadCount.collectAsStateWithLifecycle()
 
     // Toggles notifications : état local (le branchement Firestore est un item à part).
     var pushEnabled by rememberSaveable { mutableStateOf(profile?.notificationsEnabled ?: true) }
@@ -356,6 +361,33 @@ fun ProfileScreen(
         // ── Notifications ────────────────────────────────────────────
         SectionHeader(Icons.Filled.Notifications, stringResource(R.string.notifications), c)
         SettingsGroup(c) {
+            SettingRow(
+                icon = Icons.Filled.Notifications,
+                title = stringResource(R.string.my_notifications),
+                subtitle = stringResource(R.string.notifications_history_sub),
+                c = c,
+                onClick = onOpenNotifications,
+                trailing = {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        if (unreadNotifications > 0) {
+                            Box(
+                                Modifier.clip(CircleShape).background(c.error).padding(horizontal = 7.dp, vertical = 2.dp),
+                            ) {
+                                Text(
+                                    if (unreadNotifications > 9) "9+" else "$unreadNotifications",
+                                    color = Color.White,
+                                    fontFamily = Inter,
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.Bold,
+                                )
+                            }
+                            Spacer(Modifier.size(8.dp))
+                        }
+                        Chevron(c)
+                    }
+                },
+            )
+            RowDivider(c)
             SettingRow(
                 icon = Icons.Filled.Notifications,
                 title = stringResource(R.string.push_notifications),

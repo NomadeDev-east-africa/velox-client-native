@@ -212,6 +212,8 @@
     <string name="new_address">Nouvelle adresse</string>
     <string name="history_favorites">Historique &amp; Favoris</string>
     <string name="my_orders">Mes commandes</string>
+    <string name="my_notifications">Mes notifications</string>
+    <string name="notifications_history_sub">Commandes, courses, promos</string>
     <string name="full_history">Historique complet</string>
     <string name="favorite_restaurants">Restaurants favoris</string>
     <string name="support_legal">Support &amp; Légal</string>
@@ -292,6 +294,8 @@
     <string name="no_past_orders">Aucune commande passée</string>
     <string name="active_orders_hint">Vos commandes actives apparaîtront ici</string>
     <string name="history_hint">Votre historique de commandes apparaîtra ici</string>
+    <string name="no_notifications">Aucune notification</string>
+    <string name="notifications_hint">Vos notifications (commandes, courses, promos) apparaîtront ici</string>
     <string name="track">Suivre</string>
     <string name="ordered_items">Articles commandés</string>
     <string name="address">Adresse</string>
@@ -493,7 +497,14 @@
     <string name="err_phone_failed">Échec de la vérification du téléphone.</string>
     <string name="err_send_code_failed">Échec de l\'envoi du code.</string>
     <string name="err_link_phone_failed">Échec de la liaison du numéro.</string>
+    <string name="err_link_google_failed">Échec de la liaison du compte Google.</string>
     <string name="err_email_not_found">Email introuvable pour ce compte.</string>
+
+    <!-- Auth — prompt de liaison Google après OTP (compte téléphone seul) -->
+    <string name="google_link_prompt_title">Connexion plus rapide</string>
+    <string name="google_link_prompt_message">Ajoutez votre compte Google pour vous reconnecter instantanément la prochaine fois, sans attendre de SMS.</string>
+    <string name="google_link_prompt_action">Lier Google</string>
+    <string name="google_link_prompt_later">Plus tard</string>
 
     <!-- Auth — renvoi du code SMS -->
     <string name="auth_resend_code">Renvoyer le code</string>

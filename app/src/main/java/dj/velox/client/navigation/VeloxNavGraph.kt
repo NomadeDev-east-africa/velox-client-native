@@ -26,6 +26,7 @@ import androidx.navigation.navArgument
 import dj.velox.client.core.analytics.VeloxAnalytics
 import dj.velox.client.feature.auth.AuthViewModel
 import dj.velox.client.feature.auth.CompletePhoneScreen
+import dj.velox.client.feature.auth.GoogleLinkPromptDialog
 import dj.velox.client.feature.auth.EmailSignUpScreen
 import dj.velox.client.feature.auth.ForgotPasswordScreen
 import dj.velox.client.feature.auth.OtpScreen
@@ -51,6 +52,7 @@ import dj.velox.client.feature.food.RestaurantDetailScreen
 import dj.velox.client.feature.home.HomeScreen
 import dj.velox.client.feature.location.AddressPickerScreen
 import dj.velox.client.feature.location.PickedPlace
+import dj.velox.client.feature.notifications.NotificationsScreen
 import dj.velox.client.feature.onboarding.OnboardingScreen
 import dj.velox.client.feature.orders.OrderHistoryScreen
 import dj.velox.client.feature.taxi.ConfirmRideScreen
@@ -99,6 +101,7 @@ object Routes {
     const val TRACK_DELIVERY = "track_delivery"
     const val PROFILE = "profile"
     const val ORDERS = "orders"
+    const val NOTIFICATIONS = "notifications"
     const val ADDRESSES = "addresses"
     const val ADD_ADDRESS = "add_address"
     const val EDIT_PROFILE = "edit_profile"
@@ -245,6 +248,7 @@ private fun MainNavGraph(session: SessionState, onLogout: () -> Unit) {
                 onOpenFood = { navController.navigate(Routes.FOOD_HOME) },
                 onOpenProfile = { navController.navigate(Routes.PROFILE) },
                 onOpenOrders = { navController.navigate(Routes.ORDERS) },
+                onOpenNotifications = { navController.navigate(Routes.NOTIFICATIONS) },
             )
         }
 
@@ -253,6 +257,7 @@ private fun MainNavGraph(session: SessionState, onLogout: () -> Unit) {
             ProfileScreen(
                 session = session,
                 onOpenOrders = { navController.navigate(Routes.ORDERS) },
+                onOpenNotifications = { navController.navigate(Routes.NOTIFICATIONS) },
                 onLogout = onLogout,
                 onBack = { navController.popBackStack() },
                 onManageAddresses = { navController.navigate(Routes.ADDRESSES) },
@@ -294,6 +299,14 @@ private fun MainNavGraph(session: SessionState, onLogout: () -> Unit) {
             OrderHistoryScreen(
                 onBack = { navController.popBackStack() },
                 onOpenOrder = { id -> navController.navigate(Routes.orderTracking(id)) },
+            )
+        }
+        composable(Routes.NOTIFICATIONS) {
+            NotificationsScreen(
+                onBack = { navController.popBackStack() },
+                onOpenOrder = { id -> navController.navigate(Routes.orderTracking(id)) },
+                onOpenRide = { navController.navigate(Routes.TAXI_TRACKING) },
+                onOpenRestaurant = { id -> navController.navigate(Routes.restaurantDetail(id)) },
             )
         }
         composable(Routes.FAVORITE_RESTAURANTS) {
@@ -573,6 +586,7 @@ private fun MainNavGraph(session: SessionState, onLogout: () -> Unit) {
                 .align(Alignment.BottomEnd)
                 .padding(end = 16.dp, bottom = 20.dp + bottomOffset),
         )
+        GoogleLinkPromptDialog(authViewModel)
     }
 }
 
