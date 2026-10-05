@@ -194,8 +194,12 @@
     <string name="quick_actions">إجراءات سريعة</string>
     <string name="our_services">خدماتنا</string>
     <string name="vtc_subtitle">تنقّل بسهولة في المدينة</string>
+    <string name="vtc_maintenance_subtitle">الخدمة غير متوفرة مؤقتًا</string>
     <string name="restaurants_fastfood">مطاعم ووجبات سريعة</string>
     <string name="food_subtitle">كل ما تشتهيه، يُوصَّل إليك</string>
+    <string name="maintenance_dialog_title">الخدمة قيد الصيانة</string>
+    <string name="maintenance_dialog_message">عذرًا، خدمة السيارات غير متوفرة مؤقتًا بسبب أعمال الصيانة. نشكرك على صبرك، سنعود قريبًا.</string>
+    <string name="maintenance_label">صيانة</string>
     <string name="login_required">تسجيل الدخول مطلوب</string>
     <string name="login_to_access">سجّل الدخول للوصول إلى الخدمات</string>
     <string name="checkout">الطلب</string>

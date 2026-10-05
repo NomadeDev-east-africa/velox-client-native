@@ -23,16 +23,22 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Build
 import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Star
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -83,6 +89,7 @@ fun HomeScreen(
     val ridesCount by statsVm.ridesCount.collectAsStateWithLifecycle()
     val completedOrders = stats.completedCount
     val unreadNotifications by notificationsVm.unreadCount.collectAsStateWithLifecycle()
+    var showVtcMaintenanceDialog by remember { mutableStateOf(false) }
 
     // Fidélité : « 1 commande = 10 pts ». Solde dispo = gagnés − dépensés.
     val earned = completedOrders * 10
@@ -110,7 +117,14 @@ fun HomeScreen(
             LoyaltyCard(available, badge, c)
             SectionRow(stringResource(R.string.our_services), c)
             Column(Modifier.padding(horizontal = 20.dp)) {
-                ServiceCard("VTC DJIB", stringResource(R.string.vtc_subtitle), R.drawable.taxi_b, onOpenTaxi, c)
+                ServiceCard(
+                    title = "VTC DJIB",
+                    subtitle = stringResource(R.string.vtc_maintenance_subtitle),
+                    imageRes = R.drawable.taxi_b,
+                    onTap = { showVtcMaintenanceDialog = true },
+                    c = c,
+                    disabled = true,
+                )
                 Spacer(Modifier.height(12.dp))
                 ServiceCard(stringResource(R.string.restaurants_fastfood), stringResource(R.string.food_subtitle), R.drawable.fast_food, onOpenFood, c)
             }
@@ -126,6 +140,35 @@ fun HomeScreen(
             modifier = Modifier.align(Alignment.BottomCenter),
         )
     }
+
+    if (showVtcMaintenanceDialog) {
+        VtcMaintenanceDialog(onDismiss = { showVtcMaintenanceDialog = false }, c = c)
+    }
+}
+
+// ── DIALOGUE MAINTENANCE VTC ─────────────────────────────────────────────────
+@Composable
+private fun VtcMaintenanceDialog(onDismiss: () -> Unit, c: VeloxColors) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        icon = { Icon(Icons.Filled.Build, null, tint = c.onSurfaceVariant) },
+        title = {
+            Text(
+                stringResource(R.string.maintenance_dialog_title),
+                fontFamily = Poppins,
+                fontWeight = FontWeight.Bold,
+            )
+        },
+        text = { Text(stringResource(R.string.maintenance_dialog_message), fontFamily = Inter) },
+        confirmButton = {
+            TextButton(onClick = onDismiss) {
+                Text(stringResource(R.string.close), color = c.primary, fontFamily = Inter, fontWeight = FontWeight.W600)
+            }
+        },
+        containerColor = c.surface,
+        titleContentColor = c.onSurface,
+        textContentColor = c.onSurfaceVariant,
+    )
 }
 
 // ── HEADER ───────────────────────────────────────────────────────────────────
@@ -299,13 +342,15 @@ private fun ServiceCard(
     imageRes: Int,
     onTap: () -> Unit,
     c: VeloxColors,
+    disabled: Boolean = false,
 ) {
+    val grey = c.onSurfaceVariant.copy(alpha = 0.5f)
     Row(
         Modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(18.dp))
-            .background(c.surface)
-            .border(1.dp, c.outlineVariant.copy(alpha = 0.12f), RoundedCornerShape(18.dp))
+            .background(if (disabled) c.surfaceHigh.copy(alpha = 0.5f) else c.surface)
+            .border(1.dp, c.outlineVariant.copy(alpha = if (disabled) 0.08f else 0.12f), RoundedCornerShape(18.dp))
             .clickable(onClick = onTap)
             .padding(horizontal = 16.dp, vertical = 14.dp),
         verticalAlignment = Alignment.CenterVertically,
@@ -318,26 +363,45 @@ private fun ServiceCard(
                 .padding(10.dp),
             contentAlignment = Alignment.Center,
         ) {
-            Image(painterResource(imageRes), null, contentScale = ContentScale.Fit)
+            Image(
+                painterResource(imageRes),
+                null,
+                contentScale = ContentScale.Fit,
+                alpha = if (disabled) 0.35f else 1f,
+            )
         }
         Spacer(Modifier.width(16.dp))
         Column(Modifier.weight(1f)) {
             Text(
                 title,
-                color = c.onSurface,
+                color = if (disabled) grey else c.onSurface,
                 fontFamily = Poppins,
                 fontSize = 16.sp,
                 fontWeight = FontWeight.Bold,
                 letterSpacing = (-0.3).sp,
             )
             Spacer(Modifier.height(3.dp))
-            Text(subtitle, color = c.onSurfaceVariant, fontFamily = Inter, fontSize = 13.sp)
+            Text(subtitle, color = grey, fontFamily = Inter, fontSize = 13.sp)
         }
         Spacer(Modifier.width(8.dp))
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Icon(Icons.Filled.Star, null, tint = c.primary, modifier = Modifier.size(14.dp))
-            Spacer(Modifier.width(3.dp))
-            Text("4.8", color = c.primary, fontFamily = Inter, fontSize = 13.sp, fontWeight = FontWeight.Bold)
+        if (disabled) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(Icons.Filled.Build, null, tint = grey, modifier = Modifier.size(14.dp))
+                Spacer(Modifier.width(3.dp))
+                Text(
+                    stringResource(R.string.maintenance_label),
+                    color = grey,
+                    fontFamily = Inter,
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.Bold,
+                )
+            }
+        } else {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(Icons.Filled.Star, null, tint = c.primary, modifier = Modifier.size(14.dp))
+                Spacer(Modifier.width(3.dp))
+                Text("4.8", color = c.primary, fontFamily = Inter, fontSize = 13.sp, fontWeight = FontWeight.Bold)
+            }
         }
     }
 }

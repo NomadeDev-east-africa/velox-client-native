@@ -22,6 +22,7 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import dj.velox.client.BuildConfig
 import dj.velox.client.core.theme.ThemeViewModel
 import dj.velox.client.domain.model.LatLng
 import org.maplibre.android.MapLibre
@@ -42,24 +43,23 @@ import org.maplibre.geojson.Point
 import org.maplibre.android.geometry.LatLng as MlLatLng
 
 /**
- * Tuiles raster CartoDB (mêmes que l'app Flutter `nomade_client`, sans clé API) :
+ * Tuiles raster CARTO Basemaps (mêmes fonds que l'app Flutter `nomade_client`) :
  * `dark_all` en thème sombre (colle au design Kinetic Monolith), `light_all` en clair.
+ * Le service exige une clé (`?key=`, BuildConfig.CARTO_API_KEY lue depuis local.properties),
+ * sinon chaque tuile affiche le filigrane « API KEY REQUIRED ».
  * Le style démo MapLibre n'a aucune donnée au-delà du zoom monde → carte vide en ville.
  */
 private fun cartoStyleJson(dark: Boolean): String {
     val variant = if (dark) "dark_all" else "light_all"
+    val base = "https://basemaps.cartocdn.com/rastertiles/$variant/{z}/{x}/{y}@2x.png" +
+        "?key=${BuildConfig.CARTO_API_KEY}"
     return """
     {
       "version": 8,
       "sources": {
         "carto": {
           "type": "raster",
-          "tiles": [
-            "https://a.basemaps.cartocdn.com/$variant/{z}/{x}/{y}@2x.png",
-            "https://b.basemaps.cartocdn.com/$variant/{z}/{x}/{y}@2x.png",
-            "https://c.basemaps.cartocdn.com/$variant/{z}/{x}/{y}@2x.png",
-            "https://d.basemaps.cartocdn.com/$variant/{z}/{x}/{y}@2x.png"
-          ],
+          "tiles": ["$base"],
           "tileSize": 512,
           "minzoom": 0,
           "maxzoom": 20,

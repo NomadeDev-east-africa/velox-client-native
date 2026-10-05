@@ -7,6 +7,7 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.PaddingValues
@@ -53,12 +54,15 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.ColorFilter
+import androidx.compose.ui.graphics.ColorMatrix
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.Dp
@@ -436,7 +440,7 @@ private fun PopularCard(
         Modifier
             .fillMaxSize()
             .clip(RoundedCornerShape(16.dp))
-            .background(c.surface)
+            .background(if (restaurant.isOpen) c.surface else c.surfaceHigh)
             .border(1.dp, c.outlineVariant.copy(alpha = 0.25f), RoundedCornerShape(16.dp))
             .clickable(onClick = onClick),
     ) {
@@ -445,8 +449,10 @@ private fun PopularCard(
                 model = restaurant.imageUrl,
                 contentDescription = restaurant.name,
                 contentScale = ContentScale.Crop,
+                colorFilter = if (restaurant.isOpen) null else GrayscaleFilter,
                 modifier = Modifier.fillMaxWidth().height(115.dp).clip(RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp)),
             )
+            if (!restaurant.isOpen) ClosedOverlay(fontSize = 22.sp, shape = RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp))
             Box(
                 Modifier.align(Alignment.TopEnd).padding(7.dp).size(28.dp).clip(CircleShape).background(c.surfaceTop.copy(alpha = 0.85f)).clickable(onClick = onToggleFavorite),
                 contentAlignment = Alignment.Center,
@@ -458,23 +464,24 @@ private fun PopularCard(
                     modifier = Modifier.size(15.dp),
                 )
             }
-            Box(
+            // Fermé : le gros libellé rouge (ClosedOverlay) remplace le badge.
+            if (restaurant.isOpen) Box(
                 Modifier.align(Alignment.BottomStart).padding(7.dp).clip(RoundedCornerShape(6.dp))
-                    .background(if (restaurant.isOpen) c.primary else c.surfaceTop.copy(alpha = 0.8f))
+                    .background(c.primary)
                     .padding(horizontal = 7.dp, vertical = 2.dp),
             ) {
                 Text(
-                    if (restaurant.isOpen) stringResource(R.string.open_label).uppercase() else stringResource(R.string.closed_label).uppercase(),
-                    color = if (restaurant.isOpen) c.onPrimary else c.onSurfaceVariant,
+                    stringResource(R.string.open_label).uppercase(),
+                    color = c.onPrimary,
                     fontFamily = Inter, fontSize = 9.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.sp,
                 )
             }
         }
         Column(Modifier.padding(start = 10.dp, end = 10.dp, top = 9.dp, bottom = 10.dp)) {
-            Text(restaurant.name, color = c.onSurface, fontFamily = Poppins, fontSize = 13.sp, fontWeight = FontWeight.Bold, letterSpacing = (-0.2).sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            Text(restaurant.name, color = if (restaurant.isOpen) c.onSurface else c.onSurfaceVariant, fontFamily = Poppins, fontSize = 13.sp, fontWeight = FontWeight.Bold, letterSpacing = (-0.2).sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
             Spacer(Modifier.height(5.dp))
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Icon(Icons.Filled.Star, null, tint = c.primary, modifier = Modifier.size(12.dp))
+                Icon(Icons.Filled.Star, null, tint = if (restaurant.isOpen) c.primary else c.onSurfaceVariant, modifier = Modifier.size(12.dp))
                 Spacer(Modifier.size(3.dp))
                 Text("%.1f".format(restaurant.rating), color = c.onSurface, fontFamily = Inter, fontSize = 11.sp, fontWeight = FontWeight.Bold)
                 Spacer(Modifier.size(8.dp))
@@ -501,7 +508,7 @@ private fun RestaurantCard(
             .padding(horizontal = 20.dp)
             .height(IntrinsicSize.Min)
             .clip(RoundedCornerShape(18.dp))
-            .background(c.surfaceLow)
+            .background(if (restaurant.isOpen) c.surfaceLow else c.surfaceHigh)
             .clickable(onClick = onClick),
     ) {
         Box(Modifier.width(3.dp).fillMaxHeight().background(if (restaurant.isOpen) c.primary else Color.Transparent))
@@ -511,8 +518,10 @@ private fun RestaurantCard(
                     model = restaurant.imageUrl,
                     contentDescription = restaurant.name,
                     contentScale = ContentScale.Crop,
+                    colorFilter = if (restaurant.isOpen) null else GrayscaleFilter,
                     modifier = Modifier.fillMaxWidth().height(170.dp).clip(RoundedCornerShape(topStart = 18.dp, topEnd = 18.dp)),
                 )
+                if (!restaurant.isOpen) ClosedOverlay(fontSize = 34.sp, shape = RoundedCornerShape(topStart = 18.dp, topEnd = 18.dp))
                 Box(
                     Modifier.padding(12.dp).size(36.dp).clip(CircleShape).background(c.surfaceTop.copy(alpha = 0.85f)).clickable(onClick = onToggleFavorite),
                     contentAlignment = Alignment.Center,
@@ -529,26 +538,50 @@ private fun RestaurantCard(
                         .background(c.surfaceTop.copy(alpha = 0.8f)).padding(horizontal = 8.dp, vertical = 4.dp),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    Icon(Icons.Filled.Star, null, tint = c.primary, modifier = Modifier.size(12.dp))
+                    Icon(Icons.Filled.Star, null, tint = if (restaurant.isOpen) c.primary else c.onSurfaceVariant, modifier = Modifier.size(12.dp))
                     Spacer(Modifier.size(4.dp))
                     Text("%.1f".format(restaurant.rating), color = c.onSurface, fontFamily = Inter, fontSize = 11.sp, fontWeight = FontWeight.Bold)
                 }
             }
             Column(Modifier.padding(16.dp)) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text(restaurant.name.uppercase(), color = c.onSurface, fontFamily = Poppins, fontSize = 16.sp, fontWeight = FontWeight.Bold, letterSpacing = (-0.3).sp, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
+                    Text(restaurant.name.uppercase(), color = if (restaurant.isOpen) c.onSurface else c.onSurfaceVariant, fontFamily = Poppins, fontSize = 16.sp, fontWeight = FontWeight.Bold, letterSpacing = (-0.3).sp, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
                     Icon(Icons.Filled.AccessTime, null, tint = c.onSurfaceVariant, modifier = Modifier.size(13.dp))
                     Spacer(Modifier.size(4.dp))
                     Text("25 MIN", color = c.onSurfaceVariant, fontFamily = Inter, fontSize = 10.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.sp)
                 }
                 Spacer(Modifier.height(10.dp))
                 Row {
-                    Pill(if (restaurant.isOpen) stringResource(R.string.open_label).uppercase() else stringResource(R.string.closed_label).uppercase(), if (restaurant.isOpen) c.primary else c.onSurfaceVariant, if (restaurant.isOpen) c.primary.copy(alpha = 0.1f) else c.surfaceHigh)
-                    Spacer(Modifier.size(6.dp))
+                    // Fermé : le gros libellé rouge sur la photo remplace la pastille « OUVERT ».
+                    if (restaurant.isOpen) {
+                        Pill(stringResource(R.string.open_label).uppercase(), c.primary, c.primary.copy(alpha = 0.1f))
+                        Spacer(Modifier.size(6.dp))
+                    }
                     Pill("${restaurant.totalOrders} ${stringResource(R.string.orders_abbrev)}", c.onSurfaceVariant, c.surfaceHigh)
                 }
             }
         }
+    }
+}
+
+/** Photo en noir et blanc pour un restaurant fermé. */
+private val GrayscaleFilter = ColorFilter.colorMatrix(ColorMatrix().apply { setToSaturation(0f) })
+
+private val ClosedRed = Color(0xFFE53935)
+
+/** Voile gris + « FERMÉ » en gros et en rouge, posé sur la photo d'un restaurant fermé. */
+@Composable
+private fun BoxScope.ClosedOverlay(fontSize: TextUnit, shape: RoundedCornerShape) {
+    Box(
+        Modifier.matchParentSize().clip(shape).background(Color.Black.copy(alpha = 0.55f)),
+        contentAlignment = Alignment.Center,
+    ) {
+        Text(
+            stringResource(R.string.closed_label).uppercase(),
+            color = ClosedRed,
+            fontFamily = Poppins, fontSize = fontSize, fontWeight = FontWeight.ExtraBold,
+            letterSpacing = 3.sp, textAlign = TextAlign.Center,
+        )
     }
 }
 

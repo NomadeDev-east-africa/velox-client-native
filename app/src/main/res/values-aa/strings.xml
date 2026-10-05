@@ -195,8 +195,12 @@
     <string name="quick_actions">Saaku ficillo</string>
     <string name="our_services">Adeegitte</string>
     <string name="vtc_subtitle">Magaalá fayxinah gexsa</string>
+    <string name="vtc_maintenance_subtitle">Xagana wakti sissiimih madanna</string>
     <string name="restaurants_fastfood">Makaayito &amp; Fast food</string>
     <string name="food_subtitle">Inkih faxxaytaaqa, qaró nanu baaha</string>
+    <string name="maintenance_dialog_title">Xagana sissiima kaa</string>
+    <string name="maintenance_dialog_message">Sittam, VTC xaganay wakti sissiimih madanna. Naharsi sabritinnah galatóh, dagoytek nanu warrayle.</string>
+    <string name="maintenance_label">Sissiima</string>
     <string name="login_required">Gelitaan faxximta</string>
     <string name="login_to_access">Gel adeegitte geytaamkeh</string>
     <string name="checkout">Amri</string>

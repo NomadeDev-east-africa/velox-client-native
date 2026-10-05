@@ -194,8 +194,12 @@
     <string name="quick_actions">Ficillo degdeg ah</string>
     <string name="our_services">Adeegyadayada</string>
     <string name="vtc_subtitle">U dhaqaaq magaalada si fudud</string>
+    <string name="vtc_maintenance_subtitle">Adeegga wali ma jiro si joogto ah</string>
     <string name="restaurants_fastfood">Makhaayado &amp; Fast food</string>
     <string name="food_subtitle">Dhammaan waxaad jeceshahay, gurigaaga la keeno</string>
+    <string name="maintenance_dialog_title">Adeegga wuu ku jiraa dayactir</string>
+    <string name="maintenance_dialog_message">Waan ka xumahay, adeegga VTC waqtigan ma shaqeynayo sababtoo ah dayactir. Waad ku mahadsan tahay dulqaadkaaga, dhawaan waan ku soo laabanaynaa.</string>
+    <string name="maintenance_label">Dayactir</string>
     <string name="login_required">Gelitaan ayaa loo baahan yahay</string>
     <string name="login_to_access">Gal si aad u hesho adeegyada</string>
     <string name="checkout">Dalabka</string>

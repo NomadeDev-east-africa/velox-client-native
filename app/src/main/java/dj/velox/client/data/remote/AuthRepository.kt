@@ -139,6 +139,14 @@ class AuthRepository @Inject constructor(
         callbacks: PhoneAuthProvider.OnVerificationStateChangedCallbacks,
         resendToken: PhoneAuthProvider.ForceResendingToken? = null,
     ) {
+        // Langue du SMS (+ en-tête X-Firebase-Locale) : celle choisie dans l'app, sinon celle de
+        // l'appareil. `useAppLanguage()` seul lirait la langue système, pas la langue applicative
+        // (cf. localizedResources). Afar : pas de modèle SMS Firebase → français.
+        val appLocales = AppCompatDelegate.getApplicationLocales()
+        val appLanguage = if (appLocales.isEmpty) null else appLocales[0]?.language
+        if (appLanguage == null) auth.useAppLanguage()
+        else auth.setLanguageCode(if (appLanguage == "aa") "fr" else appLanguage)
+
         val builder = PhoneAuthOptions.newBuilder(auth)
             .setPhoneNumber(phoneNumber)
             .setTimeout(60L, TimeUnit.SECONDS)

@@ -32,15 +32,18 @@
 -keepclassmembers enum dj.velox.client.** { *; }
 
 # ── Hilt / Dagger ────────────────────────────────────────────
-# (les artefacts fournissent l'essentiel ; sécurités supplémentaires)
--keep class dagger.hilt.** { *; }
+# Hilt fournit déjà ses propres règles consumer (EntryPoint, allowobfuscation/allowshrinking) :
+# un -keep large sur dagger.hilt.** neutralisait le shrink/optimize R8 sur tout son runtime
+# (recommandation Play Console « R8 optimisation »). On garde juste javax.inject (annotations,
+# coût nul) et les avertissements de compilation.
 -keep class javax.inject.** { *; }
 -dontwarn dagger.hilt.**
 
 # ── Firebase / Google ────────────────────────────────────────
--keep class com.google.firebase.** { *; }
+# Les artefacts Firebase/Play Services embarquent leurs propres proguard.txt consumer
+# (SafeParcelable, CREATOR, etc., appliqués automatiquement par AGP) : un -keep large ici
+# empêchait R8 de réduire/optimiser tout ce code, alors qu'il n'est pas nécessaire.
 -dontwarn com.google.firebase.**
--keep class com.google.android.gms.** { *; }
 -dontwarn com.google.android.gms.**
 
 # Credential Manager + Google ID (connexion Google)

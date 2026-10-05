@@ -194,8 +194,12 @@
     <string name="quick_actions">Quick actions</string>
     <string name="our_services">Our Services</string>
     <string name="vtc_subtitle">Get around the city easily</string>
+    <string name="vtc_maintenance_subtitle">Service temporarily unavailable</string>
     <string name="restaurants_fastfood">Restaurants &amp; Fast food</string>
     <string name="food_subtitle">All your cravings, delivered to you</string>
+    <string name="maintenance_dialog_title">Service under maintenance</string>
+    <string name="maintenance_dialog_message">Sorry, the VTC service is temporarily unavailable for maintenance. Thank you for your patience, we\'ll be back soon.</string>
+    <string name="maintenance_label">Maintenance</string>
     <string name="login_required">Login required</string>
     <string name="login_to_access">Log in to access the services</string>
     <string name="checkout">Checkout</string>
