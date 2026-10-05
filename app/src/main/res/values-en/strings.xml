@@ -515,6 +515,11 @@
     <string name="auth_new_password_hint">New password (min. 6 characters)</string>
     <string name="auth_new_password_confirm">Confirm password</string>
     <string name="auth_passwords_differ">The two passwords do not match.</string>
+    <string name="email_not_verified_sub">Not verified — tap to receive the verification link</string>
+    <string name="email_verification_sent">Verification link sent to %1$s. Open it, then come back to the app.</string>
+    <string name="email_verified_done">Email address verified.</string>
+    <string name="auth_current_password">Current password</string>
+    <string name="auth_reauth_needed">For your security, enter your current password.</string>
     <string name="auth_password_updated">Password updated.</string>
     <string name="auth_save_password">Save password</string>
     <string name="auth_skip">Later</string>

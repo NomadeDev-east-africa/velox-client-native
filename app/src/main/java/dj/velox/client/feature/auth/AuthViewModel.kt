@@ -382,11 +382,39 @@ class AuthViewModel @Inject constructor(
      * vient d'être validé fait office de reconnexion récente, donc `updatePassword` passe sans
      * redemander l'ancien mot de passe — que l'utilisateur a justement oublié.
      */
-    fun setNewPassword(password: String, emailIfMissing: String? = null, onDone: (String?) -> Unit) {
+    fun setNewPassword(
+        password: String,
+        emailIfMissing: String? = null,
+        currentPassword: String? = null,
+        onDone: (error: String?, errorCode: String?, verificationSentTo: String?) -> Unit,
+    ) {
         viewModelScope.launch {
-            val result = runCatching { repo.setPassword(password, emailIfMissing) }
+            val result = runCatching { repo.setPassword(password, emailIfMissing, currentPassword) }
+            val err = result.exceptionOrNull()
+            onDone(
+                err?.let { errorMessage(it, R.string.err_generic) },
+                (err as? AuthException)?.code,
+                result.getOrNull(),
+            )
+        }
+    }
+
+    // ─── Vérification d'email (lien Firebase) ────────────────────
+
+    /** Le compte a une adresse email non vérifiée. */
+    val needsEmailVerification: Boolean get() = repo.needsEmailVerification
+
+    /** (Re)envoie le lien de vérification ; onDone(null) si OK, sinon message. */
+    fun sendEmailVerification(onDone: (String?) -> Unit) {
+        viewModelScope.launch {
+            val result = runCatching { repo.sendEmailVerification() }
             onDone(result.exceptionOrNull()?.let { errorMessage(it, R.string.err_generic) })
         }
+    }
+
+    /** Relit l'état de vérification (lien cliqué ?) et le recopie dans le profil. */
+    fun refreshEmailVerification(onDone: (verified: Boolean) -> Unit = {}) {
+        viewModelScope.launch { onDone(repo.refreshEmailVerification()) }
     }
 
     // ─── OTP téléphone ───────────────────────────────────────────

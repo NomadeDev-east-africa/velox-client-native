@@ -515,6 +515,11 @@
     <string name="auth_new_password_hint">Furaha sirta cusub (ugu yaraan 6 xaraf)</string>
     <string name="auth_new_password_confirm">Xaqiiji furaha sirta</string>
     <string name="auth_passwords_differ">Labada furaha sirta isku mid ma aha.</string>
+    <string name="email_not_verified_sub">Lama xaqiijin — taabo si aad u hesho xiriirka xaqiijinta</string>
+    <string name="email_verification_sent">Xiriirka xaqiijinta waxaa loo diray %1$s. Fur, kadibna ku soo noqo app-ka.</string>
+    <string name="email_verified_done">Iimaylka waa la xaqiijiyay.</string>
+    <string name="auth_current_password">Furaha sirta ee hadda</string>
+    <string name="auth_reauth_needed">Amnigaaga awgii, geli furaha sirta ee hadda.</string>
     <string name="auth_password_updated">Furaha sirta waa la cusbooneysiiyay.</string>
     <string name="auth_save_password">Kaydi furaha sirta</string>
     <string name="auth_skip">Goor dambe</string>

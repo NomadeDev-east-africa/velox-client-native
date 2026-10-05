@@ -3,6 +3,7 @@ package dj.velox.client.feature.auth
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import android.widget.Toast
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -12,6 +13,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
@@ -39,6 +41,12 @@ fun SetPasswordScreen(viewModel: AuthViewModel, onDone: () -> Unit) {
     var email by rememberSaveable { mutableStateOf("") }
     var password by rememberSaveable { mutableStateOf("") }
     var confirm by rememberSaveable { mutableStateOf("") }
+    // Demandé seulement si Firebase exige une reconnexion récente (session ancienne). Juste
+    // après une récupération par SMS, la session est récente : pas d'ancien mot de passe.
+    var current by rememberSaveable { mutableStateOf("") }
+    var needCurrent by rememberSaveable { mutableStateOf(false) }
+    val context = LocalContext.current
+    val reauthMsg = stringResource(R.string.auth_reauth_needed)
     var saving by remember { mutableStateOf(false) }
     var message by remember { mutableStateOf<String?>(null) }
     var isError by remember { mutableStateOf(false) }
@@ -71,6 +79,15 @@ fun SetPasswordScreen(viewModel: AuthViewModel, onDone: () -> Unit) {
             Spacer(Modifier.height(14.dp))
         }
 
+        if (needCurrent) {
+            AuthTextField(
+                value = current,
+                onValueChange = { current = it },
+                label = stringResource(R.string.auth_current_password),
+                isPassword = true,
+            )
+            Spacer(Modifier.height(14.dp))
+        }
         AuthTextField(
             value = password,
             onValueChange = { password = it },
@@ -92,7 +109,8 @@ fun SetPasswordScreen(viewModel: AuthViewModel, onDone: () -> Unit) {
             text = stringResource(R.string.auth_save_password),
             loading = saving,
             enabled = password.length >= 6 && confirm.isNotBlank() &&
-                (accountEmail != null || email.isNotBlank()),
+                (accountEmail != null || email.isNotBlank()) &&
+                (!needCurrent || current.isNotEmpty()),
         ) {
             if (password != confirm) {
                 isError = true
@@ -100,11 +118,27 @@ fun SetPasswordScreen(viewModel: AuthViewModel, onDone: () -> Unit) {
             } else {
                 saving = true
                 message = null
-                viewModel.setNewPassword(password, emailIfMissing = email) { error ->
+                viewModel.setNewPassword(
+                    password,
+                    emailIfMissing = email,
+                    currentPassword = current.takeIf { needCurrent },
+                ) { error, errorCode, sentTo ->
                     saving = false
+                    if (errorCode == "ERROR_REQUIRES_RECENT_LOGIN" && hasPassword && !needCurrent) {
+                        needCurrent = true
+                        isError = true
+                        message = reauthMsg
+                        return@setNewPassword
+                    }
                     isError = error != null
                     message = error ?: updatedMsg
-                    if (error == null) onDone()
+                    if (error == null) {
+                        // Email saisi à la main : on prévient qu'un lien de vérification est parti.
+                        val toast = sentTo?.let { context.getString(R.string.email_verification_sent, it) }
+                            ?: updatedMsg
+                        Toast.makeText(context, toast, Toast.LENGTH_LONG).show()
+                        onDone()
+                    }
                 }
             }
         }

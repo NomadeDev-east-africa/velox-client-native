@@ -20,6 +20,7 @@ import com.google.firebase.auth.UserProfileChangeRequest
 import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.SetOptions
+import com.google.firebase.functions.FirebaseFunctions
 import dagger.hilt.android.qualifiers.ApplicationContext
 import dj.velox.client.R
 import dj.velox.client.domain.model.VeloxUser
@@ -55,6 +56,7 @@ class AuthException(message: String, val code: String? = null) : Exception(messa
 class AuthRepository @Inject constructor(
     private val auth: FirebaseAuth,
     private val firestore: FirebaseFirestore,
+    private val functions: FirebaseFunctions,
     @param:ApplicationContext private val context: Context,
 ) {
     val currentUser: FirebaseUser? get() = auth.currentUser
@@ -106,6 +108,9 @@ class AuthRepository @Inject constructor(
             ).await()
 
             users().document(user.uid).set(newUserDocument(name, email.trim(), phone = null)).await()
+            // Adresse saisie à la main : on prouve qu'elle appartient bien à l'utilisateur.
+            // Non bloquant — le compte est créé même si l'envoi échoue (renvoi depuis le profil).
+            runCatching { sendEmailVerification() }
             return user
         } catch (e: FirebaseAuthException) {
             throw AuthException(mapError(e), e.errorCode)
@@ -139,14 +144,7 @@ class AuthRepository @Inject constructor(
         callbacks: PhoneAuthProvider.OnVerificationStateChangedCallbacks,
         resendToken: PhoneAuthProvider.ForceResendingToken? = null,
     ) {
-        // Langue du SMS (+ en-tête X-Firebase-Locale) : celle choisie dans l'app, sinon celle de
-        // l'appareil. `useAppLanguage()` seul lirait la langue système, pas la langue applicative
-        // (cf. localizedResources). Afar : pas de modèle SMS Firebase → français.
-        val appLocales = AppCompatDelegate.getApplicationLocales()
-        val appLanguage = if (appLocales.isEmpty) null else appLocales[0]?.language
-        if (appLanguage == null) auth.useAppLanguage()
-        else auth.setLanguageCode(if (appLanguage == "aa") "fr" else appLanguage)
-
+        applyAuthLanguage()
         val builder = PhoneAuthOptions.newBuilder(auth)
             .setPhoneNumber(phoneNumber)
             .setTimeout(60L, TimeUnit.SECONDS)
@@ -204,12 +202,13 @@ class AuthRepository @Inject constructor(
         runCatching { user.reload().await() }
         users().document(user.uid).set(
             mapOf(
-                "email" to user.email,
                 "photoUrl" to user.photoUrl?.toString(),
                 "updatedAt" to FieldValue.serverTimestamp(),
             ),
             SetOptions.merge(),
         ).await()
+        // `email` est un champ protégé (règles Firestore) : recopié par le serveur.
+        syncEmailToProfile()
         return user
     }
 
@@ -280,37 +279,90 @@ class AuthRepository @Inject constructor(
     }
 
     /**
-     * Définit un mot de passe sur le compte **déjà connecté** — utilisé après une récupération
-     * par SMS, où l'utilisateur vient de prouver son identité par OTP.
+     * Définit un mot de passe sur le compte **déjà connecté** — depuis le profil, notamment
+     * après une récupération par SMS, où l'utilisateur vient de prouver son identité par OTP.
      *
      * Deux cas selon les providers du compte : si `password` est déjà rattaché on met à jour le
      * mot de passe existant ; sinon (compte créé par téléphone ou par Google) on **rattache** un
      * provider email/mot de passe, ce qui exige une adresse — celle du compte si elle existe,
      * sinon celle saisie par l'utilisateur.
+     *
+     * [currentPassword] n'est fourni que lorsque Firebase a exigé une reconnexion récente
+     * (`ERROR_REQUIRES_RECENT_LOGIN`, session ancienne) : on se ré-authentifie avant. Juste après
+     * un OTP, la session est récente et l'ancien mot de passe (oublié) n'est pas demandé.
+     *
+     * @return l'adresse à laquelle un lien de vérification vient d'être envoyé, sinon null.
      */
-    suspend fun setPassword(newPassword: String, emailIfMissing: String? = null) {
+    suspend fun setPassword(
+        newPassword: String,
+        emailIfMissing: String? = null,
+        currentPassword: String? = null,
+    ): String? {
         val user = auth.currentUser ?: throw AuthException(string(R.string.err_requires_recent_login))
         try {
             if (hasPasswordProvider) {
+                if (!currentPassword.isNullOrEmpty()) reauthenticateWithPassword(currentPassword)
                 user.updatePassword(newPassword).await()
-            } else {
-                val email = user.email?.takeIf { it.isNotBlank() }
-                    ?: emailIfMissing?.trim()?.takeIf { it.isNotBlank() }
-                    ?: throw AuthException(string(R.string.err_email_not_found))
-                user.linkWithCredential(EmailAuthProvider.getCredential(email, newPassword)).await()
-                users().document(user.uid).set(
-                    mapOf("email" to email, "updatedAt" to FieldValue.serverTimestamp()),
-                    SetOptions.merge(),
-                ).await()
+                return null
             }
+            val email = user.email?.takeIf { it.isNotBlank() }
+                ?: emailIfMissing?.trim()?.takeIf { it.isNotBlank() }
+                ?: throw AuthException(string(R.string.err_email_not_found))
+            user.linkWithCredential(EmailAuthProvider.getCredential(email, newPassword)).await()
         } catch (e: FirebaseAuthException) {
             throw AuthException(mapError(e), e.errorCode)
         }
+        runCatching { user.reload().await() }
+        // `email` est protégé côté règles Firestore : le serveur le recopie depuis Auth.
+        syncEmailToProfile()
+        // Adresse saisie à la main (compte téléphone) : non vérifiée → lien Firebase.
+        // Une adresse Google est déjà vérifiée, rien à envoyer.
+        if (user.isEmailVerified) return null
+        return runCatching { sendEmailVerification() }.getOrNull()?.let { user.email }
     }
 
     /** Le compte possède-t-il un provider email/mot de passe (donc un mot de passe à réinitialiser) ? */
     val hasPasswordProvider: Boolean
         get() = auth.currentUser?.providerData?.any { it.providerId == "password" } == true
+
+    // ════════════════════════════════════════════════════════════
+    // VÉRIFICATION D'EMAIL (lien Firebase)
+    // ════════════════════════════════════════════════════════════
+
+    /** Le compte a une adresse email qui n'a pas encore été vérifiée. */
+    val needsEmailVerification: Boolean
+        get() = auth.currentUser?.let { !it.email.isNullOrBlank() && !it.isEmailVerified } == true
+
+    /** Envoie (ou renvoie) le lien de vérification Firebase à l'adresse du compte. */
+    suspend fun sendEmailVerification() {
+        val user = auth.currentUser ?: throw AuthException(string(R.string.err_requires_recent_login))
+        if (user.email.isNullOrBlank()) throw AuthException(string(R.string.err_email_not_found))
+        applyAuthLanguage()
+        try {
+            user.sendEmailVerification().await()
+        } catch (e: FirebaseException) {
+            throw AuthException(mapError(e), (e as? FirebaseAuthException)?.errorCode)
+        }
+    }
+
+    /**
+     * Relit l'état Auth (l'utilisateur a pu cliquer sur le lien entre-temps) et le recopie dans
+     * `users/{uid}` via le serveur. Renvoie vrai si l'adresse est désormais vérifiée.
+     */
+    suspend fun refreshEmailVerification(): Boolean {
+        val user = auth.currentUser ?: return false
+        runCatching { user.reload().await() }
+        syncEmailToProfile()
+        return auth.currentUser?.isEmailVerified == true
+    }
+
+    /**
+     * Cloud Function `syncEmailVerification` : recopie `email` + `isVerified` de Firebase Auth
+     * vers `users/{uid}` (champs protégés, non modifiables par le client). Non bloquant.
+     */
+    private suspend fun syncEmailToProfile() {
+        runCatching { functions.getHttpsCallable("syncEmailVerification").call().await() }
+    }
 
     fun signOut() = auth.signOut()
 
@@ -451,6 +503,18 @@ class AuthRepository @Inject constructor(
      */
     internal fun string(@StringRes id: Int, vararg args: Any): String = localizedResources()
         .let { if (args.isEmpty()) it.getString(id) else it.getString(id, *args) }
+
+    /**
+     * Langue des SMS et emails Firebase (+ en-tête X-Firebase-Locale) : celle choisie dans
+     * l'app, sinon celle de l'appareil. `useAppLanguage()` seul lirait la langue système, pas
+     * la langue applicative (cf. [localizedResources]). Afar : pas de modèle Firebase → français.
+     */
+    private fun applyAuthLanguage() {
+        val appLocales = AppCompatDelegate.getApplicationLocales()
+        val appLanguage = if (appLocales.isEmpty) null else appLocales[0]?.language
+        if (appLanguage == null) auth.useAppLanguage()
+        else auth.setLanguageCode(if (appLanguage == "aa") "fr" else appLanguage)
+    }
 
     private fun localizedResources(): Resources {
         val locales = AppCompatDelegate.getApplicationLocales()

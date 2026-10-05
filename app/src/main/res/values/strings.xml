@@ -532,6 +532,11 @@
     <string name="auth_new_password_hint">Nouveau mot de passe (6 caractères min.)</string>
     <string name="auth_new_password_confirm">Confirmez le mot de passe</string>
     <string name="auth_passwords_differ">Les deux mots de passe ne correspondent pas.</string>
+    <string name="email_not_verified_sub">Non vérifiée — appuyez pour recevoir le lien de vérification</string>
+    <string name="email_verification_sent">Lien de vérification envoyé à %1$s. Ouvrez-le, puis revenez dans l\'app.</string>
+    <string name="email_verified_done">Adresse email vérifiée.</string>
+    <string name="auth_current_password">Mot de passe actuel</string>
+    <string name="auth_reauth_needed">Par sécurité, saisissez votre mot de passe actuel.</string>
     <string name="auth_password_updated">Mot de passe mis à jour.</string>
     <string name="auth_save_password">Enregistrer le mot de passe</string>
     <string name="auth_skip">Plus tard</string>

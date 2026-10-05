@@ -515,6 +515,11 @@
     <string name="auth_new_password_hint">كلمة المرور الجديدة (6 أحرف على الأقل)</string>
     <string name="auth_new_password_confirm">أكّد كلمة المرور</string>
     <string name="auth_passwords_differ">كلمتا المرور غير متطابقتين.</string>
+    <string name="email_not_verified_sub">غير موثّق — اضغط لتلقي رابط التحقق</string>
+    <string name="email_verification_sent">تم إرسال رابط التحقق إلى %1$s. افتحه ثم عد إلى التطبيق.</string>
+    <string name="email_verified_done">تم التحقق من البريد الإلكتروني.</string>
+    <string name="auth_current_password">كلمة المرور الحالية</string>
+    <string name="auth_reauth_needed">لأمانك، أدخل كلمة المرور الحالية.</string>
     <string name="auth_password_updated">تم تحديث كلمة المرور.</string>
     <string name="auth_save_password">حفظ كلمة المرور</string>
     <string name="auth_skip">لاحقًا</string>

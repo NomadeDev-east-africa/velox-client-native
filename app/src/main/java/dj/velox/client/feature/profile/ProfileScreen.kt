@@ -74,6 +74,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.compose.LifecycleResumeEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil.compose.AsyncImage
 import dj.velox.client.R
@@ -126,6 +127,33 @@ fun ProfileScreen(
     val deleteScope = rememberCoroutineScope()
     val webClientId = stringResource(R.string.default_web_client_id)
     var showDeleteConfirm by remember { mutableStateOf(false) }
+
+    // ── Vérification de l'email (lien Firebase) ──
+    // Au retour dans l'app (lien cliqué dans la messagerie), on relit l'état Auth ; le serveur
+    // recopie alors `isVerified` dans le profil (champ protégé, non écrit par le client).
+    var emailUnverified by remember { mutableStateOf(authVm.needsEmailVerification) }
+    val verifiedDoneText = stringResource(R.string.email_verified_done)
+    LifecycleResumeEffect(profile?.email, profile?.isVerified) {
+        if (authVm.needsEmailVerification || (profile?.email != null && profile.isVerified != true)) {
+            authVm.refreshEmailVerification { verified ->
+                if (verified && emailUnverified) {
+                    Toast.makeText(context, verifiedDoneText, Toast.LENGTH_SHORT).show()
+                }
+                emailUnverified = authVm.needsEmailVerification
+            }
+        }
+        onPauseOrDispose { }
+    }
+    fun resendVerification() {
+        val email = profile?.email ?: return
+        authVm.sendEmailVerification { err ->
+            Toast.makeText(
+                context,
+                err ?: context.getString(R.string.email_verification_sent, email),
+                Toast.LENGTH_LONG,
+            ).show()
+        }
+    }
     var showPasswordPrompt by remember { mutableStateOf(false) }
     var deleting by remember { mutableStateOf(false) }
 
@@ -317,9 +345,10 @@ fun ProfileScreen(
             SettingRow(
                 icon = Icons.Filled.Email,
                 title = profile?.email ?: stringResource(R.string.email_address),
-                subtitle = stringResource(R.string.email_address),
+                subtitle = stringResource(if (emailUnverified) R.string.email_not_verified_sub else R.string.email_address),
                 c = c,
-                trailing = { VerifiedBadge(profile?.isVerified == true, c) },
+                onClick = if (emailUnverified) ({ resendVerification() }) else null,
+                trailing = { VerifiedBadge(profile?.isVerified == true && !emailUnverified, c) },
             )
             RowDivider(c)
             // Point d'arrivée de la récupération par SMS : une fois reconnecté par OTP,

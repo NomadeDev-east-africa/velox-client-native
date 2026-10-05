@@ -517,6 +517,11 @@
     <string name="auth_new_password_hint">Qellay qusba (6 harfittek gexsit)</string>
     <string name="auth_new_password_confirm">Qellay xaqiij</string>
     <string name="auth_passwords_differ">Nammay qellay matinnaaqa.</string>
+    <string name="email_not_verified_sub">Nummatte maleh — xaqiiqiyyih linkí geytam tabbaq</string>
+    <string name="email_verification_sent">Xaqiiqiyyih link %1$s fan rubtime. Fakeh, tokkel app fan gaduu.</string>
+    <string name="email_verified_done">Email nummatteh.</string>
+    <string name="auth_current_password">Tah wakti qellay</string>
+    <string name="auth_reauth_needed">Ku dacayrih sabbatah, tah wakti qellay culus.</string>
     <string name="auth_password_updated">Qellay cusbooysimte.</string>
     <string name="auth_save_password">Qellay dacris</string>
     <string name="auth_skip">Lakal</string>
