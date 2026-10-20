@@ -3,6 +3,7 @@
     <string name="app_name" translatable="false">Velox</string>
     <string name="socle_ready">Socle prêt ✅ — Compose · Hilt · Firebase · DataStore</string>
 
+
     <!-- Communs (la base i18n s'étoffera au fil des modules) -->
     <string name="common_loading">Chargement…</string>
     <string name="common_retry">Réessayer</string>
@@ -46,12 +47,14 @@
 
     <!-- Téléphone / OTP -->
     <string name="auth_phone_title">Connexion par téléphone</string>
-    <string name="auth_phone_hint">Numéro (ex. +25377xxxxxx)</string>
+    <string name="auth_phone_hint">77 80 35 33</string>
     <string name="auth_send_code">Envoyer le code</string>
     <string name="auth_otp_title">Vérification</string>
     <string name="auth_otp_subtitle">Saisissez le code reçu par SMS.</string>
     <string name="auth_otp_code">Code à 6 chiffres</string>
     <string name="auth_verify">Vérifier</string>
+    <string name="complete_phone_title">Votre numéro de téléphone</string>
+    <string name="complete_phone_message">Un numéro est nécessaire pour vous contacter lors de vos commandes et courses.</string>
 
     <!-- Auth — écrans Sign In / Sign Up (libellés inédits ; so/aa best-effort À RELIRE par un natif) -->
     <string name="auth_welcome_to">Bienvenue sur</string>
@@ -59,8 +62,6 @@
     <string name="auth_no_account_q">Pas de compte ? </string>
     <string name="auth_create_account_link">Créer un compte.</string>
     <string name="auth_signin_with_phone">Se connecter avec téléphone</string>
-    <string name="auth_facebook">Continuer avec Facebook</string>
-    <string name="auth_facebook_soon">Facebook : bientôt disponible</string>
     <string name="auth_brand_subtitle">Livraison &amp; taxi à Djibouti</string>
     <string name="auth_create_your_account">Créer votre compte</string>
     <string name="auth_join_thousands">Rejoignez des milliers d\'utilisateurs à Djibouti</string>
@@ -144,6 +145,12 @@
     <string name="email">Email</string>
     <string name="phone">Téléphone</string>
     <string name="phone_number">Numéro de téléphone</string>
+    <string name="phone_not_set">Non renseigné</string>
+    <string name="phone_taken_help">Ce numéro est déjà rattaché à un autre compte. Saisissez un autre numéro, ou déconnectez-vous et utilisez « Continuer avec le téléphone » pour vous connecter au compte qui possède ce numéro.</string>
+    <string name="change_phone_action">Modifier</string>
+    <string name="change_phone_title">Changer de numéro</string>
+    <string name="change_phone_message">Votre nouveau numéro sera vérifié par SMS avant d\'être enregistré.</string>
+    <string name="change_phone_current">Numéro actuel : %1$s</string>
     <string name="addresses">Adresses</string>
     <string name="my_addresses">Mes adresses</string>
     <string name="add_address">Ajouter une adresse</string>
@@ -190,6 +197,9 @@
     <string name="enter_location">Veuillez entrer votre localisation</string>
     <string name="appearance_personalization">Apparence &amp; Personnalisation</string>
     <string name="dark_mode">Mode sombre</string>
+    <string name="map_theme">Thème de la carte</string>
+    <string name="map_theme_dark">Sombre</string>
+    <string name="map_theme_light">Claire</string>
     <string name="enabled">Activé</string>
     <string name="disabled">Désactivé</string>
     <string name="edit_profile">Modifier mon profil</string>
@@ -202,9 +212,12 @@
     <string name="new_address">Nouvelle adresse</string>
     <string name="history_favorites">Historique &amp; Favoris</string>
     <string name="my_orders">Mes commandes</string>
+    <string name="my_notifications">Mes notifications</string>
+    <string name="notifications_history_sub">Commandes, courses, promos</string>
     <string name="full_history">Historique complet</string>
     <string name="favorite_restaurants">Restaurants favoris</string>
     <string name="support_legal">Support &amp; Légal</string>
+    <string name="website">Site web</string>
     <string name="help_center">Centre d\'aide</string>
     <string name="about_app">À propos</string>
     <string name="version">Version</string>
@@ -222,6 +235,10 @@
     <string name="logout_confirm">Voulez-vous vraiment vous déconnecter ?</string>
     <string name="logout_action">Déconnecter</string>
     <string name="delete_account_title">Supprimer le compte</string>
+    <string name="delete_account_msg">Cette action est irréversible : votre compte et vos données seront définitivement supprimés. Vous devrez d\'abord vous reconnecter.</string>
+    <string name="delete_account_action">Supprimer</string>
+    <string name="reauth_title">Confirmez votre identité</string>
+    <string name="reauth_msg">Saisissez votre mot de passe pour confirmer la suppression.</string>
     <string name="delete_account_warning">Cette action est irréversible. Toutes vos données (commandes, adresses, profil) seront supprimées définitivement.</string>
     <string name="type_delete_confirm">Tapez SUPPRIMER pour confirmer :</string>
     <string name="delete_keyword">SUPPRIMER</string>
@@ -239,8 +256,12 @@
     <string name="quick_actions">Actions rapides</string>
     <string name="our_services">Nos Services</string>
     <string name="vtc_subtitle">Déplacez-vous facilement en ville</string>
+    <string name="vtc_maintenance_subtitle">Service temporairement indisponible</string>
     <string name="restaurants_fastfood">Restaurants &amp; Fast food</string>
     <string name="food_subtitle">Toutes vos envies, livrées chez vous</string>
+    <string name="maintenance_dialog_title">Service en maintenance</string>
+    <string name="maintenance_dialog_message">Désolé, le service VTC est temporairement indisponible pour maintenance. Merci de votre patience, nous serons bientôt de retour.</string>
+    <string name="maintenance_label">Maintenance</string>
     <string name="login_required">Connexion requise</string>
     <string name="login_to_access">Connectez-vous pour accéder aux services</string>
     <string name="checkout">Commande</string>
@@ -277,6 +298,8 @@
     <string name="no_past_orders">Aucune commande passée</string>
     <string name="active_orders_hint">Vos commandes actives apparaîtront ici</string>
     <string name="history_hint">Votre historique de commandes apparaîtra ici</string>
+    <string name="no_notifications">Aucune notification</string>
+    <string name="notifications_hint">Vos notifications (commandes, courses, promos) apparaîtront ici</string>
     <string name="track">Suivre</string>
     <string name="ordered_items">Articles commandés</string>
     <string name="address">Adresse</string>
@@ -307,10 +330,19 @@
     <string name="view_cart">Voir le panier</string>
     <string name="promo_title">⏱️ Une appli faite pour vous</string>
     <string name="promo_subtitle">Zéro frais caché. Zéro attente. Juste Excellent.</string>
+    <string name="promo2_title">🇩🇯 Pensé pour Djibouti, fait pour vous</string>
+    <string name="promo2_subtitle">Des prix bas, un service qui nous ressemble.</string>
+    <string name="promo3_title">📲 Un restaurant manque sur Vélox ?</string>
+    <string name="promo3_subtitle">Pas de problème ! Contactez-nous sur WhatsApp : 77 45 38 17</string>
+    <string name="promo_code_title">Code promo</string>
+    <string name="promo_code_hint">Entrez un code</string>
+    <string name="apply_label">Appliquer</string>
+    <string name="promo_code_applied">Code %1$s appliqué</string>
     <string name="open_label">Ouvert</string>
     <string name="closed_label">Fermé</string>
     <string name="orders_abbrev">CMDS</string>
     <string name="search_hint_food">Restaurant ou plat...</string>
+    <string name="search_hint_dish">Rechercher un plat…</string>
     <string name="clear_label">Effacer</string>
     <string name="search_prompt">Cherchez un restaurant ou un plat</string>
     <string name="no_results_for">Aucun résultat pour « %1$s »</string>
@@ -322,10 +354,15 @@
     <string name="choose_sauces">Choix des sauces</string>
     <string name="required_label">Requis</string>
     <string name="please_choose">Veuillez choisir : %1$s</string>
+    <string name="max_choices">%1$d choix maximum pour « %2$s »</string>
     <string name="different_restaurant_title">Restaurant différent</string>
     <string name="different_restaurant_msg">Vous avez déjà des articles de « %1$s ». Voulez-vous vider votre panier et ajouter cet article de « %2$s » ?</string>
     <string name="another_restaurant">un autre restaurant</string>
     <string name="clear_cart">Vider le panier</string>
+    <string name="restaurant_closed_title">Restaurant fermé</string>
+    <string name="restaurant_closed_exceptional_title">Fermeture exceptionnelle aujourd\'hui</string>
+    <string name="restaurant_closed_hours">Horaires aujourd\'hui : %1$s</string>
+    <string name="restaurant_closed_no_hours">Fermé pour le moment — aucun horaire renseigné</string>
     <string name="status_confirmed">Confirmée</string>
     <string name="status_preparing">Préparation</string>
     <string name="status_ready">Prête</string>
@@ -350,6 +387,8 @@
     <string name="error_prefix">Erreur : %1$s</string>
     <string name="back_to_home">Retour à l\'accueil</string>
     <string name="driver_position">Position du livreur</string>
+    <string name="chauffeur_position">Position du chauffeur</string>
+    <string name="view_driver_position">Voir la position du chauffeur</string>
     <string name="locating_driver">Localisation du livreur…</string>
     <string name="driver_position_unavailable">Position du livreur non disponible</string>
     <string name="driver_gps_off">Le livreur n\'a pas encore activé son suivi GPS</string>
@@ -402,6 +441,8 @@
     <string name="delete_address_msg">Voulez-vous vraiment supprimer « %1$s » ?</string>
     <string name="no_addresses">Aucune adresse enregistrée</string>
     <string name="no_addresses_hint">Appuyez sur « Ajouter » pour enregistrer votre première adresse</string>
+    <string name="no_favorites">Aucun favori</string>
+    <string name="no_favorites_hint">Touchez le cœur d\'un restaurant pour l\'ajouter à vos favoris</string>
     <string name="default_label">Par défaut</string>
     <string name="more_options">Options</string>
     <string name="set_default">Définir par défaut</string>
@@ -416,6 +457,189 @@
     <string name="extra_details">Détails supplémentaires (optionnel)</string>
     <string name="details_hint">Étage, bâtiment, instructions…</string>
     <string name="add_address_action">Ajouter l\'adresse</string>
+    <string name="pick_on_map">Choisir sur la carte</string>
     <string name="confirm_destination">Confirmer la destination</string>
     <string name="confirm_address_action">Confirmer l\'adresse</string>
+
+    <!-- Divulgation proéminente « localisation » (Google Play — User Data policy).
+         Texte affiché AVANT la demande de permission système. Toute modification doit
+         rester exacte : l\'app ne collecte la position qu\'au premier plan. -->
+    <string name="location_disclosure_title">Accès à votre position</string>
+    <string name="location_disclosure_body">Velox collecte votre position GPS pour définir votre point de départ, estimer le prix et la durée du trajet, et indiquer au chauffeur ou au livreur où venir vous chercher.</string>
+    <string name="location_disclosure_point_usage">Position utilisée pour votre point de départ et pour suivre votre course sur la carte.</string>
+    <string name="location_disclosure_point_sharing">Partagée avec le chauffeur ou le livreur qui vous est assigné, uniquement pendant la course.</string>
+    <string name="location_disclosure_point_background">Aucune collecte lorsque l\'application est fermée ou en arrière-plan.</string>
+    <string name="location_disclosure_accept">Autoriser la position</string>
+    <string name="location_disclosure_decline">Pas maintenant</string>
+
+    <!-- Auth — messages d'erreur Firebase (traduits ; ne jamais afficher le message brut) -->
+    <string name="err_user_not_found">Aucun compte trouvé avec cet email.</string>
+    <string name="err_wrong_password">Mot de passe incorrect.</string>
+    <string name="err_invalid_email">Email invalide.</string>
+    <string name="err_user_disabled">Ce compte a été désactivé.</string>
+    <string name="err_email_in_use">Cet email est déjà utilisé.</string>
+    <string name="err_weak_password">Le mot de passe doit contenir au moins 6 caractères.</string>
+    <string name="err_invalid_code">Code de vérification invalide.</string>
+    <string name="err_invalid_verification_id">Session expirée. Renvoyez le code.</string>
+    <string name="err_session_expired">Le code SMS a expiré. Appuyez sur « Renvoyer le code » pour en recevoir un nouveau.</string>
+    <string name="err_missing_code">Saisissez le code à 6 chiffres reçu par SMS.</string>
+    <string name="err_invalid_phone">Numéro de téléphone invalide.</string>
+    <string name="err_missing_phone">Saisissez votre numéro de téléphone.</string>
+    <string name="err_quota_exceeded">Le service SMS est temporairement saturé. Réessayez dans quelques minutes.</string>
+    <string name="err_too_many_requests">Trop de tentatives. Réessayez plus tard.</string>
+    <string name="err_operation_not_allowed">Cette méthode de connexion n\'est pas activée.</string>
+    <string name="err_network">Erreur réseau. Vérifiez votre connexion.</string>
+    <string name="err_requires_recent_login">Session expirée. Reconnectez-vous.</string>
+    <string name="err_credential_in_use">Ce numéro est déjà utilisé par un autre compte.</string>
+    <string name="err_provider_already_linked">Un numéro est déjà associé à ce compte.</string>
+    <string name="err_invalid_credential">Identifiants invalides. Vérifiez vos informations.</string>
+    <string name="err_app_not_authorized">Vérification impossible sur cet appareil. Réessayez plus tard.</string>
+    <string name="err_generic">Une erreur est survenue. Réessayez.</string>
+    <string name="err_signin_failed">Échec de la connexion.</string>
+    <string name="err_signup_failed">Échec de la création du compte.</string>
+    <string name="err_google_failed">Échec de la connexion Google.</string>
+    <string name="err_phone_failed">Échec de la vérification du téléphone.</string>
+    <string name="err_send_code_failed">Échec de l\'envoi du code.</string>
+    <string name="err_link_phone_failed">Échec de la liaison du numéro.</string>
+    <string name="err_link_google_failed">Échec de la liaison du compte Google.</string>
+    <string name="err_email_not_found">Email introuvable pour ce compte.</string>
+
+    <!-- Auth — prompt de liaison Google après OTP (compte téléphone seul) -->
+    <string name="google_link_prompt_title">Connexion plus rapide</string>
+    <string name="google_link_prompt_message">Ajoutez votre compte Google pour vous reconnecter instantanément la prochaine fois, sans attendre de SMS.</string>
+    <string name="google_link_prompt_action">Lier Google</string>
+    <string name="google_link_prompt_later">Plus tard</string>
+
+    <!-- Auth — renvoi du code SMS -->
+    <string name="auth_resend_code">Renvoyer le code</string>
+    <string name="auth_resend_in">Renvoyer le code dans %1$d s</string>
+    <string name="auth_code_resent">Nouveau code envoyé par SMS.</string>
+
+    <!-- Mot de passe oublié — récupération par email ou par SMS -->
+    <string name="auth_recover_title">Récupérer mon compte</string>
+    <string name="auth_recover_subtitle">Choisissez comment récupérer l\'accès à votre compte.</string>
+    <string name="auth_recover_by_email">Par email</string>
+    <string name="auth_recover_by_sms">Par SMS</string>
+    <string name="auth_recover_email_hint">Nous vous envoyons un lien pour définir un nouveau mot de passe.</string>
+    <string name="auth_recover_sms_hint">Nous vous envoyons un code SMS sur le numéro lié à votre compte. Vous serez reconnecté immédiatement.</string>
+    <string name="auth_recover_google_note">Compte créé avec Google ? Il n\'a pas de mot de passe : revenez en arrière et utilisez « Continuer avec Google ».</string>
+    <string name="auth_new_password_title">Nouveau mot de passe</string>
+    <string name="auth_new_password_subtitle">Définissez un mot de passe pour vous connecter par email la prochaine fois.</string>
+    <string name="auth_change_password_title">Modifier le mot de passe</string>
+    <string name="auth_change_password_subtitle">Mettez à jour le mot de passe de votre compte.</string>
+    <string name="profile_set_password_sub">Ajoutez un mot de passe pour vous connecter par email.</string>
+    <string name="profile_change_password_sub">Mettez à jour votre mot de passe actuel.</string>
+    <string name="auth_new_password_hint">Nouveau mot de passe (6 caractères min.)</string>
+    <string name="auth_new_password_confirm">Confirmez le mot de passe</string>
+    <string name="auth_passwords_differ">Les deux mots de passe ne correspondent pas.</string>
+    <string name="email_not_verified_sub">Non vérifiée — appuyez pour recevoir le lien de vérification</string>
+    <string name="email_verification_sent">Lien de vérification envoyé à %1$s. Ouvrez-le, puis revenez dans l\'app.</string>
+    <string name="email_verified_done">Adresse email vérifiée.</string>
+    <string name="auth_current_password">Mot de passe actuel</string>
+    <string name="auth_reauth_needed">Par sécurité, saisissez votre mot de passe actuel.</string>
+    <string name="auth_password_updated">Mot de passe mis à jour.</string>
+    <string name="auth_save_password">Enregistrer le mot de passe</string>
+    <string name="auth_skip">Plus tard</string>
+
+    <!-- Contrôles carte (zoom, recentrage) -->
+    <string name="map_zoom_in">Zoom avant</string>
+    <string name="map_zoom_out">Zoom arrière</string>
+
+    <!-- VTC — écrans taxi (accueil, confirmation, suivi, fin de course) -->
+    <string name="taxi_where_to">Où allons-nous aujourd\'hui ? 🌍</string>
+    <string name="taxi_location_disabled">Localisation désactivée</string>
+    <string name="taxi_locating">Localisation en cours…</string>
+    <string name="taxi_pickup_point">Point de départ</string>
+    <string name="taxi_edit_pickup">Modifier le départ</string>
+    <string name="taxi_destination_prompt">Destination — Où allez-vous ?</string>
+    <string name="taxi_clear">Effacer</string>
+    <string name="taxi_recenter">Recentrer</string>
+    <string name="taxi_choose_vehicle">Choisissez votre véhicule</string>
+    <string name="taxi_price_estimated">Prix estimé pour votre course</string>
+    <string name="taxi_price_base">Prix de base — choisissez une destination pour l\'estimation</string>
+    <string name="taxi_pick_destination">Choisir une destination</string>
+    <string name="taxi_confirm_ride">Confirmer la course</string>
+    <string name="taxi_price_vehicle">%1$d FDJ · %2$s</string>
+    <string name="taxi_current_position">Position actuelle</string>
+    <string name="taxi_selected_destination">Destination sélectionnée</string>
+    <string name="taxi_ac">+ clim</string>
+    <string name="taxi_eta">~ %1$s</string>
+    <string name="taxi_km">%1$s km</string>
+    <string name="taxi_duration_inline">  ·  %1$d min</string>
+    <string name="taxi_vehicle_standard">Taxi Standard</string>
+    <string name="taxi_vehicle_comfort">Taxi Confort</string>
+    <string name="taxi_vehicle_standard_desc">Économique et rapide</string>
+    <string name="taxi_vehicle_comfort_desc">Plus de confort</string>
+    <string name="vehicle_standard">Standard</string>
+    <string name="vehicle_comfort">Confort</string>
+    <string name="vehicle_van">Van</string>
+    <string name="taxi_confirm_title">CONFIRMER VOTRE COURSE</string>
+    <string name="taxi_ride_details">DÉTAILS DE LA COURSE</string>
+    <string name="taxi_origin">ORIGINE</string>
+    <string name="taxi_destination_upper">DESTINATION</string>
+    <string name="taxi_estimation">ESTIMATION</string>
+    <string name="taxi_distance_upper">DISTANCE</string>
+    <string name="taxi_assigned_driver">CHAUFFEUR ASSIGNÉ</string>
+    <string name="taxi_cost">COÛT</string>
+    <string name="taxi_payment_method_upper">MÉTHODE DE PAIEMENT</string>
+    <string name="taxi_confirm_upper">CONFIRMER</string>
+    <string name="taxi_min_upper">%1$d MIN</string>
+    <string name="taxi_km_upper">%1$s KM</string>
+    <string name="pay_cash">Espèces</string>
+    <string name="ride_completed_title">Course terminée !</string>
+    <string name="ride_pickup_label">Départ</string>
+    <string name="ride_dropoff_label">Arrivée</string>
+    <string name="ride_duration">Durée</string>
+    <string name="ride_duration_min">%1$d min</string>
+    <string name="ride_price_fdj">%1$d FDJ</string>
+    <string name="taxi_driver">Chauffeur</string>
+    <string name="the_driver">Le chauffeur</string>
+    <string name="action_call">Appeler</string>
+    <string name="ride_thanks_title">Merci d\'avoir roulé avec Velox</string>
+    <string name="ride_thanks_body">Votre course s\'est bien déroulée et nous espérons vous revoir bientôt !</string>
+    <string name="ride_rate_question">Comment s\'est passée votre course ?</string>
+    <string name="ride_comment_hint">Commentaire (optionnel)</string>
+    <string name="ride_rating_sent">Évaluation envoyée ✓</string>
+    <string name="ride_send_rating">Envoyer l\'évaluation ⭐</string>
+    <string name="ride_rating_thanks">Merci pour votre évaluation !</string>
+    <string name="ride_add_favorite">Ajouter aux favoris</string>
+    <string name="ride_add_favorite_sub">Retrouvez rapidement ce chauffeur pour vos prochaines courses</string>
+    <string name="ride_new_ride">Nouvelle course</string>
+    <string name="ride_back_home">Retour à l\'accueil</string>
+    <string name="status_code_searching">RECHERCHE</string>
+    <string name="status_code_assigned">CHAUFFEUR ASSIGNÉ</string>
+    <string name="status_code_arrived">CHAUFFEUR ARRIVÉ</string>
+    <string name="status_code_transit">EN TRANSIT</string>
+    <string name="status_code_completed">COURSE TERMINÉE</string>
+    <string name="status_code_cancelled">ANNULÉE</string>
+    <string name="status_code_no_driver">AUCUN CHAUFFEUR</string>
+    <string name="status_title_searching">Recherche d\'un chauffeur…</string>
+    <string name="status_title_on_the_way">Chauffeur en route vers vous</string>
+    <string name="status_title_approaching">Chauffeur en approche</string>
+    <string name="status_title_arrived">Votre chauffeur est arrivé</string>
+    <string name="status_title_transit">En route vers la destination</string>
+    <string name="status_title_completed">Vous êtes arrivé 🎉</string>
+    <string name="status_title_cancelled">Course annulée</string>
+    <string name="status_title_no_driver">Aucun chauffeur disponible</string>
+    <string name="status_chip_waiting">EN ATTENTE</string>
+    <string name="status_chip_en_route">EN ROUTE</string>
+    <string name="status_chip_arrived">ARRIVÉ</string>
+    <string name="status_chip_transit">EN TRANSIT</string>
+    <string name="status_chip_completed">TERMINÉ</string>
+    <string name="status_chip_cancelled">ANNULÉ</string>
+    <string name="status_chip_unavailable">INDISPONIBLE</string>
+    <string name="banner_accepted_title">✅ Un chauffeur a accepté</string>
+    <string name="banner_accepted_sub">%1$s arrive — %2$s</string>
+    <string name="banner_arrived_title">📍 Chauffeur arrivé</string>
+    <string name="banner_arrived_sub">Votre chauffeur vous attend au point de départ</string>
+    <string name="banner_started_title">🚗 Course commencée</string>
+    <string name="banner_started_sub">Direction %1$s</string>
+    <string name="banner_searching_title">🔎 Recherche en cours</string>
+    <string name="banner_searching_sub">On cherche un chauffeur pour vous</string>
+    <string name="banner_no_driver_comfort_sub">Aucun chauffeur Confort disponible pour le moment. Essayez un taxi Standard.</string>
+    <string name="status_now">· maintenant</string>
+    <string name="ride_captain">Chauffeur</string>
+    <string name="ride_estimated_fare">Tarif estimé</string>
+    <string name="action_call_upper">APPELER</string>
+    <string name="action_cancel_upper">ANNULER</string>
 </resources>

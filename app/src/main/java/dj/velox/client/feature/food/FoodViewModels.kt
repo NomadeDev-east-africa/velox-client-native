@@ -4,8 +4,10 @@ import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
+import dj.velox.client.data.remote.BannerService
 import dj.velox.client.data.remote.MenuService
 import dj.velox.client.data.remote.RestaurantService
+import dj.velox.client.domain.model.Banner
 import dj.velox.client.domain.model.MenuItem
 import dj.velox.client.domain.model.Restaurant
 import kotlinx.coroutines.FlowPreview
@@ -31,9 +33,14 @@ data class FoodCategory(val name: String, val imageUrl: String, val restaurantId
 @HiltViewModel
 class RestaurantsViewModel @Inject constructor(
     service: RestaurantService,
-    menuService: MenuService,
+    private val menuService: MenuService,
+    bannerService: BannerService,
 ) : ViewModel() {
     val restaurants: StateFlow<List<Restaurant>> = service.streamRestaurants()
+        .catch { emit(emptyList()) }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+
+    val banners: StateFlow<List<Banner>> = bannerService.streamActiveBanners()
         .catch { emit(emptyList()) }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
@@ -45,15 +52,27 @@ class RestaurantsViewModel @Inject constructor(
     private val _categories = MutableStateFlow<List<FoodCategory>>(emptyList())
     val categories: StateFlow<List<FoodCategory>> = _categories.asStateFlow()
 
-    init {
+    private val _refreshing = MutableStateFlow(false)
+    val refreshing: StateFlow<Boolean> = _refreshing.asStateFlow()
+
+    init { viewModelScope.launch { loadCategories() } }
+
+    /** Pull-to-refresh : recharge les catégories (les restaurants sont déjà en stream live). */
+    fun refresh() {
         viewModelScope.launch {
-            val menus = menuService.getAllMenus()
-            // 1 vignette par catégorie : premier plat ayant une image.
-            _categories.value = menus
-                .filter { !it.imageUrl.isNullOrEmpty() }
-                .groupBy { it.category }
-                .map { (cat, items) -> FoodCategory(cat, items.first().imageUrl!!, items.first().restaurantId) }
+            _refreshing.value = true
+            loadCategories()
+            _refreshing.value = false
         }
+    }
+
+    private suspend fun loadCategories() {
+        val menus = menuService.getAllMenus()
+        // 1 vignette par catégorie : premier plat ayant une image.
+        _categories.value = menus
+            .filter { !it.imageUrl.isNullOrEmpty() }
+            .groupBy { it.category }
+            .map { (cat, items) -> FoodCategory(cat, items.first().imageUrl!!, items.first().restaurantId) }
     }
 }
 
@@ -71,14 +90,11 @@ class MenuViewModel @Inject constructor(
         .catch { emit(emptyList()) }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
-    private val _restaurant = MutableStateFlow<Restaurant?>(null)
-    val restaurant: StateFlow<Restaurant?> = _restaurant.asStateFlow()
-
-    init {
-        viewModelScope.launch {
-            _restaurant.value = restaurantService.getRestaurantById(restaurantId)
-        }
-    }
+    // Stream (pas un simple get) : si le client reste sur la fiche restaurant au moment
+    // où celui-ci ferme (planning ou fermeture manuelle), le statut se met à jour en direct.
+    val restaurant: StateFlow<Restaurant?> = restaurantService.streamRestaurant(restaurantId)
+        .catch { emit(null) }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
 }
 
 /** Suivi de la position du livreur (port de `track_delivery_screen`). */
@@ -160,13 +176,14 @@ class AddToOrderViewModel @Inject constructor(
     private val _item = MutableStateFlow<MenuItem?>(null)
     val item: StateFlow<MenuItem?> = _item.asStateFlow()
 
-    private val _restaurant = MutableStateFlow<Restaurant?>(null)
-    val restaurant: StateFlow<Restaurant?> = _restaurant.asStateFlow()
+    // Stream : couvre le cas où le restaurant ferme pendant que l'utilisateur configure son plat.
+    val restaurant: StateFlow<Restaurant?> = restaurantService.streamRestaurant(restaurantId)
+        .catch { emit(null) }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
 
     init {
         viewModelScope.launch {
             _item.value = menuService.getMenuById(menuId)
-            _restaurant.value = restaurantService.getRestaurantById(restaurantId)
         }
     }
 }
@@ -185,6 +202,7 @@ class FoodSearchViewModel @Inject constructor(
     data class Results(
         val restaurants: List<Restaurant> = emptyList(),
         val dishes: List<MenuItem> = emptyList(),
+        val categories: List<String> = emptyList(),
     )
 
     private val _query = MutableStateFlow("")
@@ -230,8 +248,81 @@ class FoodSearchViewModel @Inject constructor(
             restaurants = allRestaurants.filter { it.name.lowercase().contains(q) },
             dishes = allMenus.filter {
                 byId.containsKey(it.restaurantId) &&
-                    (it.name.lowercase().contains(q) || it.description.lowercase().contains(q))
+                    (it.name.lowercase().contains(q) ||
+                        it.description.lowercase().contains(q) ||
+                        it.category.lowercase().contains(q))
             },
+            categories = allMenus.map { it.category }.distinct()
+                .filter { it.lowercase().contains(q) },
         )
+    }
+}
+
+/**
+ * Tous les plats d'une catégorie, **tous restaurants confondus** (nouvel écran
+ * CategoryItemsScreen). Le nom du restaurant est joint pour l'afficher sous chaque plat.
+ */
+@HiltViewModel
+class CategoryItemsViewModel @Inject constructor(
+    restaurantService: RestaurantService,
+    menuService: MenuService,
+    savedStateHandle: SavedStateHandle,
+) : ViewModel() {
+    val category: String = savedStateHandle["category"] ?: ""
+
+    private val _items = MutableStateFlow<List<MenuItem>>(emptyList())
+    val items: StateFlow<List<MenuItem>> = _items.asStateFlow()
+
+    private val _loading = MutableStateFlow(true)
+    val loading: StateFlow<Boolean> = _loading.asStateFlow()
+
+    private var names: Map<String, String> = emptyMap()
+    fun restaurantNameFor(item: MenuItem): String? = names[item.restaurantId]
+
+    init {
+        viewModelScope.launch {
+            val menus = async { menuService.getAllMenus() }
+            val restos = async { restaurantService.getRestaurants() }
+            names = restos.await().associate { it.id to it.name }
+            _items.value = menus.await().filter { it.category.equals(category, ignoreCase = true) }
+            _loading.value = false
+        }
+    }
+}
+
+/** Recherche **scopée** au menu d'un restaurant (par nom + catégorie du plat). */
+@HiltViewModel
+class RestaurantMenuSearchViewModel @Inject constructor(
+    menuService: MenuService,
+    restaurantService: RestaurantService,
+    savedStateHandle: SavedStateHandle,
+) : ViewModel() {
+    val restaurantId: String = savedStateHandle["restaurantId"] ?: ""
+
+    private val _restaurantName = MutableStateFlow<String?>(null)
+    val restaurantName: StateFlow<String?> = _restaurantName.asStateFlow()
+
+    private val _query = MutableStateFlow("")
+    val query: StateFlow<String> = _query.asStateFlow()
+
+    private val _results = MutableStateFlow<List<MenuItem>>(emptyList())
+    val results: StateFlow<List<MenuItem>> = _results.asStateFlow()
+
+    private var all: List<MenuItem> = emptyList()
+
+    init {
+        viewModelScope.launch {
+            all = menuService.getMenusByRestaurant(restaurantId)
+            _restaurantName.value = restaurantService.getRestaurantById(restaurantId)?.name
+            _results.value = all
+        }
+    }
+
+    fun onQueryChange(value: String) {
+        _query.value = value
+        val q = value.trim().lowercase()
+        _results.value = if (q.isEmpty()) all else all.filter {
+            it.name.lowercase().contains(q) || it.category.lowercase().contains(q)
+        }
     }
 }

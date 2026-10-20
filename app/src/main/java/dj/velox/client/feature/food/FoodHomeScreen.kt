@@ -1,10 +1,13 @@
 package dj.velox.client.feature.food
 
+import android.content.Intent
+import android.net.Uri
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.PaddingValues
@@ -29,37 +32,48 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.AccessTime
+import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.FavoriteBorder
+import androidx.compose.material.icons.filled.LocalOffer
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.ShoppingCart
 import androidx.compose.material.icons.filled.Star
-import androidx.compose.material.icons.filled.TrackChanges
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
+import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableLongStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.ColorFilter
+import androidx.compose.ui.graphics.ColorMatrix
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil.compose.AsyncImage
 import dj.velox.client.R
+import dj.velox.client.domain.model.Banner
 import dj.velox.client.domain.model.Restaurant
 import dj.velox.client.ui.theme.Inter
 import dj.velox.client.ui.theme.Poppins
@@ -72,19 +86,26 @@ import kotlinx.coroutines.delay
  * Header « LIVRER À / Ville de Djibouti », carrousels auto (catégories + meilleurs choix),
  * bannière promo, liste complète des restaurants, bouton panier flottant.
  */
+@OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
 @Composable
 fun FoodHomeScreen(
     cartViewModel: CartViewModel,
     onOpenRestaurant: (String) -> Unit,
+    onOpenCategory: (String) -> Unit,
     onOpenCart: () -> Unit,
     onOpenSearch: () -> Unit,
     onBack: () -> Unit,
+    favorites: Set<String>,
+    onToggleFavorite: (String) -> Unit,
     restaurantsVm: RestaurantsViewModel = hiltViewModel(),
 ) {
     val c = VeloxTheme.colors
+    val context = LocalContext.current
+    val banners by restaurantsVm.banners.collectAsStateWithLifecycle()
     val restaurants by restaurantsVm.restaurants.collectAsStateWithLifecycle()
     val popular by restaurantsVm.popular.collectAsStateWithLifecycle()
     val categories by restaurantsVm.categories.collectAsStateWithLifecycle()
+    val refreshing by restaurantsVm.refreshing.collectAsStateWithLifecycle()
     val cart by cartViewModel.state.collectAsStateWithLifecycle()
 
     Box(Modifier.fillMaxSize().background(c.bg)) {
@@ -105,28 +126,45 @@ fun FoodHomeScreen(
                 HeaderIcon(Icons.Filled.Search, stringResource(R.string.search), c, onOpenSearch)
             }
 
-            // ── Contenu défilant ──────────────────────────────────
+            // ── Contenu défilant (tirer vers le bas pour rafraîchir) ──
+            PullToRefreshBox(
+                isRefreshing = refreshing,
+                onRefresh = { restaurantsVm.refresh() },
+                modifier = Modifier.fillMaxSize(),
+            ) {
             LazyColumn(Modifier.fillMaxSize()) {
                 if (categories.isNotEmpty()) {
                     item { SectionHeader(stringResource(R.string.categories).uppercase(), c) }
                     item { Spacer(Modifier.height(16.dp)) }
                     item {
                         AutoScrollCarousel(items = categories, height = 128.dp, pageFraction = 0.42f, c = c) { cat ->
-                            CategoryTile(cat, c) { onOpenRestaurant(cat.restaurantId) }
+                            // Une catégorie liste TOUS les plats de cette catégorie (tous
+                            // restaurants), pas le restaurant du plat-vignette.
+                            CategoryTile(cat, c) { onOpenCategory(cat.name) }
                         }
                     }
                     item { Spacer(Modifier.height(28.dp)) }
                 }
 
-                item { PromoBanner(c) }
-                item { Spacer(Modifier.height(28.dp)) }
+                if (banners.isNotEmpty()) {
+                    item {
+                        AutoScrollCarousel(items = banners, height = 150.dp, pageFraction = 1f, c = c) { banner ->
+                            if (banner.isImage) {
+                                ImageBanner(banner, c) { handleBannerAction(banner, context, onOpenRestaurant, onOpenCategory) }
+                            } else {
+                                TextBanner(banner, c) { handleBannerAction(banner, context, onOpenRestaurant, onOpenCategory) }
+                            }
+                        }
+                    }
+                    item { Spacer(Modifier.height(28.dp)) }
+                }
 
                 if (popular.isNotEmpty()) {
                     item { SectionHeader(stringResource(R.string.best_picks).uppercase(), c) }
                     item { Spacer(Modifier.height(16.dp)) }
                     item {
                         AutoScrollCarousel(items = popular, height = 212.dp, pageFraction = 0.5f, c = c) { r ->
-                            PopularCard(r, c) { onOpenRestaurant(r.id) }
+                            PopularCard(r, r.id in favorites, c, { onToggleFavorite(r.id) }) { onOpenRestaurant(r.id) }
                         }
                     }
                     item { Spacer(Modifier.height(28.dp)) }
@@ -135,10 +173,11 @@ fun FoodHomeScreen(
                 item { SectionHeader(stringResource(R.string.all_restaurants).uppercase(), c) }
                 item { Spacer(Modifier.height(16.dp)) }
                 items(restaurants, key = { it.id }) { restaurant ->
-                    RestaurantCard(restaurant, c) { onOpenRestaurant(restaurant.id) }
+                    RestaurantCard(restaurant, restaurant.id in favorites, c, { onToggleFavorite(restaurant.id) }) { onOpenRestaurant(restaurant.id) }
                     Spacer(Modifier.height(16.dp))
                 }
                 item { Spacer(Modifier.height(110.dp)) }
+            }
             }
         }
 
@@ -257,39 +296,151 @@ private fun CategoryTile(cat: FoodCategory, c: VeloxColors, onClick: () -> Unit)
     }
 }
 
-// ── BANNIÈRE PROMO ───────────────────────────────────────────────────────────
+// ── BANNIÈRES PROMO (carrousel piloté par Firestore, collection `banners`) ────
+private fun handleBannerAction(
+    banner: Banner,
+    context: android.content.Context,
+    onOpenRestaurant: (String) -> Unit,
+    onOpenCategory: (String) -> Unit,
+) {
+    val value = banner.actionValue ?: return
+    when (banner.actionType) {
+        "whatsapp" -> runCatching {
+            context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("https://wa.me/$value")))
+        }
+        "url" -> runCatching {
+            context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(value)))
+        }
+        "restaurant" -> onOpenRestaurant(value)
+        "category" -> onOpenCategory(value)
+        else -> Unit
+    }
+}
+
 @Composable
-private fun PromoBanner(c: VeloxColors) {
+private fun TextBanner(banner: Banner, c: VeloxColors, onClick: () -> Unit) {
     Box(
         Modifier
             .fillMaxWidth()
-            .padding(horizontal = 20.dp)
+            .fillMaxHeight()
             .clip(RoundedCornerShape(18.dp))
             .background(c.primary)
-            .height(120.dp),
+            .then(if (banner.actionType != "none") Modifier.clickable(onClick = onClick) else Modifier),
     ) {
         Icon(
-            Icons.Filled.TrackChanges,
+            Icons.Filled.LocalOffer,
             null,
             tint = c.onPrimary.copy(alpha = 0.15f),
             modifier = Modifier.align(Alignment.BottomEnd).padding(end = 4.dp, bottom = 4.dp).size(120.dp),
         )
-        Column(Modifier.padding(24.dp)) {
-            Text(stringResource(R.string.promo_title), color = c.onPrimary, fontFamily = Poppins, fontSize = 21.sp, fontWeight = FontWeight.Black, letterSpacing = (-0.5).sp, lineHeight = 24.sp)
-            Spacer(Modifier.height(8.dp))
-            Text(stringResource(R.string.promo_subtitle), color = c.onPrimary.copy(alpha = 0.8f), fontFamily = Inter, fontSize = 13.sp, lineHeight = 18.sp)
+        // Texte admin en longueur libre → rétrécit au lieu de déborder du cadre fixe ;
+        // fillMaxWidth() pour utiliser toute la largeur de la carte, pas juste celle du texte.
+        Column(Modifier.fillMaxWidth().fillMaxHeight().padding(horizontal = 24.dp, vertical = 16.dp), verticalArrangement = Arrangement.Center) {
+            AutoSizeText(
+                text = banner.title.orEmpty(),
+                color = c.onPrimary,
+                fontFamily = Poppins,
+                fontWeight = FontWeight.Black,
+                maxFontSize = 20.sp,
+                minFontSize = 14.sp,
+                lineHeightRatio = 1.15f,
+                letterSpacing = (-0.5).sp,
+                maxLines = 2,
+            )
+            if (banner.subtitle.orEmpty().isNotBlank()) {
+                Spacer(Modifier.height(6.dp))
+                AutoSizeText(
+                    text = banner.subtitle.orEmpty(),
+                    color = c.onPrimary.copy(alpha = 0.8f),
+                    fontFamily = Inter,
+                    fontWeight = FontWeight.Normal,
+                    maxFontSize = 12.5.sp,
+                    minFontSize = 10.sp,
+                    lineHeightRatio = 1.28f,
+                    maxLines = 2,
+                )
+            }
         }
     }
 }
 
+@Composable
+private fun ImageBanner(banner: Banner, c: VeloxColors, onClick: () -> Unit) {
+    Box(
+        Modifier
+            .fillMaxWidth()
+            .fillMaxHeight()
+            .clip(RoundedCornerShape(18.dp))
+            .background(c.surfaceLow)
+            .then(if (banner.actionType != "none") Modifier.clickable(onClick = onClick) else Modifier),
+        contentAlignment = Alignment.Center,
+    ) {
+        // FillWidth : l'image occupe toute la largeur de la carte (pas de bandes vides sur les
+        // côtés comme avec Fit) ; un léger rognage vertical est accepté si le ratio diffère,
+        // contrairement à Crop qui pouvait couper une bonne partie de l'image.
+        AsyncImage(
+            model = banner.imageUrl,
+            contentDescription = banner.title,
+            contentScale = ContentScale.FillWidth,
+            modifier = Modifier.fillMaxWidth(),
+        )
+    }
+}
+
+/**
+ * Texte qui rétrécit (au lieu de déborder / d'être coupé) tant qu'il dépasse son cadre,
+ * jusqu'à `minFontSize`. Nécessaire pour les bannières admin (texte libre, longueur inconnue).
+ */
+@Composable
+private fun AutoSizeText(
+    text: String,
+    color: Color,
+    fontFamily: FontFamily,
+    fontWeight: FontWeight,
+    maxFontSize: TextUnit,
+    minFontSize: TextUnit,
+    lineHeightRatio: Float,
+    maxLines: Int,
+    letterSpacing: TextUnit = 0.sp,
+) {
+    var fontSize by remember(text) { mutableStateOf(maxFontSize) }
+    var readyToDraw by remember(text) { mutableStateOf(false) }
+    Text(
+        text = text,
+        color = color,
+        fontFamily = fontFamily,
+        fontWeight = fontWeight,
+        fontSize = fontSize,
+        lineHeight = fontSize * lineHeightRatio,
+        letterSpacing = letterSpacing,
+        maxLines = maxLines,
+        overflow = TextOverflow.Ellipsis,
+        softWrap = true,
+        modifier = Modifier.fillMaxWidth().drawWithContent { if (readyToDraw) drawContent() },
+        onTextLayout = { result ->
+            if (result.hasVisualOverflow && fontSize > minFontSize) {
+                fontSize = (fontSize.value - 1).sp
+            } else {
+                readyToDraw = true
+            }
+        },
+    )
+}
+
 // ── CARTE « MEILLEUR CHOIX » (compacte, horizontale) ─────────────────────────
 @Composable
-private fun PopularCard(restaurant: Restaurant, c: VeloxColors, onClick: () -> Unit) {
+private fun PopularCard(
+    restaurant: Restaurant,
+    isFavorite: Boolean,
+    c: VeloxColors,
+    onToggleFavorite: () -> Unit,
+    onClick: () -> Unit,
+) {
     Column(
         Modifier
             .fillMaxSize()
             .clip(RoundedCornerShape(16.dp))
-            .background(c.surface)
+            .background(if (restaurant.isOpen) c.surface else c.surfaceHigh)
             .border(1.dp, c.outlineVariant.copy(alpha = 0.25f), RoundedCornerShape(16.dp))
             .clickable(onClick = onClick),
     ) {
@@ -298,31 +449,39 @@ private fun PopularCard(restaurant: Restaurant, c: VeloxColors, onClick: () -> U
                 model = restaurant.imageUrl,
                 contentDescription = restaurant.name,
                 contentScale = ContentScale.Crop,
+                colorFilter = if (restaurant.isOpen) null else GrayscaleFilter,
                 modifier = Modifier.fillMaxWidth().height(115.dp).clip(RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp)),
             )
+            if (!restaurant.isOpen) ClosedOverlay(fontSize = 22.sp, shape = RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp))
             Box(
-                Modifier.align(Alignment.TopEnd).padding(7.dp).size(28.dp).clip(CircleShape).background(c.surfaceTop.copy(alpha = 0.85f)),
+                Modifier.align(Alignment.TopEnd).padding(7.dp).size(28.dp).clip(CircleShape).background(c.surfaceTop.copy(alpha = 0.85f)).clickable(onClick = onToggleFavorite),
                 contentAlignment = Alignment.Center,
             ) {
-                Icon(Icons.Filled.FavoriteBorder, stringResource(R.string.favorites), tint = c.onSurfaceVariant, modifier = Modifier.size(15.dp))
+                Icon(
+                    if (isFavorite) Icons.Filled.Favorite else Icons.Filled.FavoriteBorder,
+                    stringResource(R.string.favorites),
+                    tint = if (isFavorite) Color(0xFFE53935) else Color.White,
+                    modifier = Modifier.size(15.dp),
+                )
             }
-            Box(
+            // Fermé : le gros libellé rouge (ClosedOverlay) remplace le badge.
+            if (restaurant.isOpen) Box(
                 Modifier.align(Alignment.BottomStart).padding(7.dp).clip(RoundedCornerShape(6.dp))
-                    .background(if (restaurant.isOpen) c.primary else c.surfaceTop.copy(alpha = 0.8f))
+                    .background(c.primary)
                     .padding(horizontal = 7.dp, vertical = 2.dp),
             ) {
                 Text(
-                    if (restaurant.isOpen) stringResource(R.string.open_label).uppercase() else stringResource(R.string.closed_label).uppercase(),
-                    color = if (restaurant.isOpen) c.onPrimary else c.onSurfaceVariant,
+                    stringResource(R.string.open_label).uppercase(),
+                    color = c.onPrimary,
                     fontFamily = Inter, fontSize = 9.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.sp,
                 )
             }
         }
         Column(Modifier.padding(start = 10.dp, end = 10.dp, top = 9.dp, bottom = 10.dp)) {
-            Text(restaurant.name, color = c.onSurface, fontFamily = Poppins, fontSize = 13.sp, fontWeight = FontWeight.Bold, letterSpacing = (-0.2).sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            Text(restaurant.name, color = if (restaurant.isOpen) c.onSurface else c.onSurfaceVariant, fontFamily = Poppins, fontSize = 13.sp, fontWeight = FontWeight.Bold, letterSpacing = (-0.2).sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
             Spacer(Modifier.height(5.dp))
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Icon(Icons.Filled.Star, null, tint = c.primary, modifier = Modifier.size(12.dp))
+                Icon(Icons.Filled.Star, null, tint = if (restaurant.isOpen) c.primary else c.onSurfaceVariant, modifier = Modifier.size(12.dp))
                 Spacer(Modifier.size(3.dp))
                 Text("%.1f".format(restaurant.rating), color = c.onSurface, fontFamily = Inter, fontSize = 11.sp, fontWeight = FontWeight.Bold)
                 Spacer(Modifier.size(8.dp))
@@ -336,14 +495,20 @@ private fun PopularCard(restaurant: Restaurant, c: VeloxColors, onClick: () -> U
 
 // ── CARTE RESTAURANT (liste complète) ────────────────────────────────────────
 @Composable
-private fun RestaurantCard(restaurant: Restaurant, c: VeloxColors, onClick: () -> Unit) {
+private fun RestaurantCard(
+    restaurant: Restaurant,
+    isFavorite: Boolean,
+    c: VeloxColors,
+    onToggleFavorite: () -> Unit,
+    onClick: () -> Unit,
+) {
     Row(
         Modifier
             .fillMaxWidth()
             .padding(horizontal = 20.dp)
             .height(IntrinsicSize.Min)
             .clip(RoundedCornerShape(18.dp))
-            .background(c.surfaceLow)
+            .background(if (restaurant.isOpen) c.surfaceLow else c.surfaceHigh)
             .clickable(onClick = onClick),
     ) {
         Box(Modifier.width(3.dp).fillMaxHeight().background(if (restaurant.isOpen) c.primary else Color.Transparent))
@@ -353,39 +518,70 @@ private fun RestaurantCard(restaurant: Restaurant, c: VeloxColors, onClick: () -
                     model = restaurant.imageUrl,
                     contentDescription = restaurant.name,
                     contentScale = ContentScale.Crop,
+                    colorFilter = if (restaurant.isOpen) null else GrayscaleFilter,
                     modifier = Modifier.fillMaxWidth().height(170.dp).clip(RoundedCornerShape(topStart = 18.dp, topEnd = 18.dp)),
                 )
+                if (!restaurant.isOpen) ClosedOverlay(fontSize = 34.sp, shape = RoundedCornerShape(topStart = 18.dp, topEnd = 18.dp))
                 Box(
-                    Modifier.padding(12.dp).size(36.dp).clip(CircleShape).background(c.surfaceTop.copy(alpha = 0.85f)),
+                    Modifier.padding(12.dp).size(36.dp).clip(CircleShape).background(c.surfaceTop.copy(alpha = 0.85f)).clickable(onClick = onToggleFavorite),
                     contentAlignment = Alignment.Center,
                 ) {
-                    Icon(Icons.Filled.FavoriteBorder, stringResource(R.string.favorites), tint = c.onSurfaceVariant, modifier = Modifier.size(18.dp))
+                    Icon(
+                        if (isFavorite) Icons.Filled.Favorite else Icons.Filled.FavoriteBorder,
+                        stringResource(R.string.favorites),
+                        tint = if (isFavorite) Color(0xFFE53935) else Color.White,
+                        modifier = Modifier.size(18.dp),
+                    )
                 }
                 Row(
                     Modifier.align(Alignment.TopEnd).padding(12.dp).clip(RoundedCornerShape(6.dp))
                         .background(c.surfaceTop.copy(alpha = 0.8f)).padding(horizontal = 8.dp, vertical = 4.dp),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    Icon(Icons.Filled.Star, null, tint = c.primary, modifier = Modifier.size(12.dp))
+                    Icon(Icons.Filled.Star, null, tint = if (restaurant.isOpen) c.primary else c.onSurfaceVariant, modifier = Modifier.size(12.dp))
                     Spacer(Modifier.size(4.dp))
                     Text("%.1f".format(restaurant.rating), color = c.onSurface, fontFamily = Inter, fontSize = 11.sp, fontWeight = FontWeight.Bold)
                 }
             }
             Column(Modifier.padding(16.dp)) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text(restaurant.name.uppercase(), color = c.onSurface, fontFamily = Poppins, fontSize = 16.sp, fontWeight = FontWeight.Bold, letterSpacing = (-0.3).sp, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
+                    Text(restaurant.name.uppercase(), color = if (restaurant.isOpen) c.onSurface else c.onSurfaceVariant, fontFamily = Poppins, fontSize = 16.sp, fontWeight = FontWeight.Bold, letterSpacing = (-0.3).sp, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
                     Icon(Icons.Filled.AccessTime, null, tint = c.onSurfaceVariant, modifier = Modifier.size(13.dp))
                     Spacer(Modifier.size(4.dp))
                     Text("25 MIN", color = c.onSurfaceVariant, fontFamily = Inter, fontSize = 10.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.sp)
                 }
                 Spacer(Modifier.height(10.dp))
                 Row {
-                    Pill(if (restaurant.isOpen) stringResource(R.string.open_label).uppercase() else stringResource(R.string.closed_label).uppercase(), if (restaurant.isOpen) c.primary else c.onSurfaceVariant, if (restaurant.isOpen) c.primary.copy(alpha = 0.1f) else c.surfaceHigh)
-                    Spacer(Modifier.size(6.dp))
+                    // Fermé : le gros libellé rouge sur la photo remplace la pastille « OUVERT ».
+                    if (restaurant.isOpen) {
+                        Pill(stringResource(R.string.open_label).uppercase(), c.primary, c.primary.copy(alpha = 0.1f))
+                        Spacer(Modifier.size(6.dp))
+                    }
                     Pill("${restaurant.totalOrders} ${stringResource(R.string.orders_abbrev)}", c.onSurfaceVariant, c.surfaceHigh)
                 }
             }
         }
+    }
+}
+
+/** Photo en noir et blanc pour un restaurant fermé. */
+private val GrayscaleFilter = ColorFilter.colorMatrix(ColorMatrix().apply { setToSaturation(0f) })
+
+private val ClosedRed = Color(0xFFE53935)
+
+/** Voile gris + « FERMÉ » en gros et en rouge, posé sur la photo d'un restaurant fermé. */
+@Composable
+private fun BoxScope.ClosedOverlay(fontSize: TextUnit, shape: RoundedCornerShape) {
+    Box(
+        Modifier.matchParentSize().clip(shape).background(Color.Black.copy(alpha = 0.55f)),
+        contentAlignment = Alignment.Center,
+    ) {
+        Text(
+            stringResource(R.string.closed_label).uppercase(),
+            color = ClosedRed,
+            fontFamily = Poppins, fontSize = fontSize, fontWeight = FontWeight.ExtraBold,
+            letterSpacing = 3.sp, textAlign = TextAlign.Center,
+        )
     }
 }
 

@@ -11,14 +11,27 @@ data class ExtraOption(
     val name: String,
     val price: Int,
     val isSelected: Boolean = false,
+    /** `OptionChoice.id` du choix d'origine (intégration caisse). Absent sur les anciens choix. */
+    val choiceId: String? = null,
+    /** Nom exact du groupe du menu (`OptionGroup.name`) — l'app resto affiche « VIANDE : … ». */
+    val group: String? = null,
 ) {
-    fun toMap(): Map<String, Any?> = mapOf("name" to name, "price" to price, "isSelected" to isSelected)
+    // `choiceId` / `group` ne sont émis QUE s'ils sont non nuls (additif, anciennes commandes inchangées).
+    fun toMap(): Map<String, Any?> = buildMap {
+        put("name", name)
+        put("price", price)
+        put("isSelected", isSelected)
+        choiceId?.let { put("choiceId", it) }
+        group?.let { put("group", it) }
+    }
 
     companion object {
         fun fromMap(map: Map<String, Any?>): ExtraOption = ExtraOption(
             name = map["name"] as? String ?: "",
             price = (map["price"] as? Number)?.toInt() ?: 0,
             isSelected = map["isSelected"] as? Boolean ?: false,
+            choiceId = map["choiceId"] as? String,
+            group = map["group"] as? String,
         )
     }
 }
@@ -28,14 +41,27 @@ data class SauceOption(
     val name: String,
     val price: Int,
     val isSelected: Boolean = false,
+    /** `OptionChoice.id` du choix d'origine (intégration caisse). Absent sur les anciens choix. */
+    val choiceId: String? = null,
+    /** Nom exact du groupe du menu (`OptionGroup.name`) — l'app resto affiche « VIANDE : … ». */
+    val group: String? = null,
 ) {
-    fun toMap(): Map<String, Any?> = mapOf("name" to name, "price" to price, "isSelected" to isSelected)
+    // `choiceId` / `group` ne sont émis QUE s'ils sont non nuls (additif, anciennes commandes inchangées).
+    fun toMap(): Map<String, Any?> = buildMap {
+        put("name", name)
+        put("price", price)
+        put("isSelected", isSelected)
+        choiceId?.let { put("choiceId", it) }
+        group?.let { put("group", it) }
+    }
 
     companion object {
         fun fromMap(map: Map<String, Any?>): SauceOption = SauceOption(
             name = map["name"] as? String ?: "",
             price = (map["price"] as? Number)?.toInt() ?: 0,
             isSelected = map["isSelected"] as? Boolean ?: false,
+            choiceId = map["choiceId"] as? String,
+            group = map["group"] as? String,
         )
     }
 }
@@ -45,13 +71,29 @@ data class SauceOption(
 enum class OptionType { SINGLE, MULTIPLE }
 
 @Serializable
-data class OptionChoice(val name: String, val price: Int = 0) {
-    fun toMap(): Map<String, Any?> = mapOf("name" to name, "price" to price)
+data class OptionChoice(
+    val name: String,
+    val price: Int = 0,
+    /** Rupture de stock si `false` (piloté resto/admin). Absent ⇒ disponible. */
+    val available: Boolean = true,
+    /** Identifiant stable posé par l'admin (`ch_…`). Absent sur les choix pas encore migrés. */
+    val id: String? = null,
+) {
+    // `available` n'est émis QUE lorsqu'il vaut false, `id` que s'il existe (additif).
+    fun toMap(): Map<String, Any?> = buildMap {
+        id?.let { put("id", it) }
+        put("name", name)
+        put("price", price)
+        if (!available) put("available", false)
+    }
 
     companion object {
         fun fromMap(map: Map<String, Any?>): OptionChoice = OptionChoice(
             name = (map["name"] ?: "").toString(),
             price = (map["price"] as? Number)?.toInt() ?: 0,
+            // Absent ⇒ disponible. NE JAMAIS lire `== true` (masquerait tout l'existant).
+            available = map["available"] != false,
+            id = (map["id"] as? String)?.takeIf { it.isNotBlank() },
         )
     }
 }
@@ -61,28 +103,41 @@ data class OptionGroup(
     val name: String,
     val type: OptionType = OptionType.MULTIPLE,
     val required: Boolean = false,
+    /** Plafond de sélection pour un groupe `multiple`. 0 = illimité. Ignoré si `single`. */
+    val maxChoices: Int = 0,
     val choices: List<OptionChoice> = emptyList(),
 ) {
     val isSingle: Boolean get() = type == OptionType.SINGLE
 
-    fun toMap(): Map<String, Any?> = mapOf(
-        "name" to name,
-        "type" to if (isSingle) "single" else "multiple",
-        "required" to required,
-        "choices" to choices.map { it.toMap() },
-    )
+    fun toMap(): Map<String, Any?> = buildMap {
+        put("name", name)
+        put("type", if (isSingle) "single" else "multiple")
+        put("required", required)
+        if (maxChoices > 0) put("maxChoices", maxChoices)
+        put("choices", choices.map { it.toMap() })
+    }
 
     companion object {
-        fun fromMap(map: Map<String, Any?>): OptionGroup = OptionGroup(
-            name = (map["name"] ?: "").toString(),
-            type = if ((map["type"] ?: "multiple").toString().lowercase() == "single")
-                OptionType.SINGLE else OptionType.MULTIPLE,
-            required = map["required"] == true,
-            choices = (map["choices"] as? List<*>)
+        fun fromMap(map: Map<String, Any?>): OptionGroup {
+            val type = if ((map["type"] ?: "multiple").toString().lowercase() == "single")
+                OptionType.SINGLE else OptionType.MULTIPLE
+            // Filtre les choix EN RUPTURE avant tout : ils ne doivent jamais atteindre l'UI.
+            val choices = (map["choices"] as? List<*>)
                 ?.filterIsInstance<Map<String, Any?>>()
                 ?.map { OptionChoice.fromMap(it) }
-                ?: emptyList(),
-        )
+                ?.filter { it.available }
+                ?: emptyList()
+            // maxChoices seulement pour un groupe multiple (0 sinon : la limite single = 1).
+            val maxChoices =
+                if (type == OptionType.MULTIPLE) (map["maxChoices"] as? Number)?.toInt() ?: 0 else 0
+            return OptionGroup(
+                name = (map["name"] ?: "").toString(),
+                type = type,
+                required = map["required"] == true,
+                maxChoices = maxChoices,
+                choices = choices,
+            )
+        }
 
         /** Parser tolérant : null / liste vide / liste de Maps → liste de groupes. */
         fun listFromRaw(raw: Any?): List<OptionGroup> =
@@ -119,7 +174,11 @@ object OptionSelection {
         return sum
     }
 
-    /** Convertit les choix sélectionnés en extras/sauces (groupes « sauce » → sauces). */
+    /**
+     * Convertit les choix sélectionnés en extras/sauces (groupes « sauce » → sauces).
+     * Chaque option porte `group` (nom exact du groupe, TOUS groupes confondus) et `choiceId`
+     * (si le choix en a un) ; l'ordre suit celui des groupes puis des choix du menu.
+     */
     fun toCart(groups: List<OptionGroup>, selections: List<Set<Int>>): OptionCartMapping {
         val extras = mutableListOf<ExtraOption>()
         val sauces = mutableListOf<SauceOption>()
@@ -127,11 +186,11 @@ object OptionSelection {
             if (gi >= selections.size) break
             val group = groups[gi]
             val sauce = isSauceGroup(group.name)
-            for (ci in selections[gi]) {
+            for (ci in selections[gi].sorted()) {
                 if (ci !in group.choices.indices) continue
                 val choice = group.choices[ci]
-                if (sauce) sauces.add(SauceOption(choice.name, choice.price, true))
-                else extras.add(ExtraOption(choice.name, choice.price, true))
+                if (sauce) sauces.add(SauceOption(choice.name, choice.price, true, choice.id, group.name))
+                else extras.add(ExtraOption(choice.name, choice.price, true, choice.id, group.name))
             }
         }
         return OptionCartMapping(extras, sauces)

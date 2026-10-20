@@ -2,6 +2,7 @@ package dj.velox.client.data.remote
 
 import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.FirebaseFirestore
+import com.google.firebase.firestore.GeoPoint
 import com.google.firebase.firestore.Query
 import dj.velox.client.domain.model.Ride
 import dj.velox.client.domain.model.RideStatus
@@ -27,7 +28,11 @@ class RideService @Inject constructor(
     // CRÉATION
     // ─────────────────────────────────────────────────────────────
 
+    /** Génère un ID de course côté client, sans écriture — permet un `set()` idempotent au retry. */
+    fun newRideId(): String = collection.document().id
+
     suspend fun createRide(
+        rideId: String,
         userId: String,
         userName: String,
         userPhone: String,
@@ -45,7 +50,7 @@ class RideService @Inject constructor(
         estimatedFare: Double,
         vehicleType: String,
         paymentMethod: String,
-    ): String {
+    ) {
         val data = hashMapOf(
             "userId" to userId,
             "userName" to userName,
@@ -90,8 +95,10 @@ class RideService @Inject constructor(
             "cancellationReason" to null,
             "cancelledBy" to null,
         )
-        val docRef = collection.add(data).await()
-        return docRef.id
+        // set() sur un ID généré côté client est idempotent : un retry après échec de
+        // l'accusé de réception réécrit le même document au lieu d'en créer un second
+        // (add() générait un nouvel ID à chaque tentative → doublons de course).
+        collection.document(rideId).set(data).await()
     }
 
     // ─────────────────────────────────────────────────────────────
@@ -130,16 +137,17 @@ class RideService @Inject constructor(
         return runCatching { Ride.fromFirestore(doc) }.getOrNull()
     }
 
-    /** Course active d'un utilisateur (reprise après kill). */
+    /**
+     * Course active d'un utilisateur (reprise après kill, et garde-fou anti-doublon avant
+     * `createRide`). Un seul filtre `userId` (index simple auto) puis filtre du statut EN
+     * MÉMOIRE — même pattern que [getUserRideHistory] — pour ne pas dépendre d'un index
+     * composite `taxiRides(userId, status)` qui n'est pas déployé côté projet.
+     */
     suspend fun getActiveRide(userId: String): Ride? {
-        val snapshot = collection
-            .whereEqualTo("userId", userId)
-            .whereIn("status", listOf("requested", "accepted", "arriving", "arrived", "started"))
-            .limit(1)
-            .get()
-            .await()
-        return snapshot.documents.firstOrNull()
-            ?.let { runCatching { Ride.fromFirestore(it) }.getOrNull() }
+        val snapshot = collection.whereEqualTo("userId", userId).get().await()
+        return snapshot.documents
+            .mapNotNull { runCatching { Ride.fromFirestore(it) }.getOrNull() }
+            .firstOrNull { it.isActive }
     }
 
     // ─────────────────────────────────────────────────────────────
@@ -191,16 +199,51 @@ class RideService @Inject constructor(
         awaitClose { reg.remove() }
     }
 
-    suspend fun getUserRideHistory(userId: String, limit: Long = 20): List<Ride> {
+    /**
+     * Historique des courses du client, le plus récent d'abord.
+     *
+     * Le tri est fait **en mémoire** et non par `orderBy("requestedAt")` : combiné au filtre
+     * `userId`, l'orderBy exige un index composite `taxiRides(userId, requestedAt)` qui n'est
+     * pas déployé — la requête échouait alors silencieusement et l'historique VTC restait
+     * vide. Le filtre sur `userId` seul se contente de l'index automatique, et le volume par
+     * client (quelques dizaines de courses) rend le tri local négligeable.
+     */
+    suspend fun getUserRideHistory(userId: String, limit: Int = 20): List<Ride> {
         val snapshot = collection
             .whereEqualTo("userId", userId)
-            .orderBy("requestedAt", Query.Direction.DESCENDING)
-            .limit(limit)
             .get()
             .await()
-        return snapshot.documents.mapNotNull {
-            runCatching { Ride.fromFirestore(it) }.getOrNull()
-        }
+        return snapshot.documents
+            .mapNotNull { runCatching { Ride.fromFirestore(it) }.getOrNull() }
+            .sortedByDescending { it.requestedAt }
+            .take(limit)
+    }
+
+    /**
+     * Position live du chauffeur taxi (`drivers/{id}`). On lit `currentLocation` puis
+     * `location` (GeoPoint ou map lat/lng). null si indisponible / GPS chauffeur éteint.
+     */
+    fun streamDriverLocation(driverId: String): Flow<DriverLocation?> = callbackFlow {
+        val reg = firestore.collection("drivers").document(driverId)
+            .addSnapshotListener { snap, error ->
+                if (error != null) { trySend(null); return@addSnapshotListener }
+                if (snap == null || !snap.exists()) { trySend(null); return@addSnapshotListener }
+                val fallbackTs = snap.getTimestamp("lastHeartbeat")?.toDate()?.time ?: System.currentTimeMillis()
+                val raw = snap.get("currentLocation") ?: snap.get("location")
+                val loc = when (raw) {
+                    is GeoPoint -> DriverLocation(raw.latitude, raw.longitude, fallbackTs)
+                    is Map<*, *> -> {
+                        val lat = (raw["latitude"] as? Number)?.toDouble()
+                        val lng = (raw["longitude"] as? Number)?.toDouble()
+                        // `updatedAt` est écrit DANS la map currentLocation par l'app chauffeur.
+                        val ts = (raw["updatedAt"] as? com.google.firebase.Timestamp)?.toDate()?.time ?: fallbackTs
+                        if (lat != null && lng != null) DriverLocation(lat, lng, ts) else null
+                    }
+                    else -> null
+                }
+                trySend(loc)
+            }
+        awaitClose { reg.remove() }
     }
 
     companion object {

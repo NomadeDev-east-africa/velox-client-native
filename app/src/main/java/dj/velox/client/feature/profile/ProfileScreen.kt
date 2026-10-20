@@ -1,5 +1,7 @@
 package dj.velox.client.feature.profile
 
+import android.content.Intent
+import android.net.Uri
 import android.widget.Toast
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -9,6 +11,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -26,12 +29,14 @@ import androidx.compose.material.icons.automirrored.filled.ListAlt
 import androidx.compose.material.icons.automirrored.filled.Logout
 import androidx.compose.material.icons.filled.AddLocationAlt
 import androidx.compose.material.icons.filled.DarkMode
+import androidx.compose.material.icons.filled.Map
 import androidx.compose.material.icons.filled.Email
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Language
 import androidx.compose.material.icons.filled.LocalOffer
 import androidx.compose.material.icons.filled.LocationOn
+import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.Palette
 import androidx.compose.material.icons.filled.Person
@@ -45,11 +50,16 @@ import androidx.compose.material.icons.outlined.ChevronRight
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import kotlinx.coroutines.launch
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -64,12 +74,14 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.compose.LifecycleResumeEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil.compose.AsyncImage
 import dj.velox.client.R
 import dj.velox.client.core.i18n.LocaleManager
 import dj.velox.client.core.theme.ThemeViewModel
 import dj.velox.client.feature.auth.SessionState
+import dj.velox.client.feature.notifications.NotificationsViewModel
 import dj.velox.client.ui.theme.Inter
 import dj.velox.client.ui.theme.Poppins
 import dj.velox.client.ui.theme.VeloxColors
@@ -85,25 +97,94 @@ import dj.velox.client.ui.theme.VeloxTheme
 fun ProfileScreen(
     session: SessionState,
     onOpenOrders: () -> Unit,
+    onOpenNotifications: () -> Unit,
     onLogout: () -> Unit,
     onBack: () -> Unit,
     onManageAddresses: () -> Unit,
     onAddAddress: () -> Unit,
     onEditProfile: () -> Unit,
+    onSetPassword: () -> Unit,
     onSelectLanguage: () -> Unit,
     onOpenSupport: () -> Unit,
+    favoriteCount: Int = 0,
+    onOpenFavorites: () -> Unit = {},
     themeViewModel: ThemeViewModel = hiltViewModel(),
 ) {
     val c = VeloxTheme.colors
     val context = LocalContext.current
     val profile = session.profile
     val darkMode by themeViewModel.darkMode.collectAsStateWithLifecycle()
+    val mapDark by themeViewModel.mapDark.collectAsStateWithLifecycle()
     val currentLanguageName = remember {
         LocaleManager.supportedLanguages.firstOrNull { it.code == LocaleManager.currentLanguageCode() }?.nativeName ?: "Français"
     }
 
     val soonText = stringResource(R.string.coming_soon)
     val soon = { Toast.makeText(context, soonText, Toast.LENGTH_SHORT).show() }
+
+    // ── Suppression de compte : reconnexion (selon fournisseur) puis suppression ──
+    val authVm: dj.velox.client.feature.auth.AuthViewModel = hiltViewModel()
+    val deleteScope = rememberCoroutineScope()
+    val webClientId = stringResource(R.string.default_web_client_id)
+    var showDeleteConfirm by remember { mutableStateOf(false) }
+
+    // ── Vérification de l'email (lien Firebase) ──
+    // Au retour dans l'app (lien cliqué dans la messagerie), on relit l'état Auth ; le serveur
+    // recopie alors `isVerified` dans le profil (champ protégé, non écrit par le client).
+    var emailUnverified by remember { mutableStateOf(authVm.needsEmailVerification) }
+    val verifiedDoneText = stringResource(R.string.email_verified_done)
+    LifecycleResumeEffect(profile?.email, profile?.isVerified) {
+        if (authVm.needsEmailVerification || (profile?.email != null && profile.isVerified != true)) {
+            authVm.refreshEmailVerification { verified ->
+                if (verified && emailUnverified) {
+                    Toast.makeText(context, verifiedDoneText, Toast.LENGTH_SHORT).show()
+                }
+                emailUnverified = authVm.needsEmailVerification
+            }
+        }
+        onPauseOrDispose { }
+    }
+    fun resendVerification() {
+        val email = profile?.email ?: return
+        authVm.sendEmailVerification { err ->
+            Toast.makeText(
+                context,
+                err ?: context.getString(R.string.email_verification_sent, email),
+                Toast.LENGTH_LONG,
+            ).show()
+        }
+    }
+    var showPasswordPrompt by remember { mutableStateOf(false) }
+    var deleting by remember { mutableStateOf(false) }
+
+    fun runDelete() {
+        when (authVm.accountProvider) {
+            "password" -> showPasswordPrompt = true
+            "google.com" -> {
+                deleting = true
+                deleteScope.launch {
+                    runCatching { dj.velox.client.feature.auth.GoogleSignInHelper.getIdToken(context, webClientId) }
+                        .onSuccess { idToken ->
+                            authVm.deleteAccountWithGoogle(idToken) { err ->
+                                deleting = false
+                                if (err != null) Toast.makeText(context, err, Toast.LENGTH_LONG).show()
+                            }
+                        }
+                        .onFailure { deleting = false } // reconnexion Google annulée
+                }
+            }
+            else -> { // téléphone / autre : tentative directe (suppose une connexion récente)
+                deleting = true
+                authVm.deleteAccountDirect { err ->
+                    deleting = false
+                    if (err != null) Toast.makeText(context, err, Toast.LENGTH_LONG).show()
+                }
+            }
+        }
+    }
+
+    val notificationsVm: NotificationsViewModel = hiltViewModel()
+    val unreadNotifications by notificationsVm.unreadCount.collectAsStateWithLifecycle()
 
     // Toggles notifications : état local (le branchement Firestore est un item à part).
     var pushEnabled by rememberSaveable { mutableStateOf(profile?.notificationsEnabled ?: true) }
@@ -220,6 +301,26 @@ fun ProfileScreen(
             )
             RowDivider(c)
             SettingRow(
+                icon = Icons.Filled.Map,
+                title = stringResource(R.string.map_theme),
+                subtitle = if (mapDark) stringResource(R.string.map_theme_dark) else stringResource(R.string.map_theme_light),
+                c = c,
+                trailing = {
+                    Switch(
+                        checked = mapDark,
+                        onCheckedChange = { themeViewModel.setMapDark(it) },
+                        colors = SwitchDefaults.colors(
+                            checkedThumbColor = c.onPrimary,
+                            checkedTrackColor = c.primary,
+                            uncheckedThumbColor = c.onSurfaceVariant,
+                            uncheckedTrackColor = c.surfaceTop,
+                            uncheckedBorderColor = c.outlineVariant,
+                        ),
+                    )
+                },
+            )
+            RowDivider(c)
+            SettingRow(
                 icon = Icons.Filled.Language,
                 title = stringResource(R.string.language),
                 subtitle = currentLanguageName,
@@ -244,9 +345,22 @@ fun ProfileScreen(
             SettingRow(
                 icon = Icons.Filled.Email,
                 title = profile?.email ?: stringResource(R.string.email_address),
-                subtitle = stringResource(R.string.email_address),
+                subtitle = stringResource(if (emailUnverified) R.string.email_not_verified_sub else R.string.email_address),
                 c = c,
-                trailing = { VerifiedBadge(profile?.isVerified == true, c) },
+                onClick = if (emailUnverified) ({ resendVerification() }) else null,
+                trailing = { VerifiedBadge(profile?.isVerified == true && !emailUnverified, c) },
+            )
+            RowDivider(c)
+            // Point d'arrivée de la récupération par SMS : une fois reconnecté par OTP,
+            // c'est ici qu'on redéfinit le mot de passe oublié. Libellé conditionnel :
+            // le compte peut n'avoir aucun mot de passe (créé par téléphone ou Google).
+            SettingRow(
+                icon = Icons.Filled.Lock,
+                title = stringResource(if (authVm.hasPassword) R.string.auth_change_password_title else R.string.auth_new_password_title),
+                subtitle = stringResource(if (authVm.hasPassword) R.string.profile_change_password_sub else R.string.profile_set_password_sub),
+                c = c,
+                onClick = onSetPassword,
+                trailing = { Chevron(c) },
             )
         }
 
@@ -276,6 +390,33 @@ fun ProfileScreen(
         // ── Notifications ────────────────────────────────────────────
         SectionHeader(Icons.Filled.Notifications, stringResource(R.string.notifications), c)
         SettingsGroup(c) {
+            SettingRow(
+                icon = Icons.Filled.Notifications,
+                title = stringResource(R.string.my_notifications),
+                subtitle = stringResource(R.string.notifications_history_sub),
+                c = c,
+                onClick = onOpenNotifications,
+                trailing = {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        if (unreadNotifications > 0) {
+                            Box(
+                                Modifier.clip(CircleShape).background(c.error).padding(horizontal = 7.dp, vertical = 2.dp),
+                            ) {
+                                Text(
+                                    if (unreadNotifications > 9) "9+" else "$unreadNotifications",
+                                    color = Color.White,
+                                    fontFamily = Inter,
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.Bold,
+                                )
+                            }
+                            Spacer(Modifier.size(8.dp))
+                        }
+                        Chevron(c)
+                    }
+                },
+            )
+            RowDivider(c)
             SettingRow(
                 icon = Icons.Filled.Notifications,
                 title = stringResource(R.string.push_notifications),
@@ -316,9 +457,9 @@ fun ProfileScreen(
             SettingRow(
                 icon = Icons.Filled.Favorite,
                 title = stringResource(R.string.favorite_restaurants),
-                subtitle = "0 ${stringResource(R.string.restaurants)}",
+                subtitle = "$favoriteCount ${stringResource(R.string.restaurants)}",
                 c = c,
-                onClick = soon,
+                onClick = onOpenFavorites,
                 trailing = { Chevron(c) },
             )
         }
@@ -336,16 +477,98 @@ fun ProfileScreen(
             )
         }
 
+        // ── À propos ──────────────────────────────────────────────────
+        SectionHeader(Icons.Filled.Language, stringResource(R.string.about), c)
+        SettingsGroup(c) {
+            SettingRow(
+                icon = Icons.Filled.Language,
+                title = stringResource(R.string.website),
+                subtitle = "veloxdj.com",
+                c = c,
+                onClick = {
+                    runCatching {
+                        context.startActivity(
+                            Intent(Intent.ACTION_VIEW, Uri.parse("https://veloxdj.com/")),
+                        )
+                    }
+                },
+                trailing = { Chevron(c) },
+            )
+        }
+
         // ── Compte ───────────────────────────────────────────────────
         Spacer(Modifier.height(20.dp))
         Box(Modifier.padding(horizontal = 20.dp)) {
             Column {
                 AccountAction(Icons.AutoMirrored.Filled.Logout, stringResource(R.string.logout_action), orange, c, onLogout)
                 Spacer(Modifier.height(12.dp))
-                AccountAction(Icons.Filled.DeleteForever, stringResource(R.string.delete_account), c.error, c, soon)
+                AccountAction(Icons.Filled.DeleteForever, stringResource(R.string.delete_account), c.error, c, { showDeleteConfirm = true })
             }
         }
         Spacer(Modifier.height(40.dp))
+    }
+
+    // ── Dialogue de confirmation de suppression ──
+    if (showDeleteConfirm) {
+        AlertDialog(
+            onDismissRequest = { if (!deleting) showDeleteConfirm = false },
+            containerColor = c.surfaceHigh,
+            title = { Text(stringResource(R.string.delete_account_title), color = c.onSurface, fontFamily = Poppins, fontWeight = FontWeight.Bold) },
+            text = { Text(stringResource(R.string.delete_account_msg), color = c.onSurfaceVariant, fontFamily = Inter) },
+            confirmButton = {
+                TextButton(
+                    enabled = !deleting,
+                    onClick = { showDeleteConfirm = false; runDelete() },
+                ) { Text(stringResource(R.string.delete_account_action), color = c.error, fontWeight = FontWeight.Bold) }
+            },
+            dismissButton = {
+                TextButton(enabled = !deleting, onClick = { showDeleteConfirm = false }) {
+                    Text(stringResource(R.string.cancel), color = c.onSurfaceVariant)
+                }
+            },
+        )
+    }
+
+    // ── Dialogue de reconnexion (comptes email/mot de passe) ──
+    if (showPasswordPrompt) {
+        var password by remember { mutableStateOf("") }
+        AlertDialog(
+            onDismissRequest = { if (!deleting) showPasswordPrompt = false },
+            containerColor = c.surfaceHigh,
+            title = { Text(stringResource(R.string.reauth_title), color = c.onSurface, fontFamily = Poppins, fontWeight = FontWeight.Bold) },
+            text = {
+                Column {
+                    Text(stringResource(R.string.reauth_msg), color = c.onSurfaceVariant, fontFamily = Inter)
+                    Spacer(Modifier.height(12.dp))
+                    OutlinedTextField(
+                        value = password,
+                        onValueChange = { password = it },
+                        singleLine = true,
+                        visualTransformation = androidx.compose.ui.text.input.PasswordVisualTransformation(),
+                        placeholder = { Text(stringResource(R.string.password), color = c.onSurfaceVariant) },
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                }
+            },
+            confirmButton = {
+                TextButton(
+                    enabled = !deleting && password.isNotBlank(),
+                    onClick = {
+                        showPasswordPrompt = false
+                        deleting = true
+                        authVm.deleteAccountWithPassword(password) { err ->
+                            deleting = false
+                            if (err != null) Toast.makeText(context, err, Toast.LENGTH_LONG).show()
+                        }
+                    },
+                ) { Text(stringResource(R.string.delete_account_action), color = c.error, fontWeight = FontWeight.Bold) }
+            },
+            dismissButton = {
+                TextButton(enabled = !deleting, onClick = { showPasswordPrompt = false }) {
+                    Text(stringResource(R.string.cancel), color = c.onSurfaceVariant)
+                }
+            },
+        )
     }
 }
 

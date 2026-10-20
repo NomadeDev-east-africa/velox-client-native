@@ -29,4 +29,12 @@ class ThemeViewModel @Inject constructor(
     fun setDarkMode(enabled: Boolean) {
         viewModelScope.launch { store.setDarkMode(enabled) }
     }
+
+    /** Thème des tuiles de la carte — indépendant du thème de l'app une fois choisi. */
+    val mapDark: StateFlow<Boolean> = store.mapDarkFlow
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), initialValue = true)
+
+    fun setMapDark(enabled: Boolean) {
+        viewModelScope.launch { store.setMapDark(enabled) }
+    }
 }

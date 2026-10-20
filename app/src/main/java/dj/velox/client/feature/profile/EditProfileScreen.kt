@@ -78,6 +78,7 @@ import java.util.Locale
 fun EditProfileScreen(
     session: SessionState,
     onBack: () -> Unit,
+    onChangePhone: () -> Unit,
     vm: EditProfileViewModel = hiltViewModel(),
 ) {
     val c = VeloxTheme.colors
@@ -89,9 +90,6 @@ fun EditProfileScreen(
     }
 
     var name by rememberSaveable { mutableStateOf(session.displayName) }
-    var phone by rememberSaveable {
-        mutableStateOf(session.profile?.phone ?: session.firebaseUser?.phoneNumber ?: "")
-    }
     val initialBirth = remember(session) {
         (session.profile?.raw?.get("birthDate") as? Timestamp)?.toDate()?.time
     }
@@ -180,9 +178,26 @@ fun EditProfileScreen(
             EditField(name, { name = it }, stringResource(R.string.your_full_name), Icons.Filled.Person, c)
 
             Spacer(Modifier.height(16.dp))
+            // ── Téléphone (lecture seule — modifiable uniquement par OTP) ──
+            // Le numéro doit rester celui rattaché à Firebase Auth : s'il n'était modifié
+            // que dans Firestore, une connexion par SMS sur ce numéro créerait un compte vide.
             FieldLabelE(stringResource(R.string.phone_number), c)
             Spacer(Modifier.height(8.dp))
-            EditField(phone, { phone = it }, "+253 XX XX XX XX", Icons.Outlined.Phone, c, keyboard = KeyboardType.Phone)
+            Row(
+                Modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp)).background(c.surfaceHigh).border(1.dp, c.outlineVariant.copy(alpha = 0.5f), RoundedCornerShape(14.dp)).padding(start = 16.dp, end = 8.dp, top = 6.dp, bottom = 6.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Icon(Icons.Outlined.Phone, null, tint = c.onSurfaceVariant, modifier = Modifier.size(20.dp))
+                Spacer(Modifier.size(12.dp))
+                Text(
+                    session.verifiedPhone ?: stringResource(R.string.phone_not_set),
+                    color = if (session.verifiedPhone != null) c.onSurfaceVariant else c.outlineVariant,
+                    fontFamily = Inter, fontSize = 15.sp, modifier = Modifier.weight(1f),
+                )
+                TextButton(onClick = onChangePhone) {
+                    Text(stringResource(R.string.change_phone_action), color = c.primary, fontFamily = Inter, fontSize = 14.sp, fontWeight = FontWeight.Bold)
+                }
+            }
 
             Spacer(Modifier.height(16.dp))
             FieldLabelE(stringResource(R.string.birth_date), c)
@@ -221,7 +236,7 @@ fun EditProfileScreen(
             val enabled = name.isNotBlank() && !ui.isSaving
             Box(
                 Modifier.fillMaxWidth().height(54.dp).clip(RoundedCornerShape(16.dp)).background(if (enabled) c.primary else c.primary.copy(alpha = 0.4f))
-                    .clickable(enabled = enabled) { vm.save(name.trim(), phone.trim().ifBlank { null }, birthMillis, onBack) },
+                    .clickable(enabled = enabled) { vm.save(name.trim(), birthMillis, onBack) },
                 contentAlignment = Alignment.Center,
             ) {
                 if (ui.isSaving) CircularProgressIndicator(Modifier.size(22.dp), color = c.onPrimary, strokeWidth = 2.dp)

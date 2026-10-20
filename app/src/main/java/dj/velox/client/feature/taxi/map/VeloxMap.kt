@@ -17,9 +17,13 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.viewinterop.AndroidView
+import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import dj.velox.client.BuildConfig
+import dj.velox.client.core.theme.ThemeViewModel
 import dj.velox.client.domain.model.LatLng
 import org.maplibre.android.MapLibre
 import org.maplibre.android.camera.CameraPosition
@@ -39,24 +43,23 @@ import org.maplibre.geojson.Point
 import org.maplibre.android.geometry.LatLng as MlLatLng
 
 /**
- * Tuiles raster CartoDB (mêmes que l'app Flutter `nomade_client`, sans clé API) :
+ * Tuiles raster CARTO Basemaps (mêmes fonds que l'app Flutter `nomade_client`) :
  * `dark_all` en thème sombre (colle au design Kinetic Monolith), `light_all` en clair.
+ * Le service exige une clé (`?key=`, BuildConfig.CARTO_API_KEY lue depuis local.properties),
+ * sinon chaque tuile affiche le filigrane « API KEY REQUIRED ».
  * Le style démo MapLibre n'a aucune donnée au-delà du zoom monde → carte vide en ville.
  */
 private fun cartoStyleJson(dark: Boolean): String {
     val variant = if (dark) "dark_all" else "light_all"
+    val base = "https://basemaps.cartocdn.com/rastertiles/$variant/{z}/{x}/{y}@2x.png" +
+        "?key=${BuildConfig.CARTO_API_KEY}"
     return """
     {
       "version": 8,
       "sources": {
         "carto": {
           "type": "raster",
-          "tiles": [
-            "https://a.basemaps.cartocdn.com/$variant/{z}/{x}/{y}@2x.png",
-            "https://b.basemaps.cartocdn.com/$variant/{z}/{x}/{y}@2x.png",
-            "https://c.basemaps.cartocdn.com/$variant/{z}/{x}/{y}@2x.png",
-            "https://d.basemaps.cartocdn.com/$variant/{z}/{x}/{y}@2x.png"
-          ],
+          "tiles": ["$base"],
           "tileSize": 512,
           "minzoom": 0,
           "maxzoom": 20,
@@ -78,6 +81,7 @@ private const val POINTS_LAYER = "velox-points-layer"
 
 private const val IMG_USER = "velox-pin-user"
 private const val IMG_SCOOTER = "velox-pin-scooter"
+private const val IMG_CAR = "velox-pin-car"
 private const val IMG_DEST = "velox-pin-dest"
 
 /**
@@ -85,7 +89,33 @@ private const val IMG_DEST = "velox-pin-dest"
  * - [RIDE] (VTC) : départ = pin client bleu, arrivée = pin destination vert.
  * - [DELIVERY] (suivi livreur) : départ = scooter vert, arrivée = pin client bleu.
  */
-enum class MapMarkerStyle { RIDE, DELIVERY }
+enum class MapMarkerStyle { RIDE, DELIVERY, RIDE_TRACKING }
+
+/**
+ * Initialise MapLibre une seule fois et indique si la carte est utilisable.
+ * Sur certains appareils la lib native (`libmaplibre.so`) ne se charge pas (APK installé sans
+ * le split natif de l'AAB, ABI absente…) : `MapLibre.getInstance` lève alors une
+ * `UnsatisfiedLinkError` (crash Crashlytics c218ae58, build 16). On l'attrape, on la remonte
+ * en non-fatal et l'écran garde son fond neutre au lieu de crasher.
+ * Résultat mis en cache : après un échec, MapLibre garde une instance à moitié initialisée,
+ * donc on ne retente pas.
+ */
+private object MapLibreSupport {
+    @Volatile private var available: Boolean? = null
+
+    fun isAvailable(context: android.content.Context): Boolean {
+        available?.let { return it }
+        return synchronized(this) {
+            available ?: try {
+                MapLibre.getInstance(context.applicationContext)
+                true
+            } catch (e: LinkageError) {
+                com.google.firebase.crashlytics.FirebaseCrashlytics.getInstance().recordException(e)
+                false
+            }.also { available = it }
+        }
+    }
+}
 
 /** Rasterise un drawable vectoriel en Bitmap (pour `Style.addImage`). */
 private fun drawableToBitmap(context: android.content.Context, resId: Int): android.graphics.Bitmap {
@@ -118,10 +148,15 @@ fun VeloxMap(
     onMapReady: (MapLibreMap) -> Unit = {},
     onCenterIdle: ((LatLng) -> Unit)? = null,
 ) {
-    val darkTiles = MaterialTheme.colorScheme.background.luminance() < 0.5f
+    // Thème des tuiles : préférence explicite « Carte sombre » (Profil → Apparence), qui
+    // retombe sur le thème de l'app tant que l'utilisateur n'a rien choisi.
+    val themeVm: ThemeViewModel = hiltViewModel()
+    val darkTiles by themeVm.mapDark.collectAsStateWithLifecycle()
     // Montage différé : on rend d'abord un placeholder léger (couleur de surface), puis on
     // monte la MapView (init OpenGL coûteuse) au frame SUIVANT. La composition/scroll initiale
     // n'est donc plus bloquée par l'init GL — c'est la cause des freezes ~800 ms à l'ouverture.
+    val context = LocalContext.current
+    val mapAvailable = remember { MapLibreSupport.isAvailable(context) }
     var mounted by remember { mutableStateOf(false) }
     LaunchedEffect(Unit) {
         withFrameNanos { } // laisse le 1er frame se dessiner
@@ -133,7 +168,7 @@ fun VeloxMap(
                 .fillMaxSize()
                 .background(if (darkTiles) Color(0xFF0E0E0E) else Color(0xFFF5F5F5)),
         )
-        if (mounted) {
+        if (mounted && mapAvailable) {
             VeloxMapContent(
                 center = center,
                 modifier = Modifier.fillMaxSize(),
@@ -165,10 +200,8 @@ private fun VeloxMapContent(
 ) {
     val context = LocalContext.current
     val styleJson = remember(darkTiles) { cartoStyleJson(darkTiles) }
-    val mapView = remember {
-        MapLibre.getInstance(context)
-        MapView(context).apply { onCreate(null) }
-    }
+    // MapLibre déjà initialisé par MapLibreSupport (ce composable n'est monté que si OK).
+    val mapView = remember { MapView(context).apply { onCreate(null) } }
     var mlMap by remember { mutableStateOf<MapLibreMap?>(null) }
     var mlStyle by remember { mutableStateOf<Style?>(null) }
 
@@ -210,6 +243,7 @@ private fun VeloxMapContent(
                     // Icônes de marqueurs (pins) enregistrées une fois pour le SymbolLayer.
                     style.addImage(IMG_USER, drawableToBitmap(context, dj.velox.client.R.drawable.ic_pin_user))
                     style.addImage(IMG_SCOOTER, drawableToBitmap(context, dj.velox.client.R.drawable.ic_pin_scooter))
+                    style.addImage(IMG_CAR, drawableToBitmap(context, dj.velox.client.R.drawable.ic_pin_car))
                     style.addImage(IMG_DEST, drawableToBitmap(context, dj.velox.client.R.drawable.ic_pin_dest))
 
                     // Sources + couches route/marqueurs (vides au départ).
@@ -282,7 +316,11 @@ private fun VeloxMapContent(
 
         // Marqueurs : le départ est toujours affiché (même sans arrivée → pin client visible
         // dès la 1ʳᵉ page VTC). Les icônes dépendent du contexte (course vs livraison).
-        val startIcon = if (markerStyle == MapMarkerStyle.DELIVERY) IMG_SCOOTER else IMG_USER
+        val startIcon = when (markerStyle) {
+            MapMarkerStyle.DELIVERY -> IMG_SCOOTER
+            MapMarkerStyle.RIDE_TRACKING -> IMG_CAR   // suivi VTC : le chauffeur = voiture
+            else -> IMG_USER
+        }
         val endIcon = if (markerStyle == MapMarkerStyle.DELIVERY) IMG_USER else IMG_DEST
         val features = buildList {
             if (s != null) add(Feature.fromGeometry(Point.fromLngLat(s.longitude, s.latitude)).apply { addStringProperty("icon", startIcon) })

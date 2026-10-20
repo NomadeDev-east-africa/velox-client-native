@@ -30,6 +30,8 @@ if (localPropertiesFile.exists()) {
     localProperties.load(FileInputStream(localPropertiesFile))
 }
 val orsApiKey: String = (localProperties["ORS_API_KEY"] as String?) ?: ""
+// Clé CARTO Basemaps (tuiles raster) : sans elle, les tuiles affichent « API KEY REQUIRED ».
+val cartoApiKey: String = (localProperties["CARTO_API_KEY"] as String?) ?: ""
 
 android {
     namespace = "dj.velox.client"
@@ -43,14 +45,15 @@ android {
         applicationId = "dj.velox.client"
         minSdk = 24
         targetSdk = 36
-        versionCode = 1
-        versionName = "1.0"
+        versionCode = 17
+        versionName = "1.1"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables { useSupportLibrary = true }
 
         // Clé ORS injectée au build depuis local.properties (jamais versionnée).
         buildConfigField("String", "ORS_API_KEY", "\"$orsApiKey\"")
+        buildConfigField("String", "CARTO_API_KEY", "\"$cartoApiKey\"")
     }
 
     signingConfigs {

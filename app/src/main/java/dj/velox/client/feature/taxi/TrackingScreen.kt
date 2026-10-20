@@ -2,6 +2,7 @@ package dj.velox.client.feature.taxi
 
 import android.content.Intent
 import android.net.Uri
+import androidx.annotation.StringRes
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -42,6 +43,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -49,6 +51,7 @@ import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil.compose.AsyncImage
+import dj.velox.client.R
 import dj.velox.client.domain.model.LatLng
 import dj.velox.client.domain.model.Ride
 import dj.velox.client.domain.model.RideStatus
@@ -65,6 +68,7 @@ import kotlin.math.roundToInt
 fun TrackingScreen(
     onFinished: () -> Unit,
     onCompleted: (rideId: String) -> Unit,
+    onViewDriverPosition: (rideId: String) -> Unit,
     rideVm: RideViewModel = hiltViewModel(),
 ) {
     val c = VeloxTheme.colors
@@ -116,7 +120,16 @@ fun TrackingScreen(
             DriverCard(
                 ride = ride, c = c,
                 onCall = { ride.driverPhone?.let { dial(context, it) } },
-                onCancel = { scope.launch { runCatching { rideVm.cancelRide("Annulée par l'utilisateur") } } },
+                // Annulation → retour immédiat à l'accueil. On ne dépend pas du round-trip
+                // Firestore (le stream finit par nettoyer la course, mais l'utilisateur
+                // resterait sinon plusieurs secondes sur un écran de suivi déjà annulé).
+                onCancel = {
+                    scope.launch {
+                        runCatching { rideVm.cancelRide("Annulée par l'utilisateur") }
+                            .onSuccess { rideVm.clearRide(); onFinished() }
+                    }
+                },
+                onViewPosition = { onViewDriverPosition(ride.rideId) },
                 modifier = Modifier.align(Alignment.BottomCenter),
             )
         } else {
@@ -133,26 +146,38 @@ private fun dial(context: android.content.Context, phone: String) {
 
 // ── Données de statut ────────────────────────────────────────────────────────
 
-private data class StatusInfo(val code: String, val title: String, val chip: String)
+private data class StatusInfo(
+    @StringRes val code: Int,
+    @StringRes val title: Int,
+    @StringRes val chip: Int,
+)
 
 private fun statusInfo(status: RideStatus): StatusInfo = when (status) {
-    RideStatus.REQUESTED -> StatusInfo("RECHERCHE", "Recherche d'un chauffeur…", "EN_ATTENTE")
-    RideStatus.ACCEPTED -> StatusInfo("COMMANDANT_ASSIGNÉ", "Chauffeur en route vers vous", "EN_ROUTE")
-    RideStatus.ARRIVING -> StatusInfo("COMMANDANT_ASSIGNÉ", "Chauffeur en approche", "EN_ROUTE")
-    RideStatus.ARRIVED -> StatusInfo("COMMANDANT_ARRIVÉ", "Votre chauffeur est arrivé", "ARRIVÉ")
-    RideStatus.STARTED -> StatusInfo("EN_TRANSIT", "En route vers la destination", "EN_TRANSIT")
-    RideStatus.COMPLETED -> StatusInfo("COURSE_TERMINÉE", "Vous êtes arrivé 🎉", "TERMINÉ")
-    RideStatus.CANCELLED -> StatusInfo("ANNULÉE", "Course annulée", "ANNULÉ")
-    RideStatus.NO_DRIVER_AVAILABLE -> StatusInfo("AUCUN_PILOTE", "Aucun chauffeur disponible", "INDISPONIBLE")
+    RideStatus.REQUESTED -> StatusInfo(R.string.status_code_searching, R.string.status_title_searching, R.string.status_chip_waiting)
+    RideStatus.ACCEPTED -> StatusInfo(R.string.status_code_assigned, R.string.status_title_on_the_way, R.string.status_chip_en_route)
+    RideStatus.ARRIVING -> StatusInfo(R.string.status_code_assigned, R.string.status_title_approaching, R.string.status_chip_en_route)
+    RideStatus.ARRIVED -> StatusInfo(R.string.status_code_arrived, R.string.status_title_arrived, R.string.status_chip_arrived)
+    RideStatus.STARTED -> StatusInfo(R.string.status_code_transit, R.string.status_title_transit, R.string.status_chip_transit)
+    RideStatus.COMPLETED -> StatusInfo(R.string.status_code_completed, R.string.status_title_completed, R.string.status_chip_completed)
+    RideStatus.CANCELLED -> StatusInfo(R.string.status_code_cancelled, R.string.status_title_cancelled, R.string.status_chip_cancelled)
+    RideStatus.NO_DRIVER_AVAILABLE -> StatusInfo(R.string.status_code_no_driver, R.string.status_title_no_driver, R.string.status_chip_unavailable)
 }
 
+@Composable
 private fun bannerText(ride: Ride): Pair<String, String> = when (ride.status) {
-    RideStatus.ACCEPTED, RideStatus.ARRIVING ->
-        "✅ Un chauffeur a accepté" to "${ride.driverName ?: "Le chauffeur"} arrive — ${ride.driverPhone ?: ""}"
-    RideStatus.ARRIVED -> "📍 Chauffeur arrivé" to "Votre chauffeur vous attend au point de départ"
-    RideStatus.STARTED -> "🚗 Course commencée" to "Direction ${ride.destination.address}"
-    RideStatus.REQUESTED -> "🔎 Recherche en cours" to "On cherche un chauffeur pour vous"
-    else -> statusInfo(ride.status).title to ""
+    RideStatus.ACCEPTED, RideStatus.ARRIVING -> stringResource(R.string.banner_accepted_title) to
+        stringResource(
+            R.string.banner_accepted_sub,
+            ride.driverName ?: stringResource(R.string.the_driver),
+            ride.driverPhone ?: "",
+        )
+    RideStatus.ARRIVED -> stringResource(R.string.banner_arrived_title) to stringResource(R.string.banner_arrived_sub)
+    RideStatus.STARTED -> stringResource(R.string.banner_started_title) to
+        stringResource(R.string.banner_started_sub, ride.destination.address)
+    RideStatus.REQUESTED -> stringResource(R.string.banner_searching_title) to stringResource(R.string.banner_searching_sub)
+    RideStatus.NO_DRIVER_AVAILABLE -> stringResource(statusInfo(ride.status).title) to
+        if (ride.vehicleType.equals("comfort", ignoreCase = true)) stringResource(R.string.banner_no_driver_comfort_sub) else ""
+    else -> stringResource(statusInfo(ride.status).title) to ""
 }
 
 // ── Composants ───────────────────────────────────────────────────────────────
@@ -170,7 +195,7 @@ private fun StatusBanner(ride: Ride, c: VeloxColors) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(title, color = c.onSurface, fontFamily = Poppins, fontSize = 15.sp, fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f, fill = false))
                 Spacer(Modifier.size(6.dp))
-                Text("· maintenant", color = c.onSurfaceVariant, fontFamily = Inter, fontSize = 12.sp)
+                Text(stringResource(R.string.status_now), color = c.onSurfaceVariant, fontFamily = Inter, fontSize = 12.sp)
                 Spacer(Modifier.size(4.dp))
                 Icon(Icons.Filled.NotificationsNone, null, tint = c.onSurfaceVariant, modifier = Modifier.size(14.dp))
             }
@@ -196,10 +221,10 @@ private fun StatusStrip(ride: Ride, c: VeloxColors) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Box(Modifier.size(8.dp).clip(CircleShape).background(c.primary))
                 Spacer(Modifier.size(8.dp))
-                Text(info.code, color = c.primary, fontFamily = Inter, fontSize = 12.sp, fontWeight = FontWeight.W700, letterSpacing = 1.5.sp)
+                Text(stringResource(info.code), color = c.primary, fontFamily = Inter, fontSize = 12.sp, fontWeight = FontWeight.W700, letterSpacing = 1.5.sp)
             }
             Spacer(Modifier.height(6.dp))
-            Text(info.title, color = c.onSurface, fontFamily = Poppins, fontSize = 18.sp, fontWeight = FontWeight.Bold)
+            Text(stringResource(info.title), color = c.onSurface, fontFamily = Poppins, fontSize = 18.sp, fontWeight = FontWeight.Bold)
         }
         Icon(Icons.Filled.NotificationsNone, null, tint = c.onSurfaceVariant, modifier = Modifier.padding(end = 16.dp).size(20.dp))
     }
@@ -213,7 +238,7 @@ private fun MapControl(icon: androidx.compose.ui.graphics.vector.ImageVector, c:
 }
 
 @Composable
-private fun DriverCard(ride: Ride, c: VeloxColors, onCall: () -> Unit, onCancel: () -> Unit, modifier: Modifier = Modifier) {
+private fun DriverCard(ride: Ride, c: VeloxColors, onCall: () -> Unit, onCancel: () -> Unit, onViewPosition: () -> Unit, modifier: Modifier = Modifier) {
     val cancellable = ride.status in setOf(RideStatus.REQUESTED, RideStatus.ACCEPTED, RideStatus.ARRIVING, RideStatus.ARRIVED)
     Column(
         modifier.fillMaxWidth().clip(RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp)).background(c.surface).navigationBarsPadding().padding(20.dp),
@@ -222,7 +247,7 @@ private fun DriverCard(ride: Ride, c: VeloxColors, onCall: () -> Unit, onCancel:
             Row(verticalAlignment = Alignment.CenterVertically) {
                 CircularProgressIndicator(Modifier.size(20.dp), color = c.primary, strokeWidth = 2.dp)
                 Spacer(Modifier.size(12.dp))
-                Text("Recherche d'un chauffeur…", color = c.onSurface, fontFamily = Inter, fontSize = 15.sp, fontWeight = FontWeight.W600)
+                Text(stringResource(R.string.status_title_searching), color = c.onSurface, fontFamily = Inter, fontSize = 15.sp, fontWeight = FontWeight.W600)
             }
         } else {
             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -235,12 +260,12 @@ private fun DriverCard(ride: Ride, c: VeloxColors, onCall: () -> Unit, onCancel:
                 }
                 Spacer(Modifier.size(16.dp))
                 Column(Modifier.weight(1f)) {
-                    Text("Commandant de bord", color = c.onSurfaceVariant, fontFamily = Inter, fontSize = 12.sp)
+                    Text(stringResource(R.string.ride_captain), color = c.onSurfaceVariant, fontFamily = Inter, fontSize = 12.sp)
                     Text(ride.driverName.uppercase(), color = c.onSurface, fontFamily = Poppins, fontSize = 18.sp, fontWeight = FontWeight.W800, letterSpacing = (-0.5).sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
                 }
                 Column(horizontalAlignment = Alignment.End) {
-                    Text("Tarif estimé", color = c.onSurfaceVariant, fontFamily = Inter, fontSize = 12.sp)
-                    Text("${(ride.finalFare ?: ride.estimatedFare).roundToInt()} FDJ", color = c.primary, fontFamily = Poppins, fontSize = 18.sp, fontWeight = FontWeight.W800)
+                    Text(stringResource(R.string.ride_estimated_fare), color = c.onSurfaceVariant, fontFamily = Inter, fontSize = 12.sp)
+                    Text(stringResource(R.string.ride_price_fdj, (ride.finalFare ?: ride.estimatedFare).roundToInt()), color = c.primary, fontFamily = Poppins, fontSize = 18.sp, fontWeight = FontWeight.W800)
                 }
             }
             Spacer(Modifier.height(16.dp))
@@ -258,7 +283,21 @@ private fun DriverCard(ride: Ride, c: VeloxColors, onCall: () -> Unit, onCancel:
                     Modifier.clip(RoundedCornerShape(12.dp)).background(c.primary).clickable(enabled = ride.driverPhone != null, onClick = onCall).padding(horizontal = 28.dp, vertical = 14.dp),
                     contentAlignment = Alignment.Center,
                 ) {
-                    Text("APPELER", color = c.onPrimary, fontFamily = Inter, fontSize = 15.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.sp)
+                    Text(stringResource(R.string.action_call_upper), color = c.onPrimary, fontFamily = Inter, fontSize = 15.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.sp)
+                }
+            }
+            // Voir la position live du chauffeur (dispo dès qu'un chauffeur est assigné).
+            if (ride.driverId != null) {
+                Spacer(Modifier.height(12.dp))
+                Row(
+                    Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).border(1.dp, c.primary.copy(alpha = 0.5f), RoundedCornerShape(12.dp))
+                        .clickable(onClick = onViewPosition).padding(vertical = 14.dp),
+                    horizontalArrangement = Arrangement.Center,
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Icon(Icons.Filled.MyLocation, null, tint = c.primary, modifier = Modifier.size(18.dp))
+                    Spacer(Modifier.size(8.dp))
+                    Text(stringResource(R.string.view_driver_position), color = c.primary, fontFamily = Inter, fontSize = 15.sp, fontWeight = FontWeight.Bold)
                 }
             }
         }
@@ -267,10 +306,10 @@ private fun DriverCard(ride: Ride, c: VeloxColors, onCall: () -> Unit, onCancel:
         Row(verticalAlignment = Alignment.CenterVertically) {
             Chip("SYSTEM_STABLE", c.primary, c.primary.copy(alpha = 0.12f))
             Spacer(Modifier.size(8.dp))
-            Chip(statusInfo(ride.status).chip, c.onSurfaceVariant, c.surfaceHigh)
+            Chip(stringResource(statusInfo(ride.status).chip), c.onSurfaceVariant, c.surfaceHigh)
             Spacer(Modifier.weight(1f))
             if (cancellable) {
-                Text("ANNULER", color = c.error, fontFamily = Inter, fontSize = 13.sp, fontWeight = FontWeight.Bold, letterSpacing = 0.5.sp, modifier = Modifier.clip(RoundedCornerShape(8.dp)).clickable(onClick = onCancel).padding(6.dp))
+                Text(stringResource(R.string.action_cancel_upper), color = c.error, fontFamily = Inter, fontSize = 13.sp, fontWeight = FontWeight.Bold, letterSpacing = 0.5.sp, modifier = Modifier.clip(RoundedCornerShape(8.dp)).clickable(onClick = onCancel).padding(6.dp))
             }
         }
     }

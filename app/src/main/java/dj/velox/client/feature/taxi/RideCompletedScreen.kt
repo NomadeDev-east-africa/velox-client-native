@@ -53,6 +53,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextDecoration
@@ -62,6 +63,7 @@ import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil.compose.AsyncImage
+import dj.velox.client.R
 import dj.velox.client.domain.model.Ride
 import dj.velox.client.ui.theme.Inter
 import dj.velox.client.ui.theme.Poppins
@@ -91,6 +93,7 @@ fun RideCompletedScreen(
     var rating by remember { mutableIntStateOf(0) }
     var comment by remember { mutableStateOf("") }
     var favorite by remember { mutableStateOf(false) }
+    val thanksMsg = stringResource(R.string.ride_rating_thanks)
 
     val r = ride
     if (r == null) {
@@ -121,7 +124,7 @@ fun RideCompletedScreen(
 
         // Notation
         WhiteCard {
-            Text("Comment s'est passée votre course ?", color = TextDark, fontFamily = Poppins, fontSize = 20.sp, fontWeight = FontWeight.Bold, lineHeight = 26.sp)
+            Text(stringResource(R.string.ride_rate_question), color = TextDark, fontFamily = Poppins, fontSize = 20.sp, fontWeight = FontWeight.Bold, lineHeight = 26.sp)
             Spacer(Modifier.height(16.dp))
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.Center) {
                 (1..5).forEach { s ->
@@ -141,7 +144,7 @@ fun RideCompletedScreen(
             OutlinedTextField(
                 value = comment,
                 onValueChange = { if (it.length <= 300) comment = it },
-                placeholder = { Text("Commentaire (optionnel)", color = Color(0xFF9E9E9E)) },
+                placeholder = { Text(stringResource(R.string.ride_comment_hint), color = Color(0xFF9E9E9E)) },
                 maxLines = 4,
                 shape = RoundedCornerShape(12.dp),
                 colors = OutlinedTextFieldDefaults.colors(
@@ -152,9 +155,9 @@ fun RideCompletedScreen(
                 modifier = Modifier.fillMaxWidth().height(120.dp),
             )
             Spacer(Modifier.height(16.dp))
-            GreenButton(if (sent) "Évaluation envoyée ✓" else "Envoyer l'évaluation ⭐", enabled = !sent && !submitting && rating > 0, loading = submitting) {
+            GreenButton(stringResource(if (sent) R.string.ride_rating_sent else R.string.ride_send_rating), enabled = !sent && !submitting && rating > 0, loading = submitting) {
                 vm.submit(rating, comment.trim().ifBlank { null }, favorite) {
-                    Toast.makeText(context, "Merci pour votre évaluation !", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(context, thanksMsg, Toast.LENGTH_SHORT).show()
                 }
             }
         }
@@ -168,9 +171,9 @@ fun RideCompletedScreen(
                 }
                 Spacer(Modifier.size(14.dp))
                 Column(Modifier.weight(1f)) {
-                    Text("Ajouter aux favoris", color = TextDark, fontFamily = Poppins, fontSize = 17.sp, fontWeight = FontWeight.Bold)
+                    Text(stringResource(R.string.ride_add_favorite), color = TextDark, fontFamily = Poppins, fontSize = 17.sp, fontWeight = FontWeight.Bold)
                     Spacer(Modifier.height(2.dp))
-                    Text("Retrouvez rapidement ce chauffeur pour vos prochaines courses", color = TextGray, fontFamily = Inter, fontSize = 13.sp, lineHeight = 18.sp)
+                    Text(stringResource(R.string.ride_add_favorite_sub), color = TextGray, fontFamily = Inter, fontSize = 13.sp, lineHeight = 18.sp)
                 }
                 Spacer(Modifier.size(8.dp))
                 Switch(
@@ -181,10 +184,10 @@ fun RideCompletedScreen(
         }
         Spacer(Modifier.height(20.dp))
 
-        GreenButton("Nouvelle course", leading = Icons.Filled.Add, onClick = onNewRide)
+        GreenButton(stringResource(R.string.ride_new_ride), leading = Icons.Filled.Add, onClick = onNewRide)
         Spacer(Modifier.height(16.dp))
         Text(
-            "Retour à l'accueil", color = TextGray, fontFamily = Inter, fontSize = 15.sp, fontWeight = FontWeight.W600,
+            stringResource(R.string.ride_back_home), color = TextGray, fontFamily = Inter, fontSize = 15.sp, fontWeight = FontWeight.W600,
             textDecoration = TextDecoration.Underline,
             modifier = Modifier.clip(RoundedCornerShape(8.dp)).clickable(onClick = onFinished).padding(8.dp),
         )
@@ -196,14 +199,21 @@ private fun dialPhone(context: android.content.Context, phone: String) {
     runCatching { context.startActivity(android.content.Intent(android.content.Intent.ACTION_DIAL, android.net.Uri.parse("tel:$phone"))) }
 }
 
+@Composable
 private fun ratingText(r: Int): String = when (r) {
-    1 -> "Très mauvais 😞"; 2 -> "Mauvais 😕"; 3 -> "Correct 😐"; 4 -> "Très bien ! 😊"; 5 -> "Excellent ! 🤩"; else -> ""
+    1 -> stringResource(R.string.rating_1)
+    2 -> stringResource(R.string.rating_2)
+    3 -> stringResource(R.string.rating_3)
+    4 -> stringResource(R.string.rating_4)
+    5 -> stringResource(R.string.rating_5)
+    else -> ""
 }
 
+@Composable
 private fun vehicleLabel(type: String): String = when (type.lowercase()) {
-    "comfort", "confort" -> "Confort"
-    "van" -> "Van"
-    else -> "Standard"
+    "comfort", "confort" -> stringResource(R.string.vehicle_comfort)
+    "van" -> stringResource(R.string.vehicle_van)
+    else -> stringResource(R.string.vehicle_standard)
 }
 
 @Composable
@@ -214,16 +224,16 @@ private fun WhiteCard(content: @Composable androidx.compose.foundation.layout.Co
 @Composable
 private fun CompletedCard(r: Ride) {
     WhiteCard {
-        Text("Course terminée !", color = TextDark, fontFamily = Poppins, fontSize = 26.sp, fontWeight = FontWeight.Bold)
+        Text(stringResource(R.string.ride_completed_title), color = TextDark, fontFamily = Poppins, fontSize = 26.sp, fontWeight = FontWeight.Bold)
         Spacer(Modifier.height(16.dp))
-        LocRow(Icons.Filled.RadioButtonChecked, Green, "Départ", r.pickup.address)
+        LocRow(Icons.Filled.RadioButtonChecked, Green, stringResource(R.string.ride_pickup_label), r.pickup.address)
         Box(Modifier.padding(start = 18.dp).height(20.dp))
-        LocRow(Icons.Filled.LocationOn, PinRed, "Arrivée", r.destination.address)
+        LocRow(Icons.Filled.LocationOn, PinRed, stringResource(R.string.ride_dropoff_label), r.destination.address)
         Spacer(Modifier.height(20.dp))
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-            Metric(Icons.Filled.Straighten, "Distance", "%.1f km".format(r.distance))
-            Metric(Icons.Filled.Schedule, "Durée", "${r.estimatedDuration} min")
-            Metric(Icons.Filled.Payments, "Prix", "${(r.finalFare ?: r.estimatedFare).roundToInt()} FDJ")
+            Metric(Icons.Filled.Straighten, stringResource(R.string.distance), stringResource(R.string.taxi_km, "%.1f".format(r.distance)))
+            Metric(Icons.Filled.Schedule, stringResource(R.string.ride_duration), stringResource(R.string.ride_duration_min, r.estimatedDuration))
+            Metric(Icons.Filled.Payments, stringResource(R.string.price), stringResource(R.string.ride_price_fdj, (r.finalFare ?: r.estimatedFare).roundToInt()))
         }
     }
 }
@@ -265,11 +275,11 @@ private fun DriverCard(r: Ride, onCall: () -> Unit) {
             }
             Spacer(Modifier.size(16.dp))
             Column(Modifier.weight(1f)) {
-                Text(r.driverName ?: "Chauffeur", color = TextDark, fontFamily = Poppins, fontSize = 19.sp, fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                Text(r.driverName ?: stringResource(R.string.taxi_driver), color = TextDark, fontFamily = Poppins, fontSize = 19.sp, fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis)
                 Text(vehicleLabel(r.vehicleType), color = TextGray, fontFamily = Inter, fontSize = 14.sp)
             }
             Box(Modifier.size(48.dp).clip(CircleShape).background(Green.copy(alpha = 0.12f)).clickable(enabled = r.driverPhone != null, onClick = onCall), contentAlignment = Alignment.Center) {
-                Icon(Icons.Filled.Phone, "Appeler", tint = Green, modifier = Modifier.size(22.dp))
+                Icon(Icons.Filled.Phone, stringResource(R.string.action_call), tint = Green, modifier = Modifier.size(22.dp))
             }
         }
     }
@@ -281,11 +291,11 @@ private fun MerciBanner() {
         Modifier.fillMaxWidth().clip(RoundedCornerShape(20.dp)).background(Brush.horizontalGradient(listOf(Color(0xFFBFE6C4), Color(0xFFC2E4EC)))).padding(24.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
-        Text("Merci d'avoir roulé avec Velox", color = Green, fontFamily = Poppins, fontSize = 20.sp, fontWeight = FontWeight.Bold, textAlign = TextAlign.Center)
+        Text(stringResource(R.string.ride_thanks_title), color = Green, fontFamily = Poppins, fontSize = 20.sp, fontWeight = FontWeight.Bold, textAlign = TextAlign.Center)
         Spacer(Modifier.height(6.dp))
         Text("💙", fontSize = 20.sp)
         Spacer(Modifier.height(6.dp))
-        Text("Votre course s'est bien déroulée et nous espérons vous revoir bientôt !", color = Color(0xFF4A4A4A), fontFamily = Inter, fontSize = 14.sp, lineHeight = 20.sp, textAlign = TextAlign.Center)
+        Text(stringResource(R.string.ride_thanks_body), color = Color(0xFF4A4A4A), fontFamily = Inter, fontSize = 14.sp, lineHeight = 20.sp, textAlign = TextAlign.Center)
     }
 }
 

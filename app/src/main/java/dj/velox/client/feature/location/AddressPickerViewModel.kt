@@ -71,5 +71,12 @@ class AddressPickerViewModel @Inject constructor(
     /** Recentre programmatique (sélection d'un résultat) — sans relancer une recherche. */
     fun setCenter(latLng: LatLng) { _center.value = latLng }
 
+    /** Bouton « centrer sur ma position » — relit le GPS (l'init ne le fait qu'une fois). */
+    fun recenter() {
+        viewModelScope.launch {
+            runCatching { location.getCurrentLocation() }.onSuccess { _center.value = it }
+        }
+    }
+
     suspend fun reverseGeocode(lat: Double, lng: Double): String? = location.reverseGeocode(lat, lng)
 }

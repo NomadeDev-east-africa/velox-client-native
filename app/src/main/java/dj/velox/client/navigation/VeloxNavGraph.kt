@@ -2,6 +2,7 @@ package dj.velox.client.navigation
 
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.padding
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.res.stringResource
@@ -10,7 +11,9 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavHostController
@@ -22,18 +25,25 @@ import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import dj.velox.client.core.analytics.VeloxAnalytics
 import dj.velox.client.feature.auth.AuthViewModel
+import dj.velox.client.feature.auth.CompletePhoneScreen
+import dj.velox.client.feature.auth.GoogleLinkPromptDialog
 import dj.velox.client.feature.auth.EmailSignUpScreen
 import dj.velox.client.feature.auth.ForgotPasswordScreen
 import dj.velox.client.feature.auth.OtpScreen
 import dj.velox.client.feature.auth.PhoneLoginScreen
+import dj.velox.client.feature.auth.SetPasswordScreen
 import dj.velox.client.feature.auth.SessionState
 import dj.velox.client.feature.auth.SignInScreen
 import dj.velox.client.feature.auth.SignUpScreen
 import dj.velox.client.feature.food.AddToOrderScreen
 import dj.velox.client.feature.food.CartScreen
 import dj.velox.client.feature.food.CartViewModel
+import dj.velox.client.feature.food.CategoryItemsScreen
+import dj.velox.client.feature.food.FavoriteRestaurantsScreen
+import dj.velox.client.feature.food.FloatingOrderStatusWidget
 import dj.velox.client.feature.food.FoodHomeScreen
 import dj.velox.client.feature.food.FoodSearchScreen
+import dj.velox.client.feature.food.RestaurantMenuSearchScreen
 import dj.velox.client.feature.food.OrderCompletedScreen
 import dj.velox.client.feature.food.OrderTrackingScreen
 import dj.velox.client.feature.food.PendingOrderScreen
@@ -42,17 +52,20 @@ import dj.velox.client.feature.food.RestaurantDetailScreen
 import dj.velox.client.feature.home.HomeScreen
 import dj.velox.client.feature.location.AddressPickerScreen
 import dj.velox.client.feature.location.PickedPlace
+import dj.velox.client.feature.notifications.NotificationsScreen
 import dj.velox.client.feature.onboarding.OnboardingScreen
 import dj.velox.client.feature.orders.OrderHistoryScreen
 import dj.velox.client.feature.taxi.ConfirmRideScreen
 import dj.velox.client.feature.taxi.RideCompletedScreen
 import dj.velox.client.feature.profile.AddAddressScreen
+import dj.velox.client.feature.profile.ChangePhoneScreen
 import dj.velox.client.feature.profile.EditProfileScreen
 import dj.velox.client.feature.profile.LanguageSelectionScreen
 import dj.velox.client.feature.profile.MyAddressesScreen
 import dj.velox.client.feature.profile.ProfileScreen
 import dj.velox.client.feature.profile.SupportScreen
 import dj.velox.client.feature.taxi.TaxiHomeScreen
+import dj.velox.client.feature.taxi.TrackDriverScreen
 import dj.velox.client.feature.taxi.TrackingScreen
 import dj.velox.client.ui.components.VeloxLoader
 
@@ -70,11 +83,15 @@ object Routes {
     const val HOME = "home"
     const val TAXI_HOME = "taxi_home"
     const val TAXI_TRACKING = "taxi_tracking"
+    const val TRACK_DRIVER = "track_driver"
     const val CONFIRM_RIDE = "confirm_ride"
     const val RIDE_COMPLETED = "ride_completed"
     const val PICK_ADDRESS = "pick_address"
     const val FOOD_HOME = "food_home"
     const val FOOD_SEARCH = "food_search"
+    const val CATEGORY_ITEMS = "category_items"
+    const val RESTAURANT_MENU_SEARCH = "restaurant_menu_search"
+    const val FAVORITE_RESTAURANTS = "favorite_restaurants"
     const val RESTAURANT_DETAIL = "restaurant_detail"
     const val ADD_TO_ORDER = "add_to_order"
     const val CART = "cart"
@@ -84,13 +101,18 @@ object Routes {
     const val TRACK_DELIVERY = "track_delivery"
     const val PROFILE = "profile"
     const val ORDERS = "orders"
+    const val NOTIFICATIONS = "notifications"
     const val ADDRESSES = "addresses"
     const val ADD_ADDRESS = "add_address"
     const val EDIT_PROFILE = "edit_profile"
+    const val CHANGE_PHONE = "change_phone"
+    const val SET_PASSWORD = "set_password"
     const val LANGUAGE = "language"
     const val SUPPORT = "support"
 
     fun restaurantDetail(id: String) = "$RESTAURANT_DETAIL/$id"
+    fun categoryItems(category: String) = "$CATEGORY_ITEMS?category=${android.net.Uri.encode(category)}"
+    fun restaurantMenuSearch(restaurantId: String) = "$RESTAURANT_MENU_SEARCH/$restaurantId"
     fun addToOrder(restaurantId: String, menuId: String) = "$ADD_TO_ORDER/$restaurantId/$menuId"
     fun orderTracking(id: String) = "$ORDER_TRACKING/$id"
     fun orderCompleted(id: String) = "$ORDER_COMPLETED/$id"
@@ -104,6 +126,7 @@ object Routes {
     ): String = "$CONFIRM_RIDE?pLat=$pLat&pLng=$pLng&pAddr=${android.net.Uri.encode(pAddr)}" +
         "&dLat=$dLat&dLng=$dLng&dAddr=${android.net.Uri.encode(dAddr)}&dist=$distance&vehicle=$vehicleId"
     fun rideCompleted(rideId: String) = "$RIDE_COMPLETED/$rideId"
+    fun trackDriver(rideId: String) = "$TRACK_DRIVER/$rideId"
 }
 
 /**
@@ -139,6 +162,16 @@ fun RootContent(
     Box(modifier.fillMaxSize()) {
         when {
             session.isLoading -> VeloxLoader()
+            // Compte connecté sans numéro **vérifié** → écran bloquant de complétion.
+            // On teste le provider `phone` de Firebase Auth, pas `users/{uid}.phone` :
+            // un numéro présent seulement dans Firestore n'identifie pas le compte lors
+            // d'une connexion par OTP — Firebase créerait alors un second compte, vide.
+            // Les comptes historiques dans ce cas repassent donc une fois par cet écran.
+            session.isAuthenticated && session.verifiedPhone == null ->
+                CompletePhoneScreen(
+                    viewModel = authViewModel,
+                    onLogout = authViewModel::signOut,
+                )
             session.isAuthenticated -> MainNavGraph(
                 session = session,
                 onLogout = authViewModel::signOut,
@@ -157,6 +190,18 @@ private fun MainNavGraph(session: SessionState, onLogout: () -> Unit) {
     val cartViewModel: CartViewModel = hiltViewModel()
     // Adresses hissées → partagées entre la liste et le formulaire d'ajout/édition.
     val addressViewModel: dj.velox.client.feature.profile.AddressViewModel = hiltViewModel()
+    // Favoris restaurants hissés → cœur cohérent entre détail / recherche. Réactif à l'uid.
+    val favoritesViewModel: dj.velox.client.feature.food.FavoritesViewModel = hiltViewModel()
+    // Résolu hors du NavHost → même instance (portée activité) que celle de RootContent,
+    // donc l'écran « nouveau mot de passe » voit bien la session en cours.
+    val authViewModel: AuthViewModel = hiltViewModel()
+    val favoriteIds by favoritesViewModel.favorites.collectAsStateWithLifecycle()
+
+    // Widget flottant de suivi de commande (Accueil / Fiche resto / Panier / Profil).
+    // Réactif à l'uid, se masque seul peu après livraison — voir ActiveOrderViewModel.
+    val activeOrderVm: ActiveOrderViewModel = hiltViewModel()
+    val activeOrder by activeOrderVm.visibleOrder.collectAsStateWithLifecycle()
+    val cartState by cartViewModel.state.collectAsStateWithLifecycle()
 
     // Évite une double navigation entre le deep-link (notif tapée) et la restauration
     // au lancement : le premier des deux qui s'exécute pose ce drapeau, l'autre s'abstient.
@@ -194,6 +239,7 @@ private fun MainNavGraph(session: SessionState, onLogout: () -> Unit) {
         activeSessionVm.consume()
     }
 
+    Box(Modifier.fillMaxSize()) {
     NavHost(navController = navController, startDestination = Routes.HOME) {
         composable(Routes.HOME) {
             HomeScreen(
@@ -202,6 +248,7 @@ private fun MainNavGraph(session: SessionState, onLogout: () -> Unit) {
                 onOpenFood = { navController.navigate(Routes.FOOD_HOME) },
                 onOpenProfile = { navController.navigate(Routes.PROFILE) },
                 onOpenOrders = { navController.navigate(Routes.ORDERS) },
+                onOpenNotifications = { navController.navigate(Routes.NOTIFICATIONS) },
             )
         }
 
@@ -210,17 +257,37 @@ private fun MainNavGraph(session: SessionState, onLogout: () -> Unit) {
             ProfileScreen(
                 session = session,
                 onOpenOrders = { navController.navigate(Routes.ORDERS) },
+                onOpenNotifications = { navController.navigate(Routes.NOTIFICATIONS) },
                 onLogout = onLogout,
                 onBack = { navController.popBackStack() },
                 onManageAddresses = { navController.navigate(Routes.ADDRESSES) },
                 onAddAddress = { navController.navigate(Routes.addAddress()) },
                 onEditProfile = { navController.navigate(Routes.EDIT_PROFILE) },
+                onSetPassword = { navController.navigate(Routes.SET_PASSWORD) },
                 onSelectLanguage = { navController.navigate(Routes.LANGUAGE) },
                 onOpenSupport = { navController.navigate(Routes.SUPPORT) },
+                favoriteCount = favoriteIds.size,
+                onOpenFavorites = { navController.navigate(Routes.FAVORITE_RESTAURANTS) },
             )
         }
         composable(Routes.EDIT_PROFILE) {
-            EditProfileScreen(session = session, onBack = { navController.popBackStack() })
+            EditProfileScreen(
+                session = session,
+                onBack = { navController.popBackStack() },
+                onChangePhone = { navController.navigate(Routes.CHANGE_PHONE) },
+            )
+        }
+        composable(Routes.CHANGE_PHONE) {
+            ChangePhoneScreen(
+                currentPhone = session.verifiedPhone,
+                onBack = { navController.popBackStack() },
+            )
+        }
+        composable(Routes.SET_PASSWORD) {
+            SetPasswordScreen(
+                viewModel = authViewModel,
+                onDone = { navController.popBackStack() },
+            )
         }
         composable(Routes.LANGUAGE) {
             LanguageSelectionScreen(onBack = { navController.popBackStack() })
@@ -229,7 +296,26 @@ private fun MainNavGraph(session: SessionState, onLogout: () -> Unit) {
             SupportScreen(onBack = { navController.popBackStack() })
         }
         composable(Routes.ORDERS) {
-            OrderHistoryScreen(onBack = { navController.popBackStack() })
+            OrderHistoryScreen(
+                onBack = { navController.popBackStack() },
+                onOpenOrder = { id -> navController.navigate(Routes.orderTracking(id)) },
+            )
+        }
+        composable(Routes.NOTIFICATIONS) {
+            NotificationsScreen(
+                onBack = { navController.popBackStack() },
+                onOpenOrder = { id -> navController.navigate(Routes.orderTracking(id)) },
+                onOpenRide = { navController.navigate(Routes.TAXI_TRACKING) },
+                onOpenRestaurant = { id -> navController.navigate(Routes.restaurantDetail(id)) },
+            )
+        }
+        composable(Routes.FAVORITE_RESTAURANTS) {
+            FavoriteRestaurantsScreen(
+                favorites = favoriteIds,
+                onToggleFavorite = { id -> favoritesViewModel.toggle(id) },
+                onOpenRestaurant = { id -> navController.navigate(Routes.restaurantDetail(id)) },
+                onBack = { navController.popBackStack() },
+            )
         }
         composable(Routes.ADDRESSES) {
             MyAddressesScreen(
@@ -244,10 +330,15 @@ private fun MainNavGraph(session: SessionState, onLogout: () -> Unit) {
             arguments = listOf(navArgument("addressId") { type = NavType.StringType; defaultValue = "" }),
         ) { backStackEntry ->
             val addressId = backStackEntry.arguments?.getString("addressId").orEmpty().ifBlank { null }
+            val pickedRaw by backStackEntry.savedStateHandle.getStateFlow<String?>(PickedPlace.KEY, null).collectAsStateWithLifecycle()
+            val pickTitle = stringResource(R.string.confirm_address_action)
             AddAddressScreen(
                 vm = addressViewModel,
                 addressId = addressId,
                 onBack = { navController.popBackStack() },
+                onPickLocation = { navController.navigate(Routes.pickAddress(pickTitle)) },
+                pickedPlace = PickedPlace.decode(pickedRaw),
+                onConsumePicked = { backStackEntry.savedStateHandle[PickedPlace.KEY] = null },
             )
         }
 
@@ -255,9 +346,11 @@ private fun MainNavGraph(session: SessionState, onLogout: () -> Unit) {
         composable(Routes.TAXI_HOME) { entry ->
             val pickedRaw by entry.savedStateHandle.getStateFlow<String?>(PickedPlace.KEY, null).collectAsStateWithLifecycle()
             val pickDestTitle = stringResource(R.string.confirm_destination)
+            val pickDepartTitle = stringResource(R.string.confirm_address_action)
             TaxiHomeScreen(
                 onBack = { navController.popBackStack() },
                 onPickDestination = { navController.navigate(Routes.pickAddress(pickDestTitle)) },
+                onPickDeparture = { navController.navigate(Routes.pickAddress(pickDepartTitle)) },
                 pickedDestination = PickedPlace.decode(pickedRaw),
                 onConsumePicked = { entry.savedStateHandle[PickedPlace.KEY] = null },
                 onConfirmRide = { pickup, dest, pAddr, dAddr, distance, vehicleId ->
@@ -315,7 +408,14 @@ private fun MainNavGraph(session: SessionState, onLogout: () -> Unit) {
                 onCompleted = { rideId ->
                     navController.navigate(Routes.rideCompleted(rideId)) { popUpTo(Routes.HOME) }
                 },
+                onViewDriverPosition = { rideId -> navController.navigate(Routes.trackDriver(rideId)) },
             )
+        }
+        composable(
+            route = "${Routes.TRACK_DRIVER}/{rideId}",
+            arguments = listOf(navArgument("rideId") { type = NavType.StringType }),
+        ) {
+            TrackDriverScreen(onBack = { navController.popBackStack() })
         }
         composable(
             route = "${Routes.RIDE_COMPLETED}/{rideId}",
@@ -332,14 +432,40 @@ private fun MainNavGraph(session: SessionState, onLogout: () -> Unit) {
             FoodHomeScreen(
                 cartViewModel = cartViewModel,
                 onOpenRestaurant = { id -> navController.navigate(Routes.restaurantDetail(id)) },
+                onOpenCategory = { cat -> navController.navigate(Routes.categoryItems(cat)) },
                 onOpenCart = { navController.navigate(Routes.CART) },
                 onOpenSearch = { navController.navigate(Routes.FOOD_SEARCH) },
                 onBack = { navController.popBackStack() },
+                favorites = favoriteIds,
+                onToggleFavorite = { id -> favoritesViewModel.toggle(id) },
             )
         }
         composable(Routes.FOOD_SEARCH) {
             FoodSearchScreen(
                 onOpenRestaurant = { id -> navController.navigate(Routes.restaurantDetail(id)) },
+                onOpenCategory = { cat -> navController.navigate(Routes.categoryItems(cat)) },
+                favorites = favoriteIds,
+                onToggleFavorite = { id -> favoritesViewModel.toggle(id) },
+                onBack = { navController.popBackStack() },
+            )
+        }
+        composable(
+            route = "${Routes.CATEGORY_ITEMS}?category={category}",
+            arguments = listOf(navArgument("category") { type = NavType.StringType; defaultValue = "" }),
+        ) {
+            CategoryItemsScreen(
+                onOpenRestaurant = { id -> navController.navigate(Routes.restaurantDetail(id)) },
+                onBack = { navController.popBackStack() },
+            )
+        }
+        composable(
+            route = "${Routes.RESTAURANT_MENU_SEARCH}/{restaurantId}",
+            arguments = listOf(navArgument("restaurantId") { type = NavType.StringType }),
+        ) {
+            RestaurantMenuSearchScreen(
+                onOpenItem = { restaurantId, menuId ->
+                    navController.navigate(Routes.addToOrder(restaurantId, menuId))
+                },
                 onBack = { navController.popBackStack() },
             )
         }
@@ -347,6 +473,7 @@ private fun MainNavGraph(session: SessionState, onLogout: () -> Unit) {
             route = "${Routes.RESTAURANT_DETAIL}/{restaurantId}",
             arguments = listOf(navArgument("restaurantId") { type = NavType.StringType }),
         ) {
+            val rid = it.arguments?.getString("restaurantId").orEmpty()
             RestaurantDetailScreen(
                 cartViewModel = cartViewModel,
                 onOpenItem = { restaurantId, menuId ->
@@ -354,6 +481,9 @@ private fun MainNavGraph(session: SessionState, onLogout: () -> Unit) {
                 },
                 onOpenCart = { navController.navigate(Routes.CART) },
                 onBack = { navController.popBackStack() },
+                isFavorite = rid in favoriteIds,
+                onToggleFavorite = { favoritesViewModel.toggle(rid) },
+                onOpenMenuSearch = { navController.navigate(Routes.restaurantMenuSearch(rid)) },
             )
         }
         composable(
@@ -371,6 +501,7 @@ private fun MainNavGraph(session: SessionState, onLogout: () -> Unit) {
         composable(Routes.CART) { entry ->
             val pickedRaw by entry.savedStateHandle.getStateFlow<String?>(PickedPlace.KEY, null).collectAsStateWithLifecycle()
             val pickAddrTitle = stringResource(R.string.confirm_address_action)
+            val savedAddresses by addressViewModel.state.collectAsStateWithLifecycle()
             CartScreen(
                 cartViewModel = cartViewModel,
                 session = session,
@@ -379,6 +510,7 @@ private fun MainNavGraph(session: SessionState, onLogout: () -> Unit) {
                 onPickAddress = { navController.navigate(Routes.pickAddress(pickAddrTitle)) },
                 pickedAddress = PickedPlace.decode(pickedRaw),
                 onConsumePicked = { entry.savedStateHandle[PickedPlace.KEY] = null },
+                savedAddresses = savedAddresses.addresses,
             )
         }
         composable(Routes.PENDING_ORDER) {
@@ -410,6 +542,7 @@ private fun MainNavGraph(session: SessionState, onLogout: () -> Unit) {
                     }
                 },
                 onTrackDriver = { navController.navigate(Routes.trackDelivery(orderId)) },
+                onBack = { navController.popBackStack() },
             )
         }
         composable(
@@ -428,6 +561,32 @@ private fun MainNavGraph(session: SessionState, onLogout: () -> Unit) {
                 },
             )
         }
+    }
+
+        // Visible seulement sur Accueil / Fiche resto / Panier / Profil — jamais sur le
+        // suivi lui-même. Décalé au-dessus de la bottom-nav (Home) ou de la CartBar
+        // (Food home / fiche resto) quand elles occupent déjà le bas de l'écran.
+        val currentRoute = navController.currentBackStackEntryAsState().value?.destination?.route
+        val onRestaurantDetail = currentRoute?.startsWith(Routes.RESTAURANT_DETAIL) == true
+        val widgetAllowedHere = currentRoute == Routes.HOME ||
+            currentRoute == Routes.FOOD_HOME ||
+            currentRoute == Routes.CART ||
+            currentRoute == Routes.PROFILE ||
+            onRestaurantDetail
+        val cartBarVisible = (currentRoute == Routes.FOOD_HOME || onRestaurantDetail) && cartState.itemCount > 0
+        val bottomOffset = when {
+            currentRoute == Routes.HOME -> 78.dp
+            cartBarVisible -> 88.dp
+            else -> 0.dp
+        }
+        FloatingOrderStatusWidget(
+            order = if (widgetAllowedHere) activeOrder else null,
+            onClick = { activeOrder?.let { navController.navigate(Routes.orderTracking(it.id)) } },
+            modifier = Modifier
+                .align(Alignment.BottomEnd)
+                .padding(end = 16.dp, bottom = 20.dp + bottomOffset),
+        )
+        GoogleLinkPromptDialog(authViewModel)
     }
 }
 

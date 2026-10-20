@@ -64,6 +64,24 @@ class VeloxLocalStore @Inject constructor(
     val darkModeFlow: Flow<Boolean> = dataStore.data.map { it[KEY_DARK_MODE] ?: true }
     suspend fun setDarkMode(enabled: Boolean) = dataStore.edit { it[KEY_DARK_MODE] = enabled }
 
+    // ─── Thème de la carte (Apparence → Carte sombre) ───────────
+    // Réglable indépendamment de l'app : sur les tuiles, le clair reste souvent plus
+    // lisible en plein soleil même quand l'app est en sombre. Tant que l'utilisateur n'a
+    // rien choisi, la carte suit le thème de l'app.
+    val mapDarkFlow: Flow<Boolean> = dataStore.data.map { it[KEY_MAP_DARK] ?: it[KEY_DARK_MODE] ?: true }
+    suspend fun setMapDark(enabled: Boolean) = dataStore.edit { it[KEY_MAP_DARK] = enabled }
+
+    // ─── Divulgation proéminente « localisation » (Google Play — User Data) ──
+    // Google exige un écran d'explication AVANT la boîte de dialogue système de
+    // permission, validé par une action explicite de l'utilisateur. Tant que ce
+    // drapeau est faux, aucune permission de localisation n'est demandée.
+    // Préférence de consentement : survit à la déconnexion, pas effacée par clearAllSession.
+    val locationDisclosureAcceptedFlow: Flow<Boolean> =
+        dataStore.data.map { it[KEY_LOCATION_DISCLOSURE] ?: false }
+
+    suspend fun setLocationDisclosureAccepted(accepted: Boolean) =
+        dataStore.edit { it[KEY_LOCATION_DISCLOSURE] = accepted }
+
     // ─── Notification en attente (deep-link FCM au démarrage) ────
     suspend fun savePendingNotification(type: String, orderId: String?, rideId: String?) =
         dataStore.edit {
@@ -105,5 +123,7 @@ class VeloxLocalStore @Inject constructor(
         val KEY_PENDING_ORDER = stringPreferencesKey("pendingOrderId")
         val KEY_PENDING_RIDE = stringPreferencesKey("pendingRideId")
         val KEY_DARK_MODE = booleanPreferencesKey("darkMode")
+        val KEY_MAP_DARK = booleanPreferencesKey("mapDarkMode")
+        val KEY_LOCATION_DISCLOSURE = booleanPreferencesKey("locationDisclosureAccepted")
     }
 }

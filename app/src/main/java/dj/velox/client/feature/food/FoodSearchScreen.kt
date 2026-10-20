@@ -19,8 +19,11 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Category
 import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.Fastfood
+import androidx.compose.material.icons.filled.Favorite
+import androidx.compose.material.icons.filled.FavoriteBorder
 import androidx.compose.material.icons.filled.Restaurant
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.SearchOff
@@ -37,6 +40,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.stringResource
@@ -63,6 +67,9 @@ import dj.velox.client.ui.theme.VeloxTheme
 @Composable
 fun FoodSearchScreen(
     onOpenRestaurant: (String) -> Unit,
+    onOpenCategory: (String) -> Unit,
+    favorites: Set<String>,
+    onToggleFavorite: (String) -> Unit,
     onBack: () -> Unit,
     vm: FoodSearchViewModel = hiltViewModel(),
 ) {
@@ -117,7 +124,7 @@ fun FoodSearchScreen(
                 CircularProgressIndicator(color = c.primary, strokeWidth = 2.dp)
             }
             query.isBlank() -> Placeholder(Icons.Filled.Search, stringResource(R.string.search_prompt), c)
-            results.restaurants.isEmpty() && results.dishes.isEmpty() ->
+            results.restaurants.isEmpty() && results.dishes.isEmpty() && results.categories.isEmpty() ->
                 Placeholder(Icons.Filled.SearchOff, stringResource(R.string.no_results_for, query.trim()), c)
             else -> LazyColumn(
                 Modifier.fillMaxSize(),
@@ -126,7 +133,15 @@ fun FoodSearchScreen(
                 if (results.restaurants.isNotEmpty()) {
                     item { SectionTitle(stringResource(R.string.restaurants), results.restaurants.size, c) }
                     items(results.restaurants, key = { "r_${it.id}" }) { r ->
-                        RestaurantTile(r, c) { onOpenRestaurant(r.id) }
+                        RestaurantTile(r, r.id in favorites, c, { onToggleFavorite(r.id) }) { onOpenRestaurant(r.id) }
+                        Spacer(Modifier.size(8.dp))
+                    }
+                    item { Spacer(Modifier.size(16.dp)) }
+                }
+                if (results.categories.isNotEmpty()) {
+                    item { SectionTitle(stringResource(R.string.categories), results.categories.size, c) }
+                    items(results.categories, key = { "c_$it" }) { cat ->
+                        CategoryRow(cat, c) { onOpenCategory(cat) }
                         Spacer(Modifier.size(8.dp))
                     }
                     item { Spacer(Modifier.size(16.dp)) }
@@ -168,7 +183,13 @@ private fun SectionTitle(title: String, count: Int, c: VeloxColors) {
 }
 
 @Composable
-private fun RestaurantTile(r: Restaurant, c: VeloxColors, onClick: () -> Unit) {
+private fun RestaurantTile(
+    r: Restaurant,
+    isFavorite: Boolean,
+    c: VeloxColors,
+    onToggleFavorite: () -> Unit,
+    onClick: () -> Unit,
+) {
     Row(
         Modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp)).background(c.surfaceLow).clickable(onClick = onClick)
             .padding(horizontal = 12.dp, vertical = 10.dp),
@@ -185,6 +206,27 @@ private fun RestaurantTile(r: Restaurant, c: VeloxColors, onClick: () -> Unit) {
                 Text("%.1f".format(r.rating), color = c.onSurfaceVariant, fontFamily = Inter, fontSize = 12.sp)
             }
         }
+        IconButton(onClick = onToggleFavorite) {
+            Icon(
+                if (isFavorite) Icons.Filled.Favorite else Icons.Filled.FavoriteBorder,
+                contentDescription = stringResource(R.string.favorites),
+                tint = if (isFavorite) Color(0xFFE53935) else c.onSurfaceVariant,
+                modifier = Modifier.size(20.dp),
+            )
+        }
+    }
+}
+
+@Composable
+private fun CategoryRow(category: String, c: VeloxColors, onClick: () -> Unit) {
+    Row(
+        Modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp)).background(c.surfaceLow).clickable(onClick = onClick)
+            .padding(horizontal = 12.dp, vertical = 14.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Icon(Icons.Filled.Category, null, tint = c.primary, modifier = Modifier.size(22.dp))
+        Spacer(Modifier.size(12.dp))
+        Text(category, color = c.onSurface, fontFamily = Poppins, fontSize = 15.sp, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f), maxLines = 1, overflow = TextOverflow.Ellipsis)
         Icon(Icons.Outlined.ChevronRight, null, tint = c.onSurfaceVariant, modifier = Modifier.size(22.dp))
     }
 }
@@ -204,7 +246,7 @@ private fun DishTile(m: MenuItem, restaurantName: String?, c: VeloxColors, onCli
             Text(restaurantName ?: m.category, color = c.onSurfaceVariant, fontFamily = Inter, fontSize = 12.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
         }
         Spacer(Modifier.size(8.dp))
-        Text("${m.price.toInt()} FDJ", color = c.primary, fontFamily = Poppins, fontSize = 13.sp, fontWeight = FontWeight.Bold)
+        DishPriceRow(m, c, 13.sp)
     }
 }
 

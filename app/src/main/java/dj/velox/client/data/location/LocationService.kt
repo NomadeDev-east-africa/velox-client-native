@@ -138,23 +138,30 @@ class LocationService @Inject constructor(
      * Port de `LocationService.searchPlaces`. Le debounce/rate-limit est géré côté appelant.
      */
     suspend fun searchPlaces(query: String): List<PlaceResult> = withContext(Dispatchers.IO) {
-        if (query.isBlank()) return@withContext emptyList()
-        runCatching {
-            val q = URLEncoder.encode(query.trim(), "UTF-8")
-            val url = URL("https://nominatim.openstreetmap.org/search?q=$q&format=json&limit=8&countrycodes=dj&addressdetails=0")
-            val conn = (url.openConnection() as HttpURLConnection).apply {
-                setRequestProperty("User-Agent", "VeloxApp/1.0 (dj.velox.client)")
-                connectTimeout = 8_000
-                readTimeout = 8_000
-            }
-            val body = conn.inputStream.bufferedReader().use { it.readText() }
-            nominatimJson.decodeFromString<List<NominatimResult>>(body)
-                .mapNotNull { r ->
-                    val lat = r.lat.toDoubleOrNull(); val lon = r.lon.toDoubleOrNull()
-                    if (lat != null && lon != null) PlaceResult(r.display_name, lat, lon) else null
-                }
-        }.getOrDefault(emptyList())
+        val q = query.trim()
+        if (q.isBlank()) return@withContext emptyList()
+        // Priorité Djibouti ; repli sur une recherche mondiale si aucun résultat local
+        // (certains lieux sont mal référencés dans OSM sous le code pays `dj`).
+        val local = fetchPlaces(q, djiboutiOnly = true)
+        if (local.isNotEmpty()) local else fetchPlaces(q, djiboutiOnly = false)
     }
+
+    private fun fetchPlaces(query: String, djiboutiOnly: Boolean): List<PlaceResult> = runCatching {
+        val q = URLEncoder.encode(query, "UTF-8")
+        val country = if (djiboutiOnly) "&countrycodes=dj" else ""
+        val url = URL("https://nominatim.openstreetmap.org/search?q=$q&format=json&limit=8$country&addressdetails=0")
+        val conn = (url.openConnection() as HttpURLConnection).apply {
+            setRequestProperty("User-Agent", "VeloxApp/1.0 (dj.velox.client)")
+            connectTimeout = 8_000
+            readTimeout = 8_000
+        }
+        val body = conn.inputStream.bufferedReader().use { it.readText() }
+        nominatimJson.decodeFromString<List<NominatimResult>>(body)
+            .mapNotNull { r ->
+                val lat = r.lat.toDoubleOrNull(); val lon = r.lon.toDoubleOrNull()
+                if (lat != null && lon != null) PlaceResult(r.display_name, lat, lon) else null
+            }
+    }.getOrDefault(emptyList())
 
     /** Distance en kilomètres entre deux points. */
     fun distanceKm(a: LatLng, b: LatLng): Double {

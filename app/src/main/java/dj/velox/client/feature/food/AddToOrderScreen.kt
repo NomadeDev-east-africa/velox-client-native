@@ -53,33 +53,21 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil.compose.AsyncImage
 import dj.velox.client.R
-import dj.velox.client.domain.model.ExtraOption
+import kotlin.math.roundToInt
 import dj.velox.client.domain.model.MenuItem
-import dj.velox.client.domain.model.OptionGroup
 import dj.velox.client.domain.model.OptionSelection
 import dj.velox.client.domain.model.OrderItem
 import dj.velox.client.domain.model.Restaurant
-import dj.velox.client.domain.model.SauceOption
 import dj.velox.client.ui.theme.Inter
 import dj.velox.client.ui.theme.Poppins
 import dj.velox.client.ui.theme.VeloxColors
 import dj.velox.client.ui.theme.VeloxTheme
 
-// Options par défaut (plats sans optionGroups) — miroir de `add_to_order_screen.dart`.
-private val FALLBACK_EXTRAS = listOf(
-    ExtraOption("Frites", 500), ExtraOption("Tomates", 500), ExtraOption("Oignons", 500),
-    ExtraOption("Salade", 500), ExtraOption("Taille L", 500), ExtraOption("Taille XL", 500),
-    ExtraOption("Taille XXL", 500),
-)
-private val FALLBACK_SAUCES = listOf(
-    SauceOption("Samouraï", 50), SauceOption("Mayonnaise", 50), SauceOption("Ketchup", 50),
-    SauceOption("Barbecue", 50), SauceOption("Harissa", 50), SauceOption("Moutarde", 50),
-)
-
 /**
  * Écran d'ajout au panier avec options (port de `add_to_order_screen.dart`).
- * Data-driven via `item.optionGroups` (FORMULE single = radios, SUPPLÉMENTS multiple = cases) ;
- * sinon repli sur extras/sauces par défaut. Gère le changement de restaurant.
+ * Data-driven via `item.optionGroups` (FORMULE single = radios, SUPPLÉMENTS multiple = cases).
+ * Un plat sans options n'affiche AUCUNE section (pas d'extras/sauces en dur) : seulement
+ * le prix de base + la quantité. Gère le changement de restaurant.
  */
 @Composable
 fun AddToOrderScreen(
@@ -122,37 +110,39 @@ private fun AddToOrderContent(
             groups.map { g -> if (g.isSingle && g.required && g.choices.isNotEmpty()) setOf(0) else emptySet() },
         )
     }
-    // Repli extras/sauces : ensembles d'index sélectionnés.
-    var extrasSel by remember(item.id) { mutableStateOf(emptySet<Int>()) }
-    var saucesSel by remember(item.id) { mutableStateOf(emptySet<Int>()) }
-
     var showDialog by remember { mutableStateOf(false) }
 
-    val surcharge = if (dataDriven) OptionSelection.surcharge(groups, selections)
-    else extrasSel.sumOf { FALLBACK_EXTRAS[it].price } + saucesSel.sumOf { FALLBACK_SAUCES[it].price }
-    val totalPrice = (item.price.toInt() + surcharge) * quantity
+    val surcharge = if (dataDriven) OptionSelection.surcharge(groups, selections) else 0
+    // Prix remisé si le plat est en promotion (sinon = prix plein).
+    val unitBase = item.discountedPrice.roundToInt()
+    val totalPrice = (unitBase + surcharge) * quantity
 
     fun toggleChoice(gi: Int, ci: Int) {
+        val g = groups[gi]
+        val current = selections[gi]
+        // Plafond maxChoices (groupes multiples) : refuse d'ajouter au-delà, et informe.
+        if (!g.isSingle && !current.contains(ci) && g.maxChoices > 0 && current.size >= g.maxChoices) {
+            Toast.makeText(
+                context,
+                context.getString(R.string.max_choices, g.maxChoices, g.name),
+                Toast.LENGTH_SHORT,
+            ).show()
+            return
+        }
         selections = selections.mapIndexed { i, set ->
             if (i != gi) set
-            else {
-                val g = groups[gi]
-                if (g.isSingle) { if (set.contains(ci) && !g.required) emptySet() else setOf(ci) }
-                else { if (set.contains(ci)) set - ci else set + ci }
-            }
+            else if (g.isSingle) { if (set.contains(ci) && !g.required) emptySet() else setOf(ci) }
+            else { if (set.contains(ci)) set - ci else set + ci }
         }
     }
 
     fun buildOrderItem(): OrderItem {
         val mapping = if (dataDriven) OptionSelection.toCart(groups, selections)
-        else dj.velox.client.domain.model.OptionCartMapping(
-            extras = extrasSel.map { FALLBACK_EXTRAS[it].copy(isSelected = true) },
-            sauces = saucesSel.map { FALLBACK_SAUCES[it].copy(isSelected = true) },
-        )
+        else dj.velox.client.domain.model.OptionCartMapping(extras = emptyList(), sauces = emptyList())
         return OrderItem(
             menuId = item.id, name = item.name, description = item.description,
             imageUrl = item.imageUrl ?: "", category = item.category,
-            basePrice = item.price.toInt(), quantity = quantity,
+            basePrice = unitBase, quantity = quantity,
             extras = mapping.extras, sauces = mapping.sauces,
         )
     }
@@ -164,6 +154,7 @@ private fun AddToOrderContent(
     }
 
     fun proceed() {
+        if (!restaurant.isOpen) return
         if (dataDriven) {
             val missing = groups.indices.firstOrNull { groups[it].required && selections[it].isEmpty() }
             if (missing != null) {
@@ -211,33 +202,29 @@ private fun AddToOrderContent(
                         )
                     }
                 }
-            } else {
-                SectionHeader(stringResource(R.string.choose_extras).uppercase(), true, c)
-                FALLBACK_EXTRAS.forEachIndexed { i, e ->
-                    ChoiceRow(e.name.uppercase(), "+ ${e.price} FDJ", extrasSel.contains(i), isSingle = false, priced = true, c = c) {
-                        extrasSel = if (extrasSel.contains(i)) extrasSel - i else extrasSel + i
-                    }
-                }
-                SectionHeader(stringResource(R.string.choose_sauces).uppercase(), false, c)
-                FALLBACK_SAUCES.forEachIndexed { i, s ->
-                    ChoiceRow(s.name.uppercase(), "+ ${s.price} FDJ", saucesSel.contains(i), isSingle = false, priced = true, c = c) {
-                        saucesSel = if (saucesSel.contains(i)) saucesSel - i else saucesSel + i
-                    }
-                }
             }
             Spacer(Modifier.height(24.dp))
         }
 
-        // Bouton ajouter
-        Box(Modifier.background(c.bg).navigationBarsPadding().padding(16.dp)) {
+        // Bouton ajouter (désactivé + bandeau si le restaurant est fermé)
+        Column(Modifier.background(c.bg).navigationBarsPadding().padding(16.dp)) {
+            if (!restaurant.isOpen) {
+                RestaurantClosedBanner(restaurant, c, Modifier.padding(bottom = 12.dp))
+            }
             Row(
-                Modifier.fillMaxWidth().height(56.dp).clip(RoundedCornerShape(4.dp)).background(c.primary).clickable { proceed() },
+                Modifier.fillMaxWidth().height(56.dp).clip(RoundedCornerShape(4.dp))
+                    .background(if (restaurant.isOpen) c.primary else c.surfaceTop)
+                    .clickable(enabled = restaurant.isOpen) { proceed() },
                 horizontalArrangement = Arrangement.Center,
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                Text("${stringResource(R.string.add_to_cart).uppercase()} ($totalPrice FDJ)", color = c.onPrimary, fontFamily = Poppins, fontSize = 14.sp, fontWeight = FontWeight.Black, letterSpacing = 1.2.sp)
-                Spacer(Modifier.size(10.dp))
-                Icon(Icons.Filled.Bolt, null, tint = c.onPrimary, modifier = Modifier.size(20.dp))
+                if (restaurant.isOpen) {
+                    Text("${stringResource(R.string.add_to_cart).uppercase()} ($totalPrice FDJ)", color = c.onPrimary, fontFamily = Poppins, fontSize = 14.sp, fontWeight = FontWeight.Black, letterSpacing = 1.2.sp)
+                    Spacer(Modifier.size(10.dp))
+                    Icon(Icons.Filled.Bolt, null, tint = c.onPrimary, modifier = Modifier.size(20.dp))
+                } else {
+                    Text(stringResource(R.string.restaurant_closed_title).uppercase(), color = c.onSurfaceVariant, fontFamily = Poppins, fontSize = 14.sp, fontWeight = FontWeight.Black, letterSpacing = 1.2.sp)
+                }
             }
         }
     }
@@ -311,7 +298,7 @@ private fun PriceAndQuantity(item: MenuItem, quantity: Int, onMinus: () -> Unit,
         Column(Modifier.weight(1f)) {
             Text("BASE COST", color = c.onSurfaceVariant, fontFamily = Inter, fontSize = 10.sp, fontWeight = FontWeight.W600, letterSpacing = 1.8.sp)
             Spacer(Modifier.height(2.dp))
-            Text("%.1f FDJ".format(item.price), color = c.primary, fontFamily = Poppins, fontSize = 22.sp, fontWeight = FontWeight.Bold, letterSpacing = (-0.5).sp)
+            DishPriceRow(item, c, 22.sp)
         }
         Row(
             Modifier.clip(RoundedCornerShape(4.dp)).background(c.surfaceHigh),

@@ -201,9 +201,21 @@ class RideViewModel @Inject constructor(
     ): String {
         _state.value = _state.value.copy(isCreating = true, isLoading = true, error = null)
         return try {
-            val rideId = retry(maxRetries = 3) {
+            // Une seule course active à la fois : le double-tap est déjà bloqué par
+            // `enabled = !ride.isCreating` côté écran, mais rien n'empêchait jusqu'ici une
+            // 2ᵉ demande après coup (retour en arrière, doute réseau) tant que la première
+            // est encore requested/accepted/… → deux chauffeurs assignés au même client.
+            if (rideService.getActiveRide(userId) != null) {
+                throw IllegalStateException(
+                    "Vous avez déjà une course en cours. Attendez qu'elle soit terminée ou annulez-la avant d'en demander une nouvelle."
+                )
+            }
+            // ID généré une seule fois, avant le retry : un retry rappelle set() sur le MÊME
+            // document (idempotent) au lieu de créer un nouveau document à chaque tentative.
+            val rideId = rideService.newRideId()
+            retry(maxRetries = 3) {
                 rideService.createRide(
-                    userId, userName, userPhone, userPhotoUrl,
+                    rideId, userId, userName, userPhone, userPhotoUrl,
                     pickupLatitude, pickupLongitude, pickupAddress, pickupPlaceName,
                     destinationLatitude, destinationLongitude, destinationAddress, destinationPlaceName,
                     distance, estimatedDuration, estimatedFare, vehicleType, paymentMethod,

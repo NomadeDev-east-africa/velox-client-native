@@ -4,9 +4,12 @@ import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.Query
 import com.google.firebase.firestore.QuerySnapshot
 import dj.velox.client.domain.model.MenuItem
+import dj.velox.client.domain.model.Promotion
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.tasks.await
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -15,34 +18,60 @@ import javax.inject.Singleton
 @Singleton
 class MenuService @Inject constructor(
     private val firestore: FirebaseFirestore,
+    private val promotionService: PromotionService,
 ) {
     private val collection get() = firestore.collection(COLLECTION)
 
-    fun streamMenus(restaurantId: String): Flow<List<MenuItem>> = callbackFlow {
-        val reg = collection
-            .whereEqualTo("restaurantId", restaurantId)
-            .whereEqualTo("isAvailable", true)
-            .addSnapshotListener { snapshot, error ->
-                if (error != null) { close(error); return@addSnapshotListener }
-                trySend(snapshot.toMenus().sortedBy { it.category })
-            }
-        awaitClose { reg.remove() }
+    /**
+     * Applique les promotions actives aux plats : une promo « item » (plat précis) l'emporte
+     * sur une promo « category ». Le pourcentage trouvé alimente `discountPercentage`, si bien
+     * que toute l'UI existante (prix barré, badge) l'affiche automatiquement.
+     */
+    private fun applyPromotions(dishes: List<MenuItem>, promos: List<Promotion>): List<MenuItem> {
+        if (promos.isEmpty()) return dishes
+        return dishes.map { dish ->
+            val forRestaurant = promos.filter { it.restaurantId == dish.restaurantId }
+            val pct = forRestaurant.firstOrNull { it.matchesItem(dish.id, dish.name) }?.discountPercent
+                ?: forRestaurant.firstOrNull { it.matchesCategory(dish.category) }?.discountPercent
+                ?: 0
+            if (pct > 0) dish.copy(discountPercentage = pct) else dish
+        }
+    }
+
+    fun streamMenus(restaurantId: String): Flow<List<MenuItem>> {
+        val menus = callbackFlow<List<MenuItem>> {
+            val reg = collection
+                .whereEqualTo("restaurantId", restaurantId)
+                .whereEqualTo("isAvailable", true)
+                .addSnapshotListener { snapshot, error ->
+                    if (error != null) { close(error); return@addSnapshotListener }
+                    trySend(snapshot.toMenus().sortedBy { it.category })
+                }
+            awaitClose { reg.remove() }
+        }
+        // Promos chargées une fois ; `combine` n'émet qu'une fois les deux prêts (pas de flash).
+        val promos = flow { emit(promotionService.getActivePromotionsForRestaurant(restaurantId)) }
+        return combine(menus, promos) { m, p -> applyPromotions(m, p) }
     }
 
     suspend fun getAllMenus(): List<MenuItem> = runCatching {
-        collection.whereEqualTo("isAvailable", true).get().await().toMenus()
+        val menus = collection.whereEqualTo("isAvailable", true).get().await().toMenus()
+        applyPromotions(menus, promotionService.getAllActivePromotions())
     }.getOrDefault(emptyList())
 
     suspend fun getMenusByRestaurant(restaurantId: String): List<MenuItem> = runCatching {
-        collection
+        val menus = collection
             .whereEqualTo("restaurantId", restaurantId)
             .whereEqualTo("isAvailable", true)
             .get().await().toMenus().sortedBy { it.category }
+        applyPromotions(menus, promotionService.getActivePromotionsForRestaurant(restaurantId))
     }.getOrDefault(emptyList())
 
     suspend fun getMenuById(menuId: String): MenuItem? = runCatching {
         val doc = collection.document(menuId).get().await()
-        if (doc.exists()) MenuItem.fromFirestore(doc) else null
+        if (!doc.exists()) return@runCatching null
+        val dish = MenuItem.fromFirestore(doc)
+        applyPromotions(listOf(dish), promotionService.getActivePromotionsForRestaurant(dish.restaurantId)).first()
     }.getOrNull()
 
     suspend fun getMenusByCategory(restaurantId: String, category: String): List<MenuItem> =

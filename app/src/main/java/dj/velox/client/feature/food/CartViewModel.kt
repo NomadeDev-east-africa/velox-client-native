@@ -7,6 +7,7 @@ import dj.velox.client.core.Constants
 import dj.velox.client.core.analytics.VeloxAnalytics
 import dj.velox.client.data.local.VeloxLocalStore
 import dj.velox.client.data.remote.OrderService
+import dj.velox.client.data.remote.RestaurantService
 import dj.velox.client.domain.model.LatLng
 import dj.velox.client.domain.model.Order
 import dj.velox.client.domain.model.OrderItem
@@ -14,6 +15,8 @@ import dj.velox.client.domain.model.Restaurant
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.launchIn
+import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.launch
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.decodeFromString
@@ -34,12 +37,17 @@ data class CartUiState(
     val restaurant: Restaurant? = null,
     val isCreatingOrder: Boolean = false,
     val error: String? = null,
+    // Code promo
+    val appliedPromoCode: String? = null,
+    val promoDiscountAmount: Int = 0,
+    val promoError: String? = null,
+    val isValidatingPromo: Boolean = false,
 ) {
     val deliveryFee: Int get() = Constants.DELIVERY_FEE
     val isEmpty: Boolean get() = items.isEmpty()
     val itemCount: Int get() = items.sumOf { it.quantity }
     val subtotal: Int get() = items.sumOf { it.totalPrice }
-    val total: Int get() = subtotal + deliveryFee
+    val total: Int get() = (subtotal + deliveryFee - promoDiscountAmount).coerceAtLeast(0)
 
     fun isDifferentRestaurant(restaurantId: String): Boolean =
         restaurant != null && restaurant.id != restaurantId
@@ -64,8 +72,10 @@ data class PendingCheckout(
 @HiltViewModel
 class CartViewModel @Inject constructor(
     private val orderService: OrderService,
+    private val restaurantService: RestaurantService,
     private val store: VeloxLocalStore,
     private val json: Json,
+    private val authRepository: dj.velox.client.data.remote.AuthRepository,
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(CartUiState())
@@ -86,7 +96,26 @@ class CartViewModel @Inject constructor(
     fun prepareCheckout(checkout: PendingCheckout) { _pendingCheckout.value = checkout }
     fun clearPendingCheckout() { _pendingCheckout.value = null }
 
-    init { restore() }
+    init {
+        restore()
+        // Purge du panier EN MÉMOIRE à la déconnexion réelle. L'instance survit au
+        // changement de compte (VM scopée à l'Activity) et `restore()` ne tourne qu'une
+        // fois — sans ça, le compte suivant verrait le panier du précédent. La persistance
+        // DataStore, elle, est déjà purgée par AuthViewModel.signOut().
+        var hadUser = false
+        authRepository.authState
+            .onEach { user ->
+                if (user != null) {
+                    hadUser = true
+                } else if (hadUser) {
+                    hadUser = false
+                    _state.value = CartUiState()
+                    _availablePoints.value = null
+                    _pendingCheckout.value = null
+                }
+            }
+            .launchIn(viewModelScope)
+    }
 
     /** Recalcule le solde dispo comme Flutter : (commandes completed × 10) − redeemedPoints. */
     fun loadAvailablePoints(userId: String, redeemed: Int) {
@@ -119,12 +148,12 @@ class CartViewModel @Inject constructor(
     }
 
     fun setRestaurant(restaurant: Restaurant) {
-        _state.value = _state.value.copy(restaurant = restaurant)
+        _state.value = clearPromo(_state.value).copy(restaurant = restaurant)
         persist()
     }
 
     fun addItem(item: OrderItem) {
-        _state.value = _state.value.copy(items = _state.value.items + item)
+        _state.value = clearPromo(_state.value).copy(items = _state.value.items + item)
         _state.value.restaurant?.let { VeloxAnalytics.addToCart(it.id, item.name, item.totalPrice, item.quantity) }
         persist()
     }
@@ -133,7 +162,7 @@ class CartViewModel @Inject constructor(
         val items = _state.value.items.toMutableList()
         if (index !in items.indices) return
         items[index] = items[index].copy(quantity = items[index].quantity + 1)
-        _state.value = _state.value.copy(items = items)
+        _state.value = clearPromo(_state.value).copy(items = items)
         persist()
     }
 
@@ -142,10 +171,10 @@ class CartViewModel @Inject constructor(
         if (index !in items.indices) return
         if (items[index].quantity > 1) {
             items[index] = items[index].copy(quantity = items[index].quantity - 1)
-            _state.value = _state.value.copy(items = items)
+            _state.value = clearPromo(_state.value).copy(items = items)
         } else {
             items.removeAt(index)
-            _state.value = _state.value.copy(
+            _state.value = clearPromo(_state.value).copy(
                 items = items,
                 restaurant = if (items.isEmpty()) null else _state.value.restaurant,
             )
@@ -157,7 +186,7 @@ class CartViewModel @Inject constructor(
         val items = _state.value.items.toMutableList()
         if (index !in items.indices) return
         items.removeAt(index)
-        _state.value = _state.value.copy(
+        _state.value = clearPromo(_state.value).copy(
             items = items,
             restaurant = if (items.isEmpty()) null else _state.value.restaurant,
         )
@@ -171,6 +200,47 @@ class CartViewModel @Inject constructor(
 
     fun clearError() { _state.value = _state.value.copy(error = null) }
 
+    /** Efface la réduction promo appliquée — le panier a changé, elle n'est plus valide. */
+    private fun clearPromo(s: CartUiState): CartUiState =
+        s.copy(appliedPromoCode = null, promoDiscountAmount = 0, promoError = null)
+
+    /** Valide et applique un code promo (Cloud Function `validatePromoCode`), non bloquant. */
+    fun applyPromoCode(code: String) {
+        val s = _state.value
+        val restaurant = s.restaurant ?: return
+        if (code.isBlank() || s.isEmpty) return
+
+        _state.value = s.copy(isValidatingPromo = true, promoError = null)
+        viewModelScope.launch {
+            val result = orderService.validatePromoCode(
+                code = code.trim().uppercase(),
+                restaurantId = restaurant.id,
+                subtotal = s.subtotal,
+                deliveryFee = s.deliveryFee,
+            )
+            _state.value = if (result.valid) {
+                _state.value.copy(
+                    isValidatingPromo = false,
+                    appliedPromoCode = result.code ?: code.trim().uppercase(),
+                    promoDiscountAmount = result.discountAmount,
+                    promoError = null,
+                )
+            } else {
+                _state.value.copy(
+                    isValidatingPromo = false,
+                    appliedPromoCode = null,
+                    promoDiscountAmount = 0,
+                    promoError = result.message ?: "Code promo invalide",
+                )
+            }
+        }
+    }
+
+    /** Retire le code promo appliqué (choix de l'utilisateur). */
+    fun removePromoCode() {
+        _state.value = clearPromo(_state.value)
+    }
+
     /** Crée la commande Firestore. Retourne l'orderId ou null. */
     suspend fun createOrder(
         userId: String,
@@ -183,10 +253,56 @@ class CartViewModel @Inject constructor(
         pointsUsed: Int = 0,
     ): String? {
         val s = _state.value
+        // Garde de ré-entrance : sans ça, deux appels concurrents (double-tap, countdown
+        // PendingOrderScreen qui se déclenche pendant un appel déjà en cours après une
+        // recomposition) passent tous les deux et créent deux commandes distinctes.
+        if (s.isCreatingOrder) return null
         val restaurant = s.restaurant ?: return null
         if (s.isEmpty) return null
 
         _state.value = s.copy(isCreatingOrder = true, error = null)
+
+        // Une seule commande active à la fois : le client doit attendre la livraison (ou
+        // l'annulation) de la précédente avant d'en passer une nouvelle.
+        val activeOrder = orderService.getActiveOrder(userId)
+        if (activeOrder != null) {
+            _state.value = _state.value.copy(
+                isCreatingOrder = false,
+                error = "Vous avez déjà une commande en cours (${activeOrder.restaurantName}). Attendez qu'elle soit livrée avant d'en passer une nouvelle.",
+            )
+            return null
+        }
+
+        // Défense en profondeur : le restaurant a pu fermer entre l'ajout au panier et l'envoi
+        // (PendingOrderScreen envoie automatiquement après 60s). La règle Firestore bloque déjà
+        // la création côté serveur (restaurantCanReceiveOrders), mais on évite ici l'écriture
+        // inutile et on donne un message clair à l'utilisateur.
+        val freshRestaurant = runCatching { restaurantService.getRestaurantById(restaurant.id) }.getOrNull()
+        if (freshRestaurant?.isOpen != true) {
+            _state.value = _state.value.copy(isCreatingOrder = false, error = "Ce restaurant est fermé pour le moment.")
+            return null
+        }
+
+        // Re-check du code promo juste avant l'envoi (réduit la fenêtre de course avec
+        // quelqu'un d'autre qui l'utiliserait entre-temps) — le trigger serveur `onOrderCreated`
+        // reste le filet de sécurité final, ce re-check évite juste d'afficher un total qui
+        // bouge après coup.
+        var promoCode = s.appliedPromoCode
+        var promoDiscount = s.promoDiscountAmount
+        if (promoCode != null) {
+            val revalidated = orderService.validatePromoCode(promoCode, restaurant.id, s.subtotal, Constants.DELIVERY_FEE)
+            if (revalidated.valid) {
+                promoDiscount = revalidated.discountAmount
+            } else {
+                promoCode = null
+                promoDiscount = 0
+                _state.value = _state.value.copy(
+                    appliedPromoCode = null,
+                    promoDiscountAmount = 0,
+                    promoError = revalidated.message ?: "Code promo invalide",
+                )
+            }
+        }
 
         // Réduction fidélité : plafonnée aux frais de livraison (le subtotal reste intact)
         val maxByDelivery = Constants.DELIVERY_FEE / Constants.POINT_VALUE
@@ -213,6 +329,8 @@ class CartViewModel @Inject constructor(
             updatedAt = now,
             pointsUsed = safePoints,
             discount = discount,
+            promoCode = promoCode,
+            promoDiscount = promoDiscount,
         )
 
         val orderId = runCatching { orderService.createOrder(order) }.getOrNull()

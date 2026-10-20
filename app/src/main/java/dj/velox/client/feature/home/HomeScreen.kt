@@ -1,10 +1,10 @@
 package dj.velox.client.feature.home
 
-import android.widget.Toast
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
@@ -22,23 +23,27 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.AccountBalanceWallet
-import androidx.compose.material.icons.filled.CreditCard
+import androidx.compose.material.icons.filled.Build
 import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.LocationOn
+import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Star
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontStyle
@@ -47,10 +52,12 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.compose.ui.graphics.Color
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil.compose.AsyncImage
 import dj.velox.client.R
 import dj.velox.client.feature.auth.SessionState
+import dj.velox.client.feature.notifications.NotificationsViewModel
 import dj.velox.client.ui.theme.Inter
 import dj.velox.client.ui.theme.Poppins
 import dj.velox.client.ui.theme.VeloxColors
@@ -68,7 +75,9 @@ fun HomeScreen(
     onOpenFood: () -> Unit,
     onOpenProfile: () -> Unit,
     onOpenOrders: () -> Unit,
+    onOpenNotifications: () -> Unit,
     statsVm: HomeStatsViewModel = hiltViewModel(),
+    notificationsVm: NotificationsViewModel = hiltViewModel(),
 ) {
     val c = VeloxTheme.colors
     val profile = session.profile
@@ -79,6 +88,8 @@ fun HomeScreen(
     val stats by statsVm.stats.collectAsStateWithLifecycle()
     val ridesCount by statsVm.ridesCount.collectAsStateWithLifecycle()
     val completedOrders = stats.completedCount
+    val unreadNotifications by notificationsVm.unreadCount.collectAsStateWithLifecycle()
+    var showVtcMaintenanceDialog by remember { mutableStateOf(false) }
 
     // Fidélité : « 1 commande = 10 pts ». Solde dispo = gagnés − dépensés.
     val earned = completedOrders * 10
@@ -112,7 +123,7 @@ fun HomeScreen(
             }
             // Tout en live : courses terminées (taxiRides), commandes + dépenses (orders).
             Stats(ridesCount, completedOrders, stats.totalSpent, c)
-            QuickActions(onOpenOrders, c)
+            QuickActions(onOpenOrders, onOpenNotifications, unreadNotifications, c)
             Footer(c)
         }
 
@@ -122,6 +133,35 @@ fun HomeScreen(
             modifier = Modifier.align(Alignment.BottomCenter),
         )
     }
+
+    if (showVtcMaintenanceDialog) {
+        VtcMaintenanceDialog(onDismiss = { showVtcMaintenanceDialog = false }, c = c)
+    }
+}
+
+// ── DIALOGUE MAINTENANCE VTC ─────────────────────────────────────────────────
+@Composable
+private fun VtcMaintenanceDialog(onDismiss: () -> Unit, c: VeloxColors) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        icon = { Icon(Icons.Filled.Build, null, tint = c.onSurfaceVariant) },
+        title = {
+            Text(
+                stringResource(R.string.maintenance_dialog_title),
+                fontFamily = Poppins,
+                fontWeight = FontWeight.Bold,
+            )
+        },
+        text = { Text(stringResource(R.string.maintenance_dialog_message), fontFamily = Inter) },
+        confirmButton = {
+            TextButton(onClick = onDismiss) {
+                Text(stringResource(R.string.close), color = c.primary, fontFamily = Inter, fontWeight = FontWeight.W600)
+            }
+        },
+        containerColor = c.surface,
+        titleContentColor = c.onSurface,
+        textContentColor = c.onSurfaceVariant,
+    )
 }
 
 // ── HEADER ───────────────────────────────────────────────────────────────────
@@ -175,7 +215,7 @@ private fun Header(firstName: String, photoUrl: String?, c: VeloxColors) {
             )
         }
         Image(
-            painter = painterResource(R.drawable.logo_velox_bg),
+            painter = painterResource(R.drawable.logo_velox_home),
             contentDescription = "Velox",
             contentScale = ContentScale.Fit,
             modifier = Modifier.height(72.dp),
@@ -295,13 +335,15 @@ private fun ServiceCard(
     imageRes: Int,
     onTap: () -> Unit,
     c: VeloxColors,
+    disabled: Boolean = false,
 ) {
+    val grey = c.onSurfaceVariant.copy(alpha = 0.5f)
     Row(
         Modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(18.dp))
-            .background(c.surface)
-            .border(1.dp, c.outlineVariant.copy(alpha = 0.12f), RoundedCornerShape(18.dp))
+            .background(if (disabled) c.surfaceHigh.copy(alpha = 0.5f) else c.surface)
+            .border(1.dp, c.outlineVariant.copy(alpha = if (disabled) 0.08f else 0.12f), RoundedCornerShape(18.dp))
             .clickable(onClick = onTap)
             .padding(horizontal = 16.dp, vertical = 14.dp),
         verticalAlignment = Alignment.CenterVertically,
@@ -314,26 +356,45 @@ private fun ServiceCard(
                 .padding(10.dp),
             contentAlignment = Alignment.Center,
         ) {
-            Image(painterResource(imageRes), null, contentScale = ContentScale.Fit)
+            Image(
+                painterResource(imageRes),
+                null,
+                contentScale = ContentScale.Fit,
+                alpha = if (disabled) 0.35f else 1f,
+            )
         }
         Spacer(Modifier.width(16.dp))
         Column(Modifier.weight(1f)) {
             Text(
                 title,
-                color = c.onSurface,
+                color = if (disabled) grey else c.onSurface,
                 fontFamily = Poppins,
                 fontSize = 16.sp,
                 fontWeight = FontWeight.Bold,
                 letterSpacing = (-0.3).sp,
             )
             Spacer(Modifier.height(3.dp))
-            Text(subtitle, color = c.onSurfaceVariant, fontFamily = Inter, fontSize = 13.sp)
+            Text(subtitle, color = grey, fontFamily = Inter, fontSize = 13.sp)
         }
         Spacer(Modifier.width(8.dp))
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Icon(Icons.Filled.Star, null, tint = c.primary, modifier = Modifier.size(14.dp))
-            Spacer(Modifier.width(3.dp))
-            Text("4.8", color = c.primary, fontFamily = Inter, fontSize = 13.sp, fontWeight = FontWeight.Bold)
+        if (disabled) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(Icons.Filled.Build, null, tint = grey, modifier = Modifier.size(14.dp))
+                Spacer(Modifier.width(3.dp))
+                Text(
+                    stringResource(R.string.maintenance_label),
+                    color = grey,
+                    fontFamily = Inter,
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.Bold,
+                )
+            }
+        } else {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(Icons.Filled.Star, null, tint = c.primary, modifier = Modifier.size(14.dp))
+                Spacer(Modifier.width(3.dp))
+                Text("4.8", color = c.primary, fontFamily = Inter, fontSize = 13.sp, fontWeight = FontWeight.Bold)
+            }
         }
     }
 }
@@ -397,10 +458,7 @@ private fun Divider(c: VeloxColors) {
 
 // ── ACTIONS RAPIDES ──────────────────────────────────────────────────────────
 @Composable
-private fun QuickActions(onOpenOrders: () -> Unit, c: VeloxColors) {
-    val context = LocalContext.current
-    val soonMsg = stringResource(R.string.coming_soon)
-    val soon = { Toast.makeText(context, soonMsg, Toast.LENGTH_SHORT).show() }
+private fun QuickActions(onOpenOrders: () -> Unit, onOpenNotifications: () -> Unit, unreadNotifications: Int, c: VeloxColors) {
     Column {
         Text(
             stringResource(R.string.quick_actions),
@@ -411,18 +469,23 @@ private fun QuickActions(onOpenOrders: () -> Unit, c: VeloxColors) {
             letterSpacing = (-0.5).sp,
             modifier = Modifier.padding(start = 20.dp, top = 28.dp, end = 20.dp, bottom = 16.dp),
         )
-        Row(Modifier.padding(horizontal = 20.dp)) {
+        Row(Modifier.padding(horizontal = 20.dp), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            // Portefeuille/Paiements retirés (non fonctionnels).
             ActionCard(Icons.Filled.History, stringResource(R.string.history), onOpenOrders, c, Modifier.weight(1f))
-            Spacer(Modifier.width(10.dp))
-            ActionCard(Icons.Filled.CreditCard, stringResource(R.string.payments), soon, c, Modifier.weight(1f))
-            Spacer(Modifier.width(10.dp))
-            ActionCard(Icons.Filled.AccountBalanceWallet, stringResource(R.string.wallet), soon, c, Modifier.weight(1f))
+            ActionCard(Icons.Filled.Notifications, stringResource(R.string.my_notifications), onOpenNotifications, c, Modifier.weight(1f), badgeCount = unreadNotifications)
         }
     }
 }
 
 @Composable
-private fun ActionCard(icon: ImageVector, label: String, onTap: () -> Unit, c: VeloxColors, modifier: Modifier = Modifier) {
+private fun ActionCard(
+    icon: ImageVector,
+    label: String,
+    onTap: () -> Unit,
+    c: VeloxColors,
+    modifier: Modifier = Modifier,
+    badgeCount: Int = 0,
+) {
     Column(
         modifier
             .clip(RoundedCornerShape(16.dp))
@@ -432,7 +495,27 @@ private fun ActionCard(icon: ImageVector, label: String, onTap: () -> Unit, c: V
             .padding(vertical = 18.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
-        Icon(icon, null, tint = c.primary, modifier = Modifier.size(26.dp))
+        Box {
+            Icon(icon, null, tint = c.primary, modifier = Modifier.size(26.dp))
+            if (badgeCount > 0) {
+                Box(
+                    Modifier
+                        .align(Alignment.TopEnd)
+                        .offset(x = 8.dp, y = (-6).dp)
+                        .clip(CircleShape)
+                        .background(c.error)
+                        .padding(horizontal = 5.dp, vertical = 1.dp),
+                ) {
+                    Text(
+                        if (badgeCount > 9) "9+" else "$badgeCount",
+                        color = Color.White,
+                        fontFamily = Inter,
+                        fontSize = 10.sp,
+                        fontWeight = FontWeight.Bold,
+                    )
+                }
+            }
+        }
         Spacer(Modifier.height(8.dp))
         Text(label, color = c.onSurface, fontFamily = Inter, fontSize = 12.sp, fontWeight = FontWeight.W600)
     }
@@ -443,7 +526,7 @@ private fun ActionCard(icon: ImageVector, label: String, onTap: () -> Unit, c: V
 private fun Footer(c: VeloxColors) {
     Box(Modifier.fillMaxWidth().padding(vertical = 36.dp), contentAlignment = Alignment.Center) {
         Text(
-            "VELOX — SERVICE NATIONAL DJIBOUTIEN V1.0.0",
+            "VELOX CORP — SINCE 2026",
             color = c.onSurfaceVariant,
             fontFamily = Inter,
             fontSize = 10.sp,
@@ -458,10 +541,13 @@ private fun Footer(c: VeloxColors) {
 private fun BottomNav(onProfile: () -> Unit, c: VeloxColors, modifier: Modifier = Modifier) {
     Row(
         modifier
+            // Barre pleine largeur collée tout en bas : le fond descend jusqu'au bord de
+            // l'écran, le contenu reste au-dessus de la barre système (navigationBarsPadding).
             .fillMaxWidth()
+            .clip(RoundedCornerShape(topStart = 22.dp, topEnd = 22.dp))
             .background(c.surfaceLow)
             .navigationBarsPadding()
-            .height(72.dp),
+            .height(62.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         NavItem(Icons.Filled.Home, active = true, onTap = {}, c = c, modifier = Modifier.weight(1f))

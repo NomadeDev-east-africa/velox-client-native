@@ -30,6 +30,7 @@ import androidx.compose.material.icons.automirrored.filled.Label
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.LocationOff
 import androidx.compose.material.icons.filled.LocationOn
+import androidx.compose.material.icons.filled.Map
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.StarOutline
 import androidx.compose.material.icons.filled.Work
@@ -44,6 +45,7 @@ import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -242,14 +244,31 @@ fun AddAddressScreen(
     vm: AddressViewModel,
     addressId: String?,
     onBack: () -> Unit,
+    onPickLocation: () -> Unit,
+    pickedPlace: dj.velox.client.feature.location.PickedPlace?,
+    onConsumePicked: () -> Unit,
 ) {
     val c = VeloxTheme.colors
     val editing = remember(addressId) { addressId?.let(vm::addressById) }
 
+    // Seul champ manuel : le type (Maison / Bureau / Autre). Le nom et la position sont
+    // automatisés depuis le point choisi sur la carte (adresse via Nominatim).
     var type by rememberSaveable { mutableStateOf(editing?.type ?: "home") }
-    var name by rememberSaveable { mutableStateOf(editing?.name ?: "") }
     var address by rememberSaveable { mutableStateOf(editing?.address ?: "") }
-    var details by rememberSaveable { mutableStateOf(editing?.details ?: "") }
+    var lat by rememberSaveable { mutableStateOf(editing?.latitude ?: DJIBOUTI_LAT) }
+    var lng by rememberSaveable { mutableStateOf(editing?.longitude ?: DJIBOUTI_LNG) }
+    var hasLocation by rememberSaveable { mutableStateOf(editing != null) }
+
+    // Retour du sélecteur carte → applique adresse + coordonnées, puis consomme.
+    LaunchedEffect(pickedPlace) {
+        pickedPlace?.let {
+            address = it.address
+            lat = it.lat
+            lng = it.lng
+            hasLocation = true
+            onConsumePicked()
+        }
+    }
 
     Column(Modifier.fillMaxSize().background(c.bg)) {
         Row(
@@ -275,31 +294,22 @@ fun AddAddressScreen(
             }
 
             Spacer(Modifier.height(24.dp))
-            FieldLabel(stringResource(R.string.address_name), c)
-            Spacer(Modifier.height(12.dp))
-            AddressField(name, { name = it }, stringResource(R.string.address_name_hint), Icons.AutoMirrored.Filled.Label, c)
-
-            Spacer(Modifier.height(24.dp))
             FieldLabel(stringResource(R.string.address), c)
             Spacer(Modifier.height(12.dp))
-            AddressField(address, { address = it }, stringResource(R.string.address_hint), Icons.Filled.LocationOn, c, maxLines = 2)
-
-            Spacer(Modifier.height(24.dp))
-            FieldLabel(stringResource(R.string.extra_details), c)
-            Spacer(Modifier.height(12.dp))
-            AddressField(details, { details = it }, stringResource(R.string.details_hint), Icons.Outlined.Info, c, maxLines = 3)
+            LocationPickField(address, hasLocation && address.isNotBlank(), c, onPickLocation)
 
             Spacer(Modifier.height(32.dp))
-            val enabled = name.isNotBlank() && address.isNotBlank()
+            val enabled = hasLocation && address.isNotBlank()
             Box(
                 Modifier.fillMaxWidth().height(56.dp).clip(RoundedCornerShape(16.dp))
                     .background(if (enabled) c.primary else c.surfaceTop)
                     .clickable(enabled = enabled) {
+                        // Nom automatique = 1er segment de l'adresse Nominatim.
+                        val autoName = address.substringBefore(",").trim().ifBlank { address.trim() }
                         val result = Address(
                             id = editing?.id ?: "",
-                            name = name.trim(), address = address.trim(), details = details.trim(), type = type,
-                            latitude = editing?.latitude ?: DJIBOUTI_LAT,
-                            longitude = editing?.longitude ?: DJIBOUTI_LNG,
+                            name = autoName, address = address.trim(), details = "", type = type,
+                            latitude = lat, longitude = lng,
                             isDefault = editing?.isDefault ?: false,
                         )
                         if (editing != null) vm.update(editing.id, result, onBack) else vm.add(result, onBack)
@@ -315,6 +325,27 @@ fun AddAddressScreen(
             Spacer(Modifier.navigationBarsPadding())
             Spacer(Modifier.height(20.dp))
         }
+    }
+}
+
+/** Sélecteur d'emplacement : ouvre la carte ; affiche l'adresse choisie (auto Nominatim). */
+@Composable
+private fun LocationPickField(address: String, hasLocation: Boolean, c: VeloxColors, onClick: () -> Unit) {
+    Row(
+        Modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp)).background(c.surface)
+            .border(1.dp, if (hasLocation) c.primary else c.outlineVariant, RoundedCornerShape(14.dp))
+            .clickable(onClick = onClick).padding(16.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Icon(Icons.Filled.Map, null, tint = c.primary, modifier = Modifier.size(22.dp))
+        Spacer(Modifier.size(12.dp))
+        Text(
+            if (hasLocation) address else stringResource(R.string.pick_on_map),
+            color = if (hasLocation) c.onSurface else c.onSurfaceVariant,
+            fontFamily = Inter, fontSize = 14.sp, lineHeight = 20.sp, modifier = Modifier.weight(1f),
+        )
+        Spacer(Modifier.size(8.dp))
+        Icon(Icons.Filled.EditLocationAlt, null, tint = c.onSurfaceVariant, modifier = Modifier.size(20.dp))
     }
 }
 

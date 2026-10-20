@@ -21,6 +21,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.DeliveryDining
@@ -28,6 +29,7 @@ import androidx.compose.material.icons.filled.Place
 import androidx.compose.material.icons.filled.Restaurant
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -64,6 +66,7 @@ fun OrderTrackingScreen(
     onExit: () -> Unit,
     onConfirmDelivery: () -> Unit,
     onTrackDriver: () -> Unit,
+    onBack: () -> Unit,
     vm: OrderTrackingViewModel = hiltViewModel(),
 ) {
     val c = VeloxTheme.colors
@@ -84,6 +87,7 @@ fun OrderTrackingScreen(
                 order = order, c = c,
                 onConfirmDelivery = onConfirmDelivery,
                 onTrackDriver = onTrackDriver,
+                onBack = onBack,
             )
         }
     }
@@ -95,15 +99,20 @@ private fun OrderContent(
     c: VeloxColors,
     onConfirmDelivery: () -> Unit,
     onTrackDriver: () -> Unit,
+    onBack: () -> Unit,
 ) {
     Column(Modifier.fillMaxSize()) {
-        // ── Barre supérieure : logo seul (boutons menu/croix retirés) ──
-        Row(
-            Modifier.fillMaxWidth().background(c.surfaceLow).statusBarsPadding().padding(horizontal = 16.dp, vertical = 10.dp),
-            horizontalArrangement = Arrangement.Center,
-            verticalAlignment = Alignment.CenterVertically,
+        // ── Barre supérieure : retour + logo centré ──
+        Box(
+            Modifier.fillMaxWidth().background(c.surfaceLow).statusBarsPadding().padding(horizontal = 8.dp, vertical = 6.dp),
         ) {
-            Image(painterResource(R.drawable.logo_velox_bg), "Velox", contentScale = ContentScale.Fit, modifier = Modifier.height(34.dp))
+            IconButton(onClick = onBack, modifier = Modifier.align(Alignment.CenterStart)) {
+                Icon(Icons.AutoMirrored.Filled.ArrowBack, stringResource(R.string.back), tint = c.onSurface)
+            }
+            Image(
+                painterResource(R.drawable.logo_velox_home), "Velox", contentScale = ContentScale.Fit,
+                modifier = Modifier.height(34.dp).align(Alignment.Center),
+            )
         }
 
         Column(Modifier.weight(1f).verticalScroll(rememberScrollState()).padding(16.dp)) {
@@ -126,7 +135,8 @@ private fun OrderContent(
 
 private data class Step(val label: String, val sub: String)
 
-private fun currentStepIndex(status: String): Int = when (status) {
+/** Étape du stepper PROCESS STATUS (0..4) — réutilisé par [FloatingOrderStatusWidget]. */
+fun currentStepIndex(status: String): Int = when (status) {
     Order.STATUS_PENDING, Order.STATUS_CONFIRMED, Order.STATUS_ACCEPTED -> 0
     Order.STATUS_PREPARING -> 1
     Order.STATUS_READY -> 2
@@ -222,6 +232,19 @@ fun Manifest(order: Order, c: VeloxColors) {
     Spacer(Modifier.height(12.dp))
     order.items.forEach { item ->
         ManifestRow("${item.quantity}x  ${item.name.uppercase()}", "${item.totalPrice} FDJ", c)
+        // Extras/accompagnements/milkshake/suppléments (tous stockés dans `extras`, les groupes
+        // « sauce » à part dans `sauces` — voir OptionSelection.toCart) : le client doit
+        // retrouver EXACTEMENT ce qu'il a choisi, pas juste le nom du plat.
+        val addons = item.selectedExtras.map { it.name to it.price } + item.selectedSauces.map { it.name to it.price }
+        if (addons.isNotEmpty()) {
+            Text(
+                addons.joinToString("  •  ") { (name, price) -> "$name${if (price > 0) " (+$price FDJ)" else ""}" },
+                color = c.onSurfaceVariant,
+                fontFamily = Inter,
+                fontSize = 12.sp,
+                modifier = Modifier.padding(bottom = 6.dp),
+            )
+        }
     }
     ManifestRow(stringResource(R.string.delivery).uppercase(), "${order.deliveryFee} FDJ", c, muted = true)
     if (order.discount > 0) ManifestRow(stringResource(R.string.loyalty_discount).uppercase(), "−${order.discount} FDJ", c, muted = true)

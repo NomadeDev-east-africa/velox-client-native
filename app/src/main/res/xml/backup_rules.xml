@@ -1,13 +1,21 @@
-<?xml version="1.0" encoding="utf-8"?><!--
-   Sample backup rules file; uncomment and customize as necessary.
-   See https://developer.android.com/guide/topics/data/autobackup
-   for details.
-   Note: This file is ignored for devices older than API 31
-   See https://developer.android.com/about/versions/12/backup-restore
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+   Règles de sauvegarde automatique (Android 11 et antérieurs ;
+   voir data_extraction_rules.xml pour Android 12+).
+
+   On EXCLUT les SharedPreferences et le DataStore. Motif : Firebase Auth y persiste la
+   session chiffrée par une clé de l'AndroidKeyStore, liée au matériel et JAMAIS sauvegardée.
+   Restaurer ces fichiers sur un autre appareil (ou après réinstallation) ramène donc des
+   octets chiffrés sans la clé correspondante → « FirebearCryptoHelper: decryption failed »,
+   et l'auth reste dans un état incohérent.
+
+   Le DataStore `velox_store` est exclu pour la même raison que VeloxLocalStore.clearAllSession() :
+   panier et course active ne doivent pas ressusciter sur un appareil où un autre compte se connecte.
+
+   Aucune perte réelle : l'état utilisateur (profil, commandes, courses) vit dans Firestore,
+   indexé par uid, et revient seul à la connexion.
 -->
 <full-backup-content>
-    <!--
-   <include domain="sharedpref" path="."/>
-   <exclude domain="sharedpref" path="device.xml"/>
--->
+    <exclude domain="sharedpref" path="." />
+    <exclude domain="file" path="datastore" />
 </full-backup-content>

@@ -35,10 +35,11 @@ class EditProfileViewModel @Inject constructor(
         }
     }
 
-    fun save(name: String, phone: String?, birthDateMillis: Long?, onDone: () -> Unit) {
+    /** NB : le téléphone n'est pas modifiable ici — il passe par `ChangePhoneViewModel` (OTP). */
+    fun save(name: String, birthDateMillis: Long?, onDone: () -> Unit) {
         viewModelScope.launch {
             _ui.value = _ui.value.copy(isSaving = true, error = null)
-            runCatching { userService.updateProfile(name = name, phone = phone, birthDateMillis = birthDateMillis) }
+            runCatching { userService.updateProfile(name = name, birthDateMillis = birthDateMillis) }
                 .onSuccess { _ui.value = _ui.value.copy(isSaving = false); onDone() }
                 .onFailure { _ui.value = _ui.value.copy(isSaving = false, error = it.message) }
         }
