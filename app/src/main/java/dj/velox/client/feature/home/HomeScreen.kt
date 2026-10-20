@@ -117,14 +117,7 @@ fun HomeScreen(
             LoyaltyCard(available, badge, c)
             SectionRow(stringResource(R.string.our_services), c)
             Column(Modifier.padding(horizontal = 20.dp)) {
-                ServiceCard(
-                    title = "VTC DJIB",
-                    subtitle = stringResource(R.string.vtc_maintenance_subtitle),
-                    imageRes = R.drawable.taxi_b,
-                    onTap = { showVtcMaintenanceDialog = true },
-                    c = c,
-                    disabled = true,
-                )
+                ServiceCard("VTC DJIB", stringResource(R.string.vtc_subtitle), R.drawable.taxi_b, onOpenTaxi, c)
                 Spacer(Modifier.height(12.dp))
                 ServiceCard(stringResource(R.string.restaurants_fastfood), stringResource(R.string.food_subtitle), R.drawable.fast_food, onOpenFood, c)
             }

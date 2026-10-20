@@ -91,6 +91,32 @@ private const val IMG_DEST = "velox-pin-dest"
  */
 enum class MapMarkerStyle { RIDE, DELIVERY, RIDE_TRACKING }
 
+/**
+ * Initialise MapLibre une seule fois et indique si la carte est utilisable.
+ * Sur certains appareils la lib native (`libmaplibre.so`) ne se charge pas (APK installé sans
+ * le split natif de l'AAB, ABI absente…) : `MapLibre.getInstance` lève alors une
+ * `UnsatisfiedLinkError` (crash Crashlytics c218ae58, build 16). On l'attrape, on la remonte
+ * en non-fatal et l'écran garde son fond neutre au lieu de crasher.
+ * Résultat mis en cache : après un échec, MapLibre garde une instance à moitié initialisée,
+ * donc on ne retente pas.
+ */
+private object MapLibreSupport {
+    @Volatile private var available: Boolean? = null
+
+    fun isAvailable(context: android.content.Context): Boolean {
+        available?.let { return it }
+        return synchronized(this) {
+            available ?: try {
+                MapLibre.getInstance(context.applicationContext)
+                true
+            } catch (e: LinkageError) {
+                com.google.firebase.crashlytics.FirebaseCrashlytics.getInstance().recordException(e)
+                false
+            }.also { available = it }
+        }
+    }
+}
+
 /** Rasterise un drawable vectoriel en Bitmap (pour `Style.addImage`). */
 private fun drawableToBitmap(context: android.content.Context, resId: Int): android.graphics.Bitmap {
     val drawable = androidx.core.content.res.ResourcesCompat.getDrawable(context.resources, resId, context.theme)!!
@@ -129,6 +155,8 @@ fun VeloxMap(
     // Montage différé : on rend d'abord un placeholder léger (couleur de surface), puis on
     // monte la MapView (init OpenGL coûteuse) au frame SUIVANT. La composition/scroll initiale
     // n'est donc plus bloquée par l'init GL — c'est la cause des freezes ~800 ms à l'ouverture.
+    val context = LocalContext.current
+    val mapAvailable = remember { MapLibreSupport.isAvailable(context) }
     var mounted by remember { mutableStateOf(false) }
     LaunchedEffect(Unit) {
         withFrameNanos { } // laisse le 1er frame se dessiner
@@ -140,7 +168,7 @@ fun VeloxMap(
                 .fillMaxSize()
                 .background(if (darkTiles) Color(0xFF0E0E0E) else Color(0xFFF5F5F5)),
         )
-        if (mounted) {
+        if (mounted && mapAvailable) {
             VeloxMapContent(
                 center = center,
                 modifier = Modifier.fillMaxSize(),
@@ -172,10 +200,8 @@ private fun VeloxMapContent(
 ) {
     val context = LocalContext.current
     val styleJson = remember(darkTiles) { cartoStyleJson(darkTiles) }
-    val mapView = remember {
-        MapLibre.getInstance(context)
-        MapView(context).apply { onCreate(null) }
-    }
+    // MapLibre déjà initialisé par MapLibreSupport (ce composable n'est monté que si OK).
+    val mapView = remember { MapView(context).apply { onCreate(null) } }
     var mlMap by remember { mutableStateOf<MapLibreMap?>(null) }
     var mlStyle by remember { mutableStateOf<Style?>(null) }
 
